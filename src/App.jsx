@@ -4,9 +4,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // 1. Import Layout & Satpam
 import LayoutUtama from './layouts/LayoutUtama';
-import ProtectedRoute from './components/ProtectedRoute'; // <-- HANYA SATU IMPORT
+import ProtectedRoute from './components/ProtectedRoute'; 
 
-// 2. Import Halaman
+// 2. Import Halaman (PASTIKAN SEMUANYA ADA DI SINI)
 import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
 import DatabaseKaryawan from './pages/DatabaseKaryawan';
