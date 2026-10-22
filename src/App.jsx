@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 // 1. Import Layout & Satpam
 import LayoutUtama from './layouts/LayoutUtama';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './pages/ProtectedRoute';
 
 // 2. Import Halaman
 import Login from './pages/Login';
