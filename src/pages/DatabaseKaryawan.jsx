@@ -3,6 +3,20 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Filter, X, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
+// KOMPONEN INPUT DIPINDAH KE LUAR AGAR TIDAK FOKUS HILANG SAAT MENGETIK
+const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+    <input
+      type={type}
+      value={formData[name] || ''}
+      onChange={(e) => setFormData({...formData, [name]: e.target.value})}
+      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+      placeholder={placeholder}
+    />
+  </div>
+);
+
 export default function DatabaseKaryawan() {
   const [karyawanList, setKaryawanList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,20 +107,6 @@ export default function DatabaseKaryawan() {
     if (status === 'Cuti') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
     return 'bg-red-100 text-red-700 border-red-200'; 
   };
-
-  // Helper untuk Input Form agar ringkas
-  const InputField = ({ label, name, type = "text", placeholder = "" }) => (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-      <input
-        type={type}
-        value={formData[name] || ''}
-        onChange={(e) => setFormData({...formData, [name]: e.target.value})}
-        className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder={placeholder}
-      />
-    </div>
-  );
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative">
@@ -206,11 +206,11 @@ export default function DatabaseKaryawan() {
               {/* TAB 1: DATA PRIBADI */}
               {activeTab === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Nama Lengkap *" name="nama" placeholder="Sesuai KTP" />
-                  <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Cth: MGR.SPBU-001" />
-                  <InputField label="No. Handphone" name="no_hp" placeholder="0812..." />
-                  <InputField label="Email" name="email" type="email" placeholder="nama@email.com" />
-                  <InputField label="Tanggal Lahir" name="tanggal_lahir" type="date" />
+                  <InputField label="Nama Lengkap *" name="nama" placeholder="Sesuai KTP" formData={formData} setFormData={setFormData} />
+                  <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Cth: MGR.SPBU-001" formData={formData} setFormData={setFormData} />
+                  <InputField label="No. Handphone" name="no_hp" placeholder="0812..." formData={formData} setFormData={setFormData} />
+                  <InputField label="Email" name="email" type="email" placeholder="nama@email.com" formData={formData} setFormData={setFormData} />
+                  <InputField label="Tanggal Lahir" name="tanggal_lahir" type="date" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label>
                     <select value={formData.jenis_kelamin} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white">
@@ -219,7 +219,7 @@ export default function DatabaseKaryawan() {
                       <option value="Perempuan">Perempuan</option>
                     </select>
                   </div>
-                  <InputField label="Status Pernikahan" name="status_pernikahan" placeholder="Cth: K/0, TK/0" />
+                  <InputField label="Status Pernikahan" name="status_pernikahan" placeholder="Cth: K/0, TK/0" formData={formData} setFormData={setFormData} />
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap</label>
                     <textarea value={formData.alamat} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
@@ -230,7 +230,7 @@ export default function DatabaseKaryawan() {
               {/* TAB 2: KEPEGAWAIAN & GAJI */}
               {activeTab === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Posisi / Jabatan *" name="posisi" placeholder="Cth: Kasir, Operator" />
+                  <InputField label="Posisi / Jabatan *" name="posisi" placeholder="Cth: Kasir, Operator" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Shift</label>
                     <select value={formData.shift} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white">
@@ -248,28 +248,28 @@ export default function DatabaseKaryawan() {
                       <option value="Tidak Aktif">Tidak Aktif</option>
                     </select>
                   </div>
-                  <InputField label="Tanggal Masuk" name="tanggal_masuk" type="date" />
-                  <InputField label="Tanggal Keluar" name="tanggal_keluar" type="date" />
-                  <InputField label="Gaji Pokok (Angka saja)" name="gaji_pokok" type="number" placeholder="Cth: 5000000" />
-                  <InputField label="NPWP" name="npwp" placeholder="Nomor NPWP" />
-                  <InputField label="Nama Rekening Bank" name="nama_rekening" placeholder="Cth: BCA / Mandiri" />
-                  <InputField label="Nomor Rekening" name="nomor_rekening" placeholder="Angka Rekening" />
+                  <InputField label="Tanggal Masuk" name="tanggal_masuk" type="date" formData={formData} setFormData={setFormData} />
+                  <InputField label="Tanggal Keluar" name="tanggal_keluar" type="date" formData={formData} setFormData={setFormData} />
+                  <InputField label="Gaji Pokok (Angka saja)" name="gaji_pokok" type="number" placeholder="Cth: 5000000" formData={formData} setFormData={setFormData} />
+                  <InputField label="NPWP" name="npwp" placeholder="Nomor NPWP" formData={formData} setFormData={setFormData} />
+                  <InputField label="Nama Rekening Bank" name="nama_rekening" placeholder="Cth: BCA / Mandiri" formData={formData} setFormData={setFormData} />
+                  <InputField label="Nomor Rekening" name="nomor_rekening" placeholder="Angka Rekening" formData={formData} setFormData={setFormData} />
                 </div>
               )}
 
               {/* TAB 3: BERKAS & JAMINAN */}
               {activeTab === 3 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Nomor e-KTP" name="no_ktp" placeholder="16 Digit NIK" />
-                  <InputField label="Nomor Kartu Keluarga (KK)" name="no_kk" placeholder="16 Digit No KK" />
-                  <InputField label="BPJS Kesehatan" name="no_bpjs_kesehatan" placeholder="Nomor BPJS Kes" />
-                  <InputField label="BPJS Ketenagakerjaan" name="no_bpjs_ketenagakerjaan" placeholder="Nomor BPJS TK" />
+                  <InputField label="Nomor e-KTP" name="no_ktp" placeholder="16 Digit NIK" formData={formData} setFormData={setFormData} />
+                  <InputField label="Nomor Kartu Keluarga (KK)" name="no_kk" placeholder="16 Digit No KK" formData={formData} setFormData={setFormData} />
+                  <InputField label="BPJS Kesehatan" name="no_bpjs_kesehatan" placeholder="Nomor BPJS Kes" formData={formData} setFormData={setFormData} />
+                  <InputField label="BPJS Ketenagakerjaan" name="no_bpjs_ketenagakerjaan" placeholder="Nomor BPJS TK" formData={formData} setFormData={setFormData} />
                   <div className="md:col-span-2 border-t pt-4 mt-2"><p className="text-sm font-semibold text-slate-700 mb-3">Tautan Dokumen (Google Drive / Link)</p></div>
-                  <InputField label="Link Pas Foto" name="link_pas_foto" placeholder="https://..." />
-                  <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." />
-                  <InputField label="Link Kartu Keluarga" name="link_kk" placeholder="https://..." />
-                  <InputField label="Link Kontrak Kerja" name="link_kontrak" placeholder="https://..." />
-                  <InputField label="Link Catatan Lain" name="link_catatan" placeholder="https://..." />
+                  <InputField label="Link Pas Foto" name="link_pas_foto" placeholder="https://..." formData={formData} setFormData={setFormData} />
+                  <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." formData={formData} setFormData={setFormData} />
+                  <InputField label="Link Kartu Keluarga" name="link_kk" placeholder="https://..." formData={formData} setFormData={setFormData} />
+                  <InputField label="Link Kontrak Kerja" name="link_kontrak" placeholder="https://..." formData={formData} setFormData={setFormData} />
+                  <InputField label="Link Catatan Lain" name="link_catatan" placeholder="https://..." formData={formData} setFormData={setFormData} />
                 </div>
               )}
             </form>
