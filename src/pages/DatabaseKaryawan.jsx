@@ -23,17 +23,15 @@ const InputField = ({ label, name, type = "text", placeholder = "", formData, se
 
 export default function DatabaseKaryawan() {
   const [karyawanList, setKaryawanList] = useState([]);
+  const [listShift, setListShift] = useState([]); // State untuk daftar shift dinamis
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Semua'); 
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(1);
-  
-  // State untuk Edit (Menyimpan ID karyawan yang sedang diedit)
   const [editingId, setEditingId] = useState(null);
 
-  // State Form Lengkap
   const [formData, setFormData] = useState({
     nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
     no_hp: '', email: '', tanggal_lahir: '', jenis_kelamin: '', 
@@ -54,9 +52,21 @@ export default function DatabaseKaryawan() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchKaryawan(); }, []);
+  // Ambil daftar Shift dari Pengaturan Sistem
+  const fetchShift = async () => {
+    const { data } = await supabase.from('pengaturan_shift').select('nama_shift').order('id', { ascending: true });
+    if (data && data.length > 0) {
+      setListShift(data.map(s => s.nama_shift));
+    } else {
+      setListShift(['Pagi', 'Siang', 'Malam', '-']); // Fallback jika kosong
+    }
+  };
 
-  // FUNGSI PINTAR: Generate Nomor Karyawan Otomatis (Hanya jika tambah baru)
+  useEffect(() => { 
+    fetchKaryawan(); 
+    fetchShift();
+  }, []);
+
   const generateNomorKaryawan = (posisiDipilih) => {
     if (!posisiDipilih) return '';
     let prefix = 'KRY.SPBU';
@@ -87,8 +97,8 @@ export default function DatabaseKaryawan() {
 
   const handlePosisiChange = (e) => {
     const posisiBaru = e.target.value.toUpperCase();
-    // Hanya generate nomor otomatis jika sedang TAMBAH BARU (editingId null)
-    if (!editingId) {
+    // JIKA KOSONG saat edit, ATAU sedang tambah baru, generate nomor
+    if (!editingId || !formData.nomor_karyawan) {
       const nomorOtomatis = generateNomorKaryawan(posisiBaru);
       setFormData({ ...formData, posisi: posisiBaru, nomor_karyawan: nomorOtomatis });
     } else {
@@ -102,19 +112,19 @@ export default function DatabaseKaryawan() {
     setDisplayGaji(rawValue ? formatRupiah(rawValue) : '');
   };
 
-  // FUNGSI BUKA MODAL EDIT
   const handleEdit = (karyawan) => {
-    setFormData(karyawan);
+    // Paksa shift menjadi strip jika kosong agar dropdown tidak error
+    const dataKaryawan = { ...karyawan, shift: karyawan.shift || '-' };
+    setFormData(dataKaryawan);
     setDisplayGaji(karyawan.gaji_pokok ? formatRupiah(karyawan.gaji_pokok) : '');
     setEditingId(karyawan.id);
     setIsModalOpen(true);
     setActiveTab(1);
   };
 
-  // FUNGSI TUTUP MODAL / RESET FORM
   const handleTutupModal = () => {
     setFormData({
-      nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
+      nama: '', nomor_karyawan: '', posisi: '', shift: listShift[0] || 'Pagi', status: 'Aktif',
       no_hp: '', email: '', tanggal_lahir: '', jenis_kelamin: '', 
       tanggal_masuk: '', tanggal_keluar: '', status_pernikahan: '', alamat: '',
       no_ktp: '', no_kk: '',
@@ -140,23 +150,13 @@ export default function DatabaseKaryawan() {
     };
 
     if (editingId) {
-      // PROSES UPDATE
       const { error } = await supabase.from('karyawan').update(dataToInsert).eq('id', editingId);
-      if (error) {
-        alert('Gagal update data: ' + error.message);
-      } else {
-        handleTutupModal();
-        fetchKaryawan();
-      }
+      if (error) alert('Gagal update data: ' + error.message);
+      else { handleTutupModal(); fetchKaryawan(); }
     } else {
-      // PROSES INSERT (TAMBAH BARU)
       const { error } = await supabase.from('karyawan').insert([dataToInsert]);
-      if (error) {
-        alert('Gagal menyimpan: ' + error.message);
-      } else {
-        handleTutupModal();
-        fetchKaryawan();
-      }
+      if (error) alert('Gagal menyimpan: ' + error.message);
+      else { handleTutupModal(); fetchKaryawan(); }
     }
   };
 
@@ -230,7 +230,6 @@ export default function DatabaseKaryawan() {
                 <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
                 <td className="py-4 px-6">
                   <div className="flex items-center justify-center gap-2">
-                    {/* TOMBOL EDIT DI SINI */}
                     <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Edit size={18} /></button>
                     <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={18} /></button>
                   </div>
@@ -304,10 +303,11 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Shift</label>
-                    <select value={formData.shift || 'Pagi'} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      <option value="Pagi">Pagi</option>
-                      <option value="Siang">Siang</option>
-                      <option value="Malam">Malam</option>
+                    {/* DROPDOWN SHIFT DINAMIS DARI DATABASE */}
+                    <select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
+                      {listShift.map((shift, idx) => (
+                        <option key={idx} value={shift}>{shift}</option>
+                      ))}
                       <option value="-">-</option>
                     </select>
                   </div>
