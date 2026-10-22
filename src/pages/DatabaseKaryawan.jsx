@@ -2,14 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, Filter, X, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { formatRupiah } from '../lib/formatHelper'; // Import fungsi Rupiah
 
-const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData }) => (
+const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
     <input
       type={type}
-      value={formData[name] || ''}
-      onChange={(e) => setFormData({...formData, [name]: e.target.value})}
+      value={value !== undefined ? value : (formData[name] || '')}
+      onChange={onChange ? onChange : (e) => setFormData({...formData, [name]: e.target.value})}
       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
       placeholder={placeholder}
     />
@@ -36,6 +37,9 @@ export default function DatabaseKaryawan() {
     link_pas_foto: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
   });
 
+  // State khusus untuk menampilkan format Rupiah di form input gaji
+  const [displayGaji, setDisplayGaji] = useState('');
+
   const fetchKaryawan = async () => {
     setIsLoading(true);
     const { data, error } = await supabase.from('karyawan').select('*').order('id', { ascending: true });
@@ -49,8 +53,6 @@ export default function DatabaseKaryawan() {
   // FUNGSI PINTAR: Generate Nomor Karyawan Otomatis
   const generateNomorKaryawan = (posisiDipilih) => {
     if (!posisiDipilih) return '';
-    
-    // Tentukan kode depan berdasarkan jabatan
     let prefix = 'KRY.SPBU';
     const pos = posisiDipilih.toLowerCase();
     if (pos.includes('kasir')) prefix = 'KAS.SPBU';
@@ -61,35 +63,47 @@ export default function DatabaseKaryawan() {
     else if (pos.includes('security') || pos.includes('sekuriti')) prefix = 'PAM.SPBU';
     else if (pos.includes('cleaning')) prefix = 'CS.SPBU';
 
-    // Cari nomor urut terakhir untuk jabatan ini dari data yang ada
     const listPosisiSama = karyawanList.filter(k => k.posisi && k.posisi.toLowerCase().includes(pos.includes('kasir') ? 'kasir' : pos));
     let maxNumber = 0;
     
     listPosisiSama.forEach(k => {
       if (k.nomor_karyawan && k.nomor_karyawan.includes(prefix)) {
-        const numStr = k.nomor_karyawan.split('-')[1]; // Ambil angka di belakang strip
+        const numStr = k.nomor_karyawan.split('-')[1];
         if (numStr) {
           const num = parseInt(numStr, 10);
           if (num > maxNumber) maxNumber = num;
         }
       }
     });
-
     const nextNumber = String(maxNumber + 1).padStart(3, '0');
     return `${prefix}-${nextNumber}`;
   };
 
-  // Efek samping: Saat posisi berubah, otomatis isi nomor karyawan
   const handlePosisiChange = (e) => {
-    const posisiBaru = e.target.value;
+    // Otomatis jadikan Kapital
+    const posisiBaru = e.target.value.toUpperCase();
     const nomorOtomatis = generateNomorKaryawan(posisiBaru);
     setFormData({ ...formData, posisi: posisiBaru, nomor_karyawan: nomorOtomatis });
   };
 
+  // Fungsi format input gaji ke Rupiah saat diketik
+  const handleGajiChange = (e) => {
+    const rawValue = e.target.value.replace(/[^0-9]/g, ''); // Hanya ambil angka
+    setFormData({ ...formData, gaji_pokok: rawValue });
+    setDisplayGaji(rawValue ? formatRupiah(rawValue) : '');
+  };
+
   const handleSimpan = async (e) => {
     e.preventDefault();
+    
+    // Konversi semua input teks ke KAPITAL sebelum disimpan (kecuali email & link)
     const dataToInsert = {
       ...formData,
+      nama: formData.nama.toUpperCase(),
+      posisi: formData.posisi.toUpperCase(),
+      alamat: formData.alamat.toUpperCase(),
+      nama_rekening: formData.nama_rekening.toUpperCase(),
+      status_pernikahan: formData.status_pernikahan.toUpperCase(),
       tanggal_lahir: formData.tanggal_lahir || null,
       tanggal_masuk: formData.tanggal_masuk || null,
       tanggal_keluar: formData.tanggal_keluar || null,
@@ -110,6 +124,7 @@ export default function DatabaseKaryawan() {
         no_bpjs_kesehatan: '', no_bpjs_ketenagakerjaan: '',
         link_pas_foto: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
       });
+      setDisplayGaji('');
       setActiveTab(1);
       setIsModalOpen(false);
       fetchKaryawan();
@@ -169,13 +184,14 @@ export default function DatabaseKaryawan() {
               <th className="py-4 px-6 font-semibold">No</th>
               <th className="py-4 px-6 font-semibold">Nama & No. Karyawan</th>
               <th className="py-4 px-6 font-semibold">Posisi</th>
+              <th className="py-4 px-6 font-semibold">Gaji Pokok</th>
               <th className="py-4 px-6 font-semibold">Status</th>
               <th className="py-4 px-6 font-semibold text-center">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {isLoading ? (
-              <tr><td colSpan="5" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
+              <tr><td colSpan="6" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
             ) : filteredKaryawan.map((k, index) => (
               <tr key={k.id} className="hover:bg-slate-50/50">
                 <td className="py-4 px-6 text-slate-500">{index + 1}</td>
@@ -184,6 +200,8 @@ export default function DatabaseKaryawan() {
                   <div className="text-xs text-slate-500">{k.nomor_karyawan || '-'}</div>
                 </td>
                 <td className="py-4 px-6 text-slate-600">{k.posisi}</td>
+                {/* TAMPILAN GAJI DENGAN FORMAT RUPIAH */}
+                <td className="py-4 px-6 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
                 <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
                 <td className="py-4 px-6 text-center">
                   <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button>
@@ -252,7 +270,7 @@ export default function DatabaseKaryawan() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label>
-                    <input type="text" value={formData.posisi} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500" placeholder="Cth: Kasir, Operator" />
+                    <input type="text" value={formData.posisi} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 uppercase" placeholder="Cth: KASIR, OPERATOR" />
                   </div>
                   <InputField label="Nomor Karyawan (Otomatis)" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div>
@@ -274,7 +292,19 @@ export default function DatabaseKaryawan() {
                   </div>
                   <InputField label="Tanggal Masuk" name="tanggal_masuk" type="date" formData={formData} setFormData={setFormData} />
                   <InputField label="Tanggal Keluar" name="tanggal_keluar" type="date" formData={formData} setFormData={setFormData} />
-                  <InputField label="Gaji Pokok (Angka saja)" name="gaji_pokok" type="number" formData={formData} setFormData={setFormData} />
+                  
+                  {/* INPUT GAJI DENGAN FORMAT RUPIAH */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Gaji Pokok</label>
+                    <input 
+                      type="text" 
+                      value={displayGaji} 
+                      onChange={handleGajiChange} 
+                      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                      placeholder="Rp 0" 
+                    />
+                  </div>
+
                   <InputField label="BPJS Kesehatan" name="no_bpjs_kesehatan" formData={formData} setFormData={setFormData} />
                   <InputField label="BPJS Ketenagakerjaan" name="no_bpjs_ketenagakerjaan" formData={formData} setFormData={setFormData} />
                   <InputField label="NPWP" name="npwp" formData={formData} setFormData={setFormData} />
