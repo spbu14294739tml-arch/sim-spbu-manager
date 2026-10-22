@@ -219,8 +219,21 @@ export default function DatabaseKaryawan() {
                       <option value="Perempuan">Perempuan</option>
                     </select>
                   </div>
-                  <InputField label="Status Pernikahan" name="status_pernikahan" placeholder="Cth: K/0, TK/0" formData={formData} setFormData={setFormData} />
-                  <div className="md:col-span-2">
+<div>
+  <label className="block text-sm font-medium text-slate-700 mb-1">Status Pernikahan (PTKP)</label>
+  <select 
+    value={formData.status_pernikahan} 
+    onChange={(e) => setFormData({...formData, status_pernikahan: e.target.value})} 
+    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+  >
+    <option value="">Pilih Status...</option>
+    <option value="TK/0">TK/0 (Belum Menikah)</option>
+    <option value="K/0">K/0 (Menikah, 0 Tanggungan)</option>
+    <option value="K/1">K/1 (Menikah, 1 Tanggungan)</option>
+    <option value="K/2">K/2 (Menikah, 2 Tanggungan)</option>
+    <option value="K/3">K/3 (Menikah, 3 Tanggungan)</option>
+  </select>
+</div>                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap</label>
                     <textarea value={formData.alamat} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
                   </div>
