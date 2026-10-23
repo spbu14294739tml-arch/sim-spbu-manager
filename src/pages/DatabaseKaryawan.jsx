@@ -1,4 +1,5 @@
 // src/pages/DatabaseKaryawan.jsx
+import KopSurat from '../components/KopSurat';
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, Search, Plus, X, Loader2, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import KopSurat from '../components/KopSurat'; // <-- IMPORT KOP SURAT
 
 export default function LaporanKerusakan() {
   const [laporanList, setLaporanList] = useState([]);
@@ -79,12 +80,11 @@ export default function LaporanKerusakan() {
         </div>
       </div>
 
-      {/* JUDUL KHUSUS CETAK */}
-      <div className="hidden print:block mb-6 text-center">
-        <h1 className="text-2xl font-bold text-black uppercase">Laporan Kerusakan Fasilitas</h1>
-        <p className="text-black text-sm">SPBU 14.294.739 - Dicetak pada: {new Date().toLocaleDateString('id-ID')}</p>
-        <hr className="border-black my-4" />
-      </div>
+      {/* KOMPONEN KOP SURAT (Hanya muncul saat dicetak) */}
+      <KopSurat 
+        judul="Laporan Kerusakan Fasilitas" 
+        periode={new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })} 
+      />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         <div className="overflow-x-auto">
