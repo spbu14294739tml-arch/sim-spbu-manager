@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag } from 'lucide-react';
+import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag, Image as ImageIcon } from 'lucide-react';
 
 export default function Kasir() {
   const [activeTab, setActiveTab] = useState('BBM'); // 'BBM' atau 'NFR'
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
+  const [listProdukNFR, setListProdukNFR] = useState([]); // State untuk produk NFR
   
-  // State untuk menampung data dari KEDUA tabel
   const [transaksiBBM, setTransaksiBBM] = useState([]);
   const [transaksiNFR, setTransaksiNFR] = useState([]);
   
@@ -19,20 +19,22 @@ export default function Kasir() {
     total_harga: ''
   });
 
+  // State Form BBM
   const [bbmData, setBbmData] = useState({
     dispenser: 'DISPENSER 1', jenis_bbm: 'PERTALITE', jumlah_liter: '', operator: ''
   });
 
+  // State Form NFR
   const [nfrData, setNfrData] = useState({
-    jenis_nfr: 'LPG', produk_nfr: 'LPG 3 KG', jumlah: '', kasir_foreman: ''
+    produk_id: '', // Menyimpan ID produk dari database
+    jumlah: '',
+    kasir_foreman: ''
   });
 
   const [displayHarga, setDisplayHarga] = useState('');
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
   const listBBM = ['PERTALITE', 'PERTAMAX', 'PERTAMAX TURBO', 'BIOSOLAR', 'DEXLITE'];
-  const listLPG = ['LPG 3 KG', 'LPG 5.5 KG', 'LPG 12 KG'];
-  const listOli = ['MESRAN SUPREME SAE 20W-50', 'MESRAN SUPREME SAE 10W-30', 'PRIMA XP SAE 20W-50', 'ENDURA M3 SAE 15W-40'];
   const listKasirForeman = ['KASIR', 'FOREMAN'];
 
   const getTodayDate = () => {
@@ -45,18 +47,23 @@ export default function Kasir() {
 
   const fetchData = async () => {
     setIsLoading(true);
-    // Ambil Shift
+    
+    // 1. Ambil Shift
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData && shiftData.length > 0) {
       setListShift(shiftData.map(s => s.nama_shift));
       if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
     }
 
-    // Ambil Transaksi BBM Hari Ini
+    // 2. Ambil Produk NFR dari Database
+    const { data: produkData } = await supabase.from('master_produk_nfr').select('*').order('nama_produk');
+    if (produkData) setListProdukNFR(produkData);
+
+    // 3. Ambil Transaksi BBM Hari Ini
     const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
     if (dataBBM) setTransaksiBBM(dataBBM);
 
-    // Ambil Transaksi NFR Hari Ini
+    // 4. Ambil Transaksi NFR Hari Ini
     const { data: dataNFR } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
     if (dataNFR) setTransaksiNFR(dataNFR);
 
@@ -97,12 +104,15 @@ export default function Kasir() {
       }
 
     } else if (activeTab === 'NFR') {
-      if (!nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Jumlah dan Pilih Kasir/Foreman!');
+      if (!nfrData.produk_id || !nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Produk, Jumlah, dan Kasir/Foreman!');
       
+      // Cari nama produk yang dipilih untuk disimpan
+      const selectedProduk = listProdukNFR.find(p => p.id.toString() === nfrData.produk_id.toString());
+
       const { error } = await supabase.from('penjualan_nfr').insert([{
         tanggal: formData.tanggal,
         shift: formData.shift,
-        produk_nfr: nfrData.produk_nfr,
+        produk_nfr: selectedProduk ? selectedProduk.nama_produk : 'Produk Tidak Diketahui',
         jumlah: parseFloat(nfrData.jumlah),
         total_harga: parseFloat(formData.total_harga),
         kasir_foreman: nfrData.kasir_foreman
@@ -110,7 +120,7 @@ export default function Kasir() {
 
       if (error) alert('Gagal: ' + error.message);
       else {
-        setNfrData({ ...nfrData, jumlah: '', kasir_foreman: '' });
+        setNfrData({ ...nfrData, produk_id: '', jumlah: '', kasir_foreman: '' });
         setFormData({ ...formData, total_harga: '' });
         setDisplayHarga('');
         fetchData();
@@ -132,6 +142,10 @@ export default function Kasir() {
 
   const totalPendapatanBBM = transaksiBBM.reduce((acc, curr) => acc + curr.total_harga, 0);
   const totalPendapatanNFR = transaksiNFR.reduce((acc, curr) => acc + curr.total_harga, 0);
+
+  // Filter produk berdasarkan kategori (LPG / OLI)
+  const produkLPG = listProdukNFR.filter(p => p.kategori === 'LPG');
+  const produkOLI = listProdukNFR.filter(p => p.kategori === 'OLI');
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -206,27 +220,19 @@ export default function Kasir() {
             {activeTab === 'NFR' && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Kategori NFR</label>
-                  <select value={nfrData.jenis_nfr} onChange={(e) => {
-                    const kat = e.target.value;
-                    setNfrData({...nfrData, jenis_nfr: kat, produk_nfr: kat === 'LPG' ? listLPG[0] : listOli[0]});
-                  }} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
-                    <option value="LPG">LPG</option>
-                    <option value="OLI">Oli / Pelumas</option>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Pilih Produk NFR</label>
+                  <select value={nfrData.produk_id} onChange={(e) => setNfrData({...nfrData, produk_id: e.target.value})} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    <option value="">-- Pilih Produk --</option>
+                    <optgroup label="LPG">
+                      {produkLPG.map(p => <option key={p.id} value={p.id}>{p.nama_produk} - {formatRupiah(p.harga_jual)}</option>)}
+                    </optgroup>
+                    <optgroup label="Oli / Pelumas">
+                      {produkOLI.map(p => <option key={p.id} value={p.id}>{p.nama_produk} - {formatRupiah(p.harga_jual)}</option>)}
+                    </optgroup>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Produk {nfrData.jenis_nfr}</label>
-                  <select value={nfrData.produk_nfr} onChange={(e) => setNfrData({...nfrData, produk_nfr: e.target.value})} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
-                    {nfrData.jenis_nfr === 'LPG' ? (
-                      listLPG.map((l, i) => <option key={i} value={l}>{l}</option>)
-                    ) : (
-                      listOli.map((o, i) => <option key={i} value={o}>{o}</option>)
-                    )}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah ({nfrData.jenis_nfr === 'LPG' ? 'Tabung' : 'Pcs'})</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Pcs/Tabung)</label>
                   <input type="number" required value={nfrData.jumlah} onChange={(e) => setNfrData({...nfrData, jumlah: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Jumlah" />
                 </div>
                 <div>
