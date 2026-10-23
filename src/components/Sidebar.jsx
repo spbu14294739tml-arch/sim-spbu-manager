@@ -9,7 +9,7 @@ import {
   Settings, 
   LogOut,
   UserCircle,
-  UserCheck // <-- Import ikon baru
+  UserCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -17,11 +17,17 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState(''); // State untuk menyimpan role
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserEmail(user.email);
+      if (user) {
+        setUserEmail(user.email);
+        // Ambil role dari user_metadata
+        const role = user.user_metadata?.role || 'accounting'; // Default ke accounting jika tidak ada role
+        setUserRole(role);
+      }
     };
     getUser();
   }, []);
@@ -32,14 +38,18 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  // Daftar Menu Lengkap
   const menuItems = [
-    { path: '/', name: 'Dashboard', icon: LayoutDashboard },
-    { path: '/karyawan', name: 'Database Karyawan', icon: Users },
-    { path: '/absensi', name: 'Absensi Harian', icon: UserCheck }, // <-- Menu Baru
-    { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList },
-    { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle },
-    { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings },
+    { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting'] },
+    { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] }, // Hanya Manager
+    { path: '/absensi', name: 'Absensi Harian', icon: UserCheck, roles: ['manager', 'accounting'] },
+    { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
+    { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
+    { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] }, // Hanya Manager
   ];
+
+  // Filter menu berdasarkan role user
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   return (
     <div className="w-64 min-h-screen bg-slate-900 text-white flex flex-col shadow-xl">
@@ -53,7 +63,7 @@ export default function Sidebar() {
 
       <div className="flex-1 py-4 overflow-y-auto">
         <ul className="space-y-1 px-3">
-          {menuItems.map((item) => {
+          {filteredMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
@@ -79,7 +89,7 @@ export default function Sidebar() {
         <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/50 rounded-lg">
           <UserCircle size={24} className="text-blue-400" />
           <div className="overflow-hidden">
-            <p className="text-xs text-slate-400">Masuk sebagai:</p>
+            <p className="text-xs text-slate-400 capitalize">Masuk sebagai: {userRole}</p>
             <p className="text-sm font-medium text-white truncate" title={userEmail}>
               {userEmail || 'Memuat...'}
             </p>
