@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag, Image as ImageIcon, Droplet } from 'lucide-react';
 
 export default function Kasir() {
   const [activeTab, setActiveTab] = useState('BBM'); 
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
   const [listProdukNFR, setListProdukNFR] = useState([]); 
-  const [listHargaBBM, setListHargaBBM] = useState([]); // State Harga BBM
+  const [listHargaBBM, setListHargaBBM] = useState([]); 
   
   const [transaksiBBM, setTransaksiBBM] = useState([]);
   const [transaksiNFR, setTransaksiNFR] = useState([]);
@@ -19,7 +19,7 @@ export default function Kasir() {
     shift: '',
   });
 
-  // State Form BBM (Diperbarui)
+  // State Form BBM
   const [bbmData, setBbmData] = useState({
     dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: ''
   });
@@ -40,6 +40,16 @@ export default function Kasir() {
   };
   const hariIni = getTodayDate();
 
+  // Warna untuk masing-masing BBM agar modern
+  const getBBMColor = (jenis) => {
+    if (jenis.includes('PERTALITE')) return 'bg-green-50 border-green-200 text-green-700 hover:border-green-400';
+    if (jenis.includes('PERTAMAX TURBO')) return 'bg-red-50 border-red-200 text-red-700 hover:border-red-400';
+    if (jenis.includes('PERTAMAX')) return 'bg-blue-50 border-blue-200 text-blue-700 hover:border-blue-400';
+    if (jenis.includes('BIOSOLAR')) return 'bg-orange-50 border-orange-200 text-orange-700 hover:border-orange-400';
+    if (jenis.includes('DEXLITE')) return 'bg-cyan-50 border-cyan-200 text-cyan-700 hover:border-cyan-400';
+    return 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-400';
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
     
@@ -55,7 +65,6 @@ export default function Kasir() {
     const { data: hargaBBMData } = await supabase.from('master_produk_bbm').select('*').order('id');
     if (hargaBBMData && hargaBBMData.length > 0) {
       setListHargaBBM(hargaBBMData);
-      if (!bbmData.jenis_bbm) setBbmData(prev => ({ ...prev, jenis_bbm: hargaBBMData[0].jenis_bbm }));
     }
 
     const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
@@ -69,31 +78,31 @@ export default function Kasir() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // FUNGSI OTOMATIS HITUNG HARGA BBM
+  // Hitung Otomatis BBM
   const handleBBMJumlahChange = (e) => {
     const jumlah = e.target.value;
     let total = 0;
-    
     if (jumlah && bbmData.jenis_bbm) {
       const selectedBBM = listHargaBBM.find(b => b.jenis_bbm === bbmData.jenis_bbm);
-      if (selectedBBM) {
-        total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
-      }
+      if (selectedBBM) total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
     }
     setBbmData({ ...bbmData, jumlah_liter: jumlah, total_harga: total });
   };
 
-  // FUNGSI OTOMATIS HITUNG HARGA NFR
+  // Pilih BBM dari Kartu
+  const handleBBMSelect = (jenis_bbm) => {
+    setBbmData({ ...bbmData, jenis_bbm: jenis_bbm, total_harga: bbmData.jumlah_liter ? bbmData.jumlah_liter * listHargaBBM.find(b => b.jenis_bbm === jenis_bbm).harga_per_liter : 0 });
+  };
+
+  // Hitung Otomatis NFR
   const handleNFRProdukClick = (produk) => {
-    setNfrData({ ...nfrData, produk: produk, total_harga: '' });
+    setNfrData({ ...nfrData, produk: produk, total_harga: nfrData.jumlah ? nfrData.jumlah * produk.harga_jual : 0 });
   };
 
   const handleNFRJumlahChange = (e) => {
     const jumlah = e.target.value;
     let total = 0;
-    if (nfrData.produk && jumlah) {
-      total = parseFloat(jumlah) * nfrData.produk.harga_jual;
-    }
+    if (nfrData.produk && jumlah) total = parseFloat(jumlah) * nfrData.produk.harga_jual;
     setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
   };
 
@@ -101,21 +110,18 @@ export default function Kasir() {
     e.preventDefault();
 
     if (activeTab === 'BBM') {
+      if (!bbmData.jenis_bbm) return alert('Pilih Jenis BBM terlebih dahulu!');
       if (!bbmData.jumlah_liter || !bbmData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
       
       const { error } = await supabase.from('penjualan_bbm').insert([{
-        tanggal: formData.tanggal,
-        shift: formData.shift,
-        dispenser: bbmData.dispenser,
-        jenis_bbm: bbmData.jenis_bbm,
-        jumlah_liter: parseFloat(bbmData.jumlah_liter),
-        total_harga: bbmData.total_harga,
-        operator: bbmData.operator.toUpperCase()
+        tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser,
+        jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter),
+        total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase()
       }]);
 
       if (error) alert('Gagal: ' + error.message);
       else {
-        setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '' });
+        setBbmData({ ...bbmData, jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '' });
         fetchData();
       }
 
@@ -123,12 +129,8 @@ export default function Kasir() {
       if (!nfrData.produk || !nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Produk, Jumlah, dan Kasir/Foreman!');
       
       const { error } = await supabase.from('penjualan_nfr').insert([{
-        tanggal: formData.tanggal,
-        shift: formData.shift,
-        produk_nfr: nfrData.produk.nama_produk,
-        jumlah: parseFloat(nfrData.jumlah),
-        total_harga: nfrData.total_harga,
-        kasir_foreman: nfrData.kasir_foreman
+        tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk,
+        jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: nfrData.kasir_foreman
       }]);
 
       if (error) alert('Gagal: ' + error.message);
@@ -181,6 +183,7 @@ export default function Kasir() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
+        {/* KOLOM KIRI: FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
           <div className="flex border-b mb-4">
             <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'BBM' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><Fuel size={16} className="inline mr-1"/> BBM</button>
@@ -209,17 +212,28 @@ export default function Kasir() {
                     {listDispenser.map((d, i) => <option key={i} value={d}>{d}</option>)}
                   </select>
                 </div>
+                
+                {/* KARTU BBM MODERN */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Jenis BBM</label>
-                  <select value={bbmData.jenis_bbm} onChange={(e) => {
-                    setBbmData({...bbmData, jenis_bbm: e.target.value, total_harga: 0, jumlah_liter: ''});
-                  }} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
-                    {listHargaBBM.map((b, i) => <option key={i} value={b.jenis_bbm}>{b.jenis_bbm} - {formatRupiah(b.harga_per_liter)}/L</option>)}
-                  </select>
+                  <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Jenis BBM</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {listHargaBBM.map((bbm) => (
+                      <div 
+                        key={bbm.id}
+                        onClick={() => handleBBMSelect(bbm.jenis_bbm)}
+                        className={`cursor-pointer border rounded-xl p-3 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : getBBMColor(bbm.jenis_bbm)}`}
+                      >
+                        <Fuel size={24} className="mb-1" />
+                        <span className="text-[10px] font-bold text-center leading-tight">{bbm.jenis_bbm}</span>
+                        <span className="text-xs font-bold mt-1">{formatRupiah(bbm.harga_per_liter)}/L</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Liter)</label>
-                  <input type="number" step="0.01" required value={bbmData.jumlah_liter} onChange={handleBBMJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: 10.5" />
+                  <input type="number" step="0.01" required value={bbmData.jumlah_liter} onChange={handleBBMJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm font-bold text-lg" placeholder="0.0" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Nama Operator</label>
@@ -236,7 +250,6 @@ export default function Kasir() {
               <>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Produk NFR</label>
-                  
                   <p className="text-[10px] font-bold text-slate-500 mb-1 mt-2">KATEGORI LPG</p>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {produkLPG.map(p => (
