@@ -5,12 +5,11 @@ import { formatRupiah } from '../lib/formatHelper';
 import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag, Droplet } from 'lucide-react';
 
 export default function Kasir() {
-  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'NFR', 'OLI'
+  const [activeTab, setActiveTab] = useState('BBM'); 
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
   const [transaksiHariIni, setTransaksiHariIni] = useState([]);
   
-  // State Form Umum
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     shift: '',
@@ -18,24 +17,9 @@ export default function Kasir() {
     total_harga: ''
   });
 
-  // State Khusus BBM
-  const [bbmData, setBbmData] = useState({
-    dispenser: 'DISPENSER 1',
-    jenis_bbm: 'PERTALITE',
-    jumlah: ''
-  });
-
-  // State Khusus NFR
-  const [nfrData, setNfrData] = useState({
-    produk_nfr: 'LPG 3 KG',
-    jumlah: ''
-  });
-
-  // State Khusus OLI
-  const [oliData, setOliData] = useState({
-    produk_nfr: 'MESRAN SUPREME SAE 20W-50', // Jenis Oli
-    jumlah: '' // Jumlah Pcs
-  });
+  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: 'PERTALITE', jumlah: '' });
+  const [nfrData, setNfrData] = useState({ produk_nfr: 'LPG 3 KG', jumlah: '' });
+  const [oliData, setOliData] = useState({ produk_nfr: 'MESRAN SUPREME SAE 20W-50', jumlah: '' });
 
   const [displayHarga, setDisplayHarga] = useState('');
 
@@ -76,23 +60,40 @@ export default function Kasir() {
       return;
     }
 
+    // Siapkan data dasar
     let dataToInsert = {
       tanggal: formData.tanggal,
       shift: formData.shift,
       operator: formData.operator.toUpperCase(),
       total_harga: parseFloat(formData.total_harga),
-      kategori: activeTab
+      kategori: activeTab,
+      jumlah_liter: null // Set null agar tidak error jika kolom ini wajib
     };
 
+    // Tambahkan data spesifik berdasarkan tab
     if (activeTab === 'BBM') {
       if (!bbmData.jumlah) return alert('Jumlah Liter harus diisi!');
-      dataToInsert = { ...dataToInsert, dispenser: bbmData.dispenser, jenis_bbm: bbmData.jenis_bbm, jumlah: parseFloat(bbmData.jumlah) };
+      dataToInsert = { 
+        ...dataToInsert, 
+        dispenser: bbmData.dispenser, 
+        jenis_bbm: bbmData.jenis_bbm, 
+        jumlah: parseFloat(bbmData.jumlah),
+        jumlah_liter: parseFloat(bbmData.jumlah) // Isi juga jumlah_liter untuk BBM
+      };
     } else if (activeTab === 'NFR') {
       if (!nfrData.jumlah) return alert('Jumlah harus diisi!');
-      dataToInsert = { ...dataToInsert, produk_nfr: nfrData.produk_nfr, jumlah: parseFloat(nfrData.jumlah) };
+      dataToInsert = { 
+        ...dataToInsert, 
+        produk_nfr: nfrData.produk_nfr, 
+        jumlah: parseFloat(nfrData.jumlah) 
+      };
     } else if (activeTab === 'OLI') {
       if (!oliData.jumlah) return alert('Jumlah Pcs harus diisi!');
-      dataToInsert = { ...dataToInsert, produk_nfr: oliData.produk_nfr, jumlah: parseFloat(oliData.jumlah) };
+      dataToInsert = { 
+        ...dataToInsert, 
+        produk_nfr: oliData.produk_nfr, 
+        jumlah: parseFloat(oliData.jumlah) 
+      };
     }
 
     const { error } = await supabase.from('penjualan').insert([dataToInsert]);
@@ -115,7 +116,6 @@ export default function Kasir() {
     fetchData();
   };
 
-  // Hitung Total Pendapatan Hari Ini
   const totalPendapatan = transaksiHariIni.reduce((acc, curr) => acc + curr.total_harga, 0);
 
   return (
@@ -134,10 +134,7 @@ export default function Kasir() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* KOLOM KIRI: FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
-          
-          {/* TAB NAVIGATION */}
           <div className="flex border-b mb-4">
             <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'BBM' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><Fuel size={16} className="inline mr-1"/> BBM</button>
             <button type="button" onClick={() => setActiveTab('NFR')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'NFR' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><ShoppingBag size={16} className="inline mr-1"/> NFR</button>
@@ -158,7 +155,6 @@ export default function Kasir() {
               </div>
             </div>
 
-            {/* FORM BBM */}
             {activeTab === 'BBM' && (
               <>
                 <div>
@@ -188,7 +184,6 @@ export default function Kasir() {
               </>
             )}
 
-            {/* FORM NFR */}
             {activeTab === 'NFR' && (
               <>
                 <div>
@@ -206,7 +201,6 @@ export default function Kasir() {
               </>
             )}
 
-            {/* FORM OLI */}
             {activeTab === 'OLI' && (
               <>
                 <div>
@@ -240,7 +234,6 @@ export default function Kasir() {
           </form>
         </div>
 
-        {/* KOLOM KANAN: TABEL TRANSAKSI HARI INI */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="p-4 border-b border-slate-100 bg-slate-50">
             <h2 className="text-lg font-bold text-slate-800">Transaksi Hari Ini ({hariIni})</h2>
