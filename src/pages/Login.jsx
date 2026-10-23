@@ -10,7 +10,6 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  // State untuk memilih jabatan (null = belum pilih, 'manager' = form manager, 'accounting' = form accounting)
   const [selectedRole, setSelectedRole] = useState(null); 
   
   const navigate = useNavigate();
@@ -34,74 +33,72 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 font-sans">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100">
+    // Background dengan gradasi modern
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-slate-900 to-black p-4 font-sans relative overflow-hidden">
+      
+      {/* Ornamen Latar Belakang (Efek Blur) */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-cyan-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-white/20 flex flex-col md:flex-row relative z-10">
         
-        {/* HEADER SPBU */}
-        <div className="bg-slate-900 p-6 text-center text-white relative">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-blue-900/50">
-            <span className="text-2xl font-bold">SP</span>
+        {/* KOLOM KIRI (Info Branding) */}
+        <div className="w-full md:w-5/12 bg-gradient-to-br from-blue-600 to-blue-800 p-8 text-white flex flex-col justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-bl-full opacity-10"></div>
+          <div>
+            <div className="bg-white/20 p-3 rounded-2xl inline-block mb-6 backdrop-blur-md border border-white/30">
+              <span className="text-2xl font-bold">SP</span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2">SIM SPBU<br/>14.294.739</h1>
+            <p className="text-blue-100 text-sm">PT. Tata Murdaya Laksana<br/>Batam Center</p>
           </div>
-          <h1 className="text-xl font-bold tracking-wide">SPBU 14.294.739</h1>
-          <p className="text-slate-400 text-sm mt-1">PT. Tata Murdaya Laksana - Batam Center</p>
+          <div className="mt-8">
+            <p className="text-xs text-blue-200 italic">"Membangun cara kerja yang sehat, modern, dan terpusat."</p>
+          </div>
         </div>
 
-        <div className="p-8">
-          {/* JIKA BELUM PILIH JABATAN (Tampilan Kartu) */}
+        {/* KOLOM KANAN (Form Login) */}
+        <div className="w-full md:w-7/12 p-8 bg-white/95 backdrop-blur-sm">
           {!selectedRole ? (
-            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-slate-800">🔐 Silakan Pilih Jabatan Anda</h2>
-                <p className="text-slate-500 mt-2">Klik kartu jabatan untuk melanjutkan login</p>
+                <h2 className="text-2xl font-bold text-slate-800">Selamat Datang Kembali</h2>
+                <p className="text-slate-500 mt-2">Silakan pilih hak akses Anda.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Kartu Manager */}
-                <button 
-                  onClick={() => setSelectedRole('manager')}
-                  className="group relative bg-white border-2 border-slate-200 rounded-2xl p-6 text-left hover:border-blue-500 hover:shadow-lg transition-all duration-300 overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                  <div className="bg-blue-100 w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Briefcase size={24} />
+              <div className="space-y-4">
+                <button onClick={() => setSelectedRole('manager')} className="w-full group bg-white border-2 border-slate-200 rounded-2xl p-5 text-left hover:border-blue-500 hover:shadow-lg transition-all duration-300 flex items-center gap-5 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-2 bg-blue-600 rounded-l-2xl"></div>
+                  <div className="bg-blue-100 w-14 h-14 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <Briefcase size={28} />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-800">Manager Operasional</h3>
-                  <p className="text-sm text-slate-500 mt-1">Akses penuh semua modul (Database, Laporan, Tugas).</p>
-                  <div className="mt-4 flex items-center text-blue-600 font-medium text-sm">
-                    Login <ArrowLeft size={16} className="ml-1 rotate-180" />
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800">Manager Operasional</h3>
+                    <p className="text-sm text-slate-500 mt-1">Akses penuh semua modul (Database, Kasir, Laporan).</p>
                   </div>
                 </button>
 
-                {/* Kartu Accounting */}
-                <button 
-                  onClick={() => setSelectedRole('accounting')}
-                  className="group relative bg-white border-2 border-slate-200 rounded-2xl p-6 text-left hover:border-green-500 hover:shadow-lg transition-all duration-300 overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                  <div className="bg-green-100 w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
-                    <Calculator size={24} />
+                <button onClick={() => setSelectedRole('accounting')} className="w-full group bg-white border-2 border-slate-200 rounded-2xl p-5 text-left hover:border-green-500 hover:shadow-lg transition-all duration-300 flex items-center gap-5 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-2 bg-green-500 rounded-l-2xl"></div>
+                  <div className="bg-green-100 w-14 h-14 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <Calculator size={28} />
                   </div>
-                  <h3 className="font-bold text-lg text-slate-800">Accounting</h3>
-                  <p className="text-sm text-slate-500 mt-1">Akses modul keuangan, gaji, dan laporan.</p>
-                  <div className="mt-4 flex items-center text-green-600 font-medium text-sm">
-                    Login <ArrowLeft size={16} className="ml-1 rotate-180" />
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800">Accounting</h3>
+                    <p className="text-sm text-slate-500 mt-1">Akses modul keuangan, absensi, dan laporan.</p>
                   </div>
                 </button>
               </div>
             </div>
           ) : (
-            /* JIKA SUDAH PILIH JABATAN (Tampilan Form Email/Password) */
-            <div className="max-w-md mx-auto animate-in fade-in zoom-in-95 duration-300">
-              <button 
-                onClick={() => { setSelectedRole(null); setErrorMsg(''); }} 
-                className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 font-medium transition-colors"
-              >
-                <ArrowLeft size={18} /> Kembali ke Pilihan Jabatan
+            <div className="max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-300">
+              <button onClick={() => { setSelectedRole(null); setErrorMsg(''); }} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 font-medium transition-colors text-sm">
+                <ArrowLeft size={16} /> Kembali ke Pilihan
               </button>
 
-              <div className="text-center mb-8">
+              <div className="mb-8">
                 <h2 className="text-2xl font-bold text-slate-800">
-                  Login sebagai {selectedRole === 'manager' ? 'Manager' : 'Accounting'}
+                  Login {selectedRole === 'manager' ? 'Manager' : 'Accounting'}
                 </h2>
                 <p className="text-slate-500 mt-1 text-sm">Masukkan kredensial akun Anda.</p>
               </div>
@@ -115,42 +112,21 @@ export default function Login() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    placeholder="spbu14294739tml@gmail.com"
-                  />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-slate-50 focus:bg-white" placeholder="spbu14294739tml@gmail.com" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    placeholder="••••••••"
-                  />
+                  <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-slate-50 focus:bg-white" placeholder="••••••••" />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className={`w-full text-white font-semibold py-3 rounded-xl transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-70 ${
-                    selectedRole === 'manager' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  {isLoading ? <><Loader2 className="animate-spin" size={20} /> Memeriksa...</> : 'Masuk ke Sistem'}
+                <button type="submit" disabled={isLoading} className={`w-full text-white font-semibold py-3 rounded-xl transition-all flex justify-center items-center gap-2 mt-4 disabled:opacity-70 shadow-lg shadow-blue-500/30 ${selectedRole === 'manager' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}>
+                  {isLoading ? <><Loader2 className="animate-spin" size={20} /> Memeriksa...</> : <><LogIn size={20} /> Masuk ke Sistem</>}
                 </button>
               </form>
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

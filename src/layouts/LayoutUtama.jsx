@@ -5,13 +5,12 @@ import Sidebar from '../components/Sidebar';
 export default function LayoutUtama() {
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans">
-      {/* Sidebar ada di kiri */}
       <Sidebar />
-      
-      {/* Konten Utama ada di kanan. 
-          <Outlet /> adalah tempat di mana halaman (Dashboard, Pengaturan, dll) akan muncul */}
-      <div className="flex-1 flex flex-col">
-        <Outlet />
+      <div className="flex-1 flex flex-col w-full overflow-hidden">
+        {/* Area Konten Utama */}
+        <main className="flex-1 overflow-y-auto bg-slate-50/50">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
