@@ -1,6 +1,6 @@
 // src/pages/DatabaseKaryawan.jsx
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 
@@ -23,7 +23,7 @@ const InputField = ({ label, name, type = "text", placeholder = "", formData, se
 
 export default function DatabaseKaryawan() {
   const [karyawanList, setKaryawanList] = useState([]);
-  const [listShift, setListShift] = useState([]); // State untuk daftar shift dinamis
+  const [listShift, setListShift] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Semua'); 
@@ -32,14 +32,21 @@ export default function DatabaseKaryawan() {
   const [activeTab, setActiveTab] = useState(1);
   const [editingId, setEditingId] = useState(null);
 
+  // State untuk Upload Foto
+  const [fileFoto, setFileFoto] = useState(null);
+  const [previewFoto, setPreviewFoto] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
     no_hp: '', email: '', tanggal_lahir: '', jenis_kelamin: '', 
-    tanggal_masuk: '', tanggal_keluar: '', status_pernikahan: '', alamat: '',
+    tanggal_masuk: '', tanggal_keluar: '', status_pernikahan: '', 
+    alamat: '', kecamatan: '', kelurahan: '', kode_pos: '',
     no_ktp: '', no_kk: '',
     gaji_pokok: '', nama_rekening: '', nomor_rekening: '', npwp: '',
     no_bpjs_kesehatan: '', no_bpjs_ketenagakerjaan: '',
-    link_pas_foto: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
+    foto_url: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
   });
 
   const [displayGaji, setDisplayGaji] = useState('');
@@ -52,14 +59,10 @@ export default function DatabaseKaryawan() {
     setIsLoading(false);
   };
 
-  // Ambil daftar Shift dari Pengaturan Sistem
   const fetchShift = async () => {
     const { data } = await supabase.from('pengaturan_shift').select('nama_shift').order('id', { ascending: true });
-    if (data && data.length > 0) {
-      setListShift(data.map(s => s.nama_shift));
-    } else {
-      setListShift(['Pagi', 'Siang', 'Malam', '-']); // Fallback jika kosong
-    }
+    if (data && data.length > 0) setListShift(data.map(s => s.nama_shift));
+    else setListShift(['Pagi', 'Siang', 'Malam', '-']);
   };
 
   useEffect(() => { 
@@ -97,7 +100,6 @@ export default function DatabaseKaryawan() {
 
   const handlePosisiChange = (e) => {
     const posisiBaru = e.target.value.toUpperCase();
-    // JIKA KOSONG saat edit, ATAU sedang tambah baru, generate nomor
     if (!editingId || !formData.nomor_karyawan) {
       const nomorOtomatis = generateNomorKaryawan(posisiBaru);
       setFormData({ ...formData, posisi: posisiBaru, nomor_karyawan: nomorOtomatis });
@@ -112,11 +114,21 @@ export default function DatabaseKaryawan() {
     setDisplayGaji(rawValue ? formatRupiah(rawValue) : '');
   };
 
+  // FUNGSI UPLOAD FOTO
+  const handleFotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFileFoto(file);
+      setPreviewFoto(URL.createObjectURL(file));
+    }
+  };
+
   const handleEdit = (karyawan) => {
-    // Paksa shift menjadi strip jika kosong agar dropdown tidak error
     const dataKaryawan = { ...karyawan, shift: karyawan.shift || '-' };
     setFormData(dataKaryawan);
     setDisplayGaji(karyawan.gaji_pokok ? formatRupiah(karyawan.gaji_pokok) : '');
+    setPreviewFoto(karyawan.foto_url || '');
+    setFileFoto(null);
     setEditingId(karyawan.id);
     setIsModalOpen(true);
     setActiveTab(1);
@@ -126,13 +138,16 @@ export default function DatabaseKaryawan() {
     setFormData({
       nama: '', nomor_karyawan: '', posisi: '', shift: listShift[0] || 'Pagi', status: 'Aktif',
       no_hp: '', email: '', tanggal_lahir: '', jenis_kelamin: '', 
-      tanggal_masuk: '', tanggal_keluar: '', status_pernikahan: '', alamat: '',
+      tanggal_masuk: '', tanggal_keluar: '', status_pernikahan: '', 
+      alamat: '', kecamatan: '', kelurahan: '', kode_pos: '',
       no_ktp: '', no_kk: '',
       gaji_pokok: '', nama_rekening: '', nomor_rekening: '', npwp: '',
       no_bpjs_kesehatan: '', no_bpjs_ketenagakerjaan: '',
-      link_pas_foto: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
+      foto_url: '', link_e_ktp: '', link_kk: '', link_kontrak: '', link_catatan: ''
     });
     setDisplayGaji('');
+    setFileFoto(null);
+    setPreviewFoto('');
     setEditingId(null);
     setIsModalOpen(false);
     setActiveTab(1);
@@ -140,9 +155,32 @@ export default function DatabaseKaryawan() {
 
   const handleSimpan = async (e) => {
     e.preventDefault();
-    
+    setIsUploading(true);
+    let finalFotoUrl = formData.foto_url;
+
+    // 1. Proses Upload Foto ke Supabase Storage (jika ada file baru)
+    if (fileFoto) {
+      const fileExt = fileFoto.name.split('.').pop();
+      const fileName = `${Date.now()}_${formData.nama.replace(/\s+/g, '_')}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('foto_karyawan')
+        .upload(fileName, fileFoto);
+
+      if (uploadError) {
+        alert('Gagal upload foto: ' + uploadError.message);
+        setIsUploading(false);
+        return;
+      }
+
+      // Dapatkan URL publik foto
+      const { data: publicUrlData } = supabase.storage.from('foto_karyawan').getPublicUrl(fileName);
+      finalFotoUrl = publicUrlData.publicUrl;
+    }
+
+    // 2. Simpan Data ke Tabel
     const dataToInsert = {
       ...formData,
+      foto_url: finalFotoUrl,
       tanggal_lahir: formData.tanggal_lahir || null,
       tanggal_masuk: formData.tanggal_masuk || null,
       tanggal_keluar: formData.tanggal_keluar || null,
@@ -158,6 +196,7 @@ export default function DatabaseKaryawan() {
       if (error) alert('Gagal menyimpan: ' + error.message);
       else { handleTutupModal(); fetchKaryawan(); }
     }
+    setIsUploading(false);
   };
 
   const handleHapus = async (id) => {
@@ -180,6 +219,7 @@ export default function DatabaseKaryawan() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative">
+      {/* Header & Tombol */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Database Karyawan</h1>
@@ -190,6 +230,7 @@ export default function DatabaseKaryawan() {
         </button>
       </div>
 
+      {/* Filter & Search */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
@@ -203,11 +244,12 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
+      {/* Tabel Data */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
-              <th className="py-4 px-6 font-semibold">No</th>
+              <th className="py-4 px-6 font-semibold">Foto</th>
               <th className="py-4 px-6 font-semibold">Nama & No. Karyawan</th>
               <th className="py-4 px-6 font-semibold">Posisi</th>
               <th className="py-4 px-6 font-semibold">Gaji Pokok</th>
@@ -220,7 +262,13 @@ export default function DatabaseKaryawan() {
               <tr><td colSpan="6" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
             ) : filteredKaryawan.map((k, index) => (
               <tr key={k.id} className="hover:bg-slate-50/50">
-                <td className="py-4 px-6 text-slate-500">{index + 1}</td>
+                <td className="py-4 px-6">
+                  {k.foto_url ? (
+                    <img src={k.foto_url} alt={k.nama} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><User className="text-slate-400" size={20} /></div>
+                  )}
+                </td>
                 <td className="py-4 px-6">
                   <div className="font-medium text-slate-800">{k.nama}</div>
                   <div className="text-xs text-slate-500">{k.nomor_karyawan || '-'}</div>
@@ -230,8 +278,8 @@ export default function DatabaseKaryawan() {
                 <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
                 <td className="py-4 px-6">
                   <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit"><Edit size={18} /></button>
-                    <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus"><Trash2 size={18} /></button>
+                    <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                    <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                   </div>
                 </td>
               </tr>
@@ -261,6 +309,25 @@ export default function DatabaseKaryawan() {
               {/* TAB 1: DATA PRIBADI */}
               {activeTab === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* FOTO PROFIL */}
+                  <div className="md:col-span-2 flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-2">
+                    <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0">
+                      {previewFoto ? (
+                        <img src={previewFoto} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="text-slate-400" size={40} />
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Pas Photo Karyawan</label>
+                      <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFotoChange} className="hidden" />
+                      <button type="button" onClick={() => fileInputRef.current.click()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm">
+                        <Upload size={16} /> Pilih Foto
+                      </button>
+                      <p className="text-xs text-slate-500 mt-2">Format: JPG/PNG. Maks 2MB.</p>
+                    </div>
+                  </div>
+
                   <InputField label="Nama Lengkap *" name="nama" placeholder="Sesuai KTP" formData={formData} setFormData={setFormData} />
                   <InputField label="No. Handphone" name="no_hp" placeholder="0812..." formData={formData} setFormData={setFormData} />
                   <InputField label="Email" name="email" type="email" placeholder="nama@email.com" formData={formData} setFormData={setFormData} />
@@ -286,10 +353,15 @@ export default function DatabaseKaryawan() {
                       <option value="K/3">K/3 (Menikah, 3 Anak)</option>
                     </select>
                   </div>
+                  
+                  {/* ALAMAT DETAIL */}
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap (Jalan/Dusun)</label>
                     <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
                   </div>
+                  <InputField label="Kecamatan" name="kecamatan" placeholder="Nama Kecamatan" formData={formData} setFormData={setFormData} />
+                  <InputField label="Kelurahan / Desa" name="kelurahan" placeholder="Nama Kelurahan" formData={formData} setFormData={setFormData} />
+                  <InputField label="Kode Pos" name="kode_pos" placeholder="Contoh: 29432" formData={formData} setFormData={setFormData} />
                 </div>
               )}
 
@@ -303,7 +375,6 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Shift</label>
-                    {/* DROPDOWN SHIFT DINAMIS DARI DATABASE */}
                     <select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
                       {listShift.map((shift, idx) => (
                         <option key={idx} value={shift}>{shift}</option>
@@ -336,7 +407,6 @@ export default function DatabaseKaryawan() {
               {/* TAB 3: BERKAS */}
               {activeTab === 3 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InputField label="Link Pas Foto" name="link_pas_foto" placeholder="https://..." formData={formData} setFormData={setFormData} />
                   <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." formData={formData} setFormData={setFormData} />
                   <InputField label="Link Kartu Keluarga" name="link_kk" placeholder="https://..." formData={formData} setFormData={setFormData} />
                   <InputField label="Link Kontrak Kerja" name="link_kontrak" placeholder="https://..." formData={formData} setFormData={setFormData} />
@@ -349,8 +419,8 @@ export default function DatabaseKaryawan() {
 
             <div className="p-5 border-t bg-slate-50 flex justify-end gap-3">
               <button type="button" onClick={handleTutupModal} className="px-5 py-2.5 border rounded-xl font-medium">Batal</button>
-              <button type="button" onClick={handleSimpan} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-sm">
-                {editingId ? 'Update Data' : 'Simpan Data'}
+              <button type="button" onClick={handleSimpan} disabled={isUploading} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-sm flex items-center gap-2 disabled:opacity-50">
+                {isUploading ? <><Loader2 className="animate-spin" size={18} /> Menyimpan...</> : (editingId ? 'Update Data' : 'Simpan Data')}
               </button>
             </div>
           </div>
