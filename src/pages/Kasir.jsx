@@ -40,7 +40,7 @@ export default function Kasir() {
   };
   const hariIni = getTodayDate();
 
-  // Warna untuk masing-masing BBM agar modern
+  // Warna untuk masing-masing BBM agar modern (Jika logo tidak ada)
   const getBBMColor = (jenis) => {
     if (jenis.includes('PERTALITE')) return 'bg-green-50 border-green-200 text-green-700 hover:border-green-400';
     if (jenis.includes('PERTAMAX TURBO')) return 'bg-red-50 border-red-200 text-red-700 hover:border-red-400';
@@ -213,7 +213,7 @@ export default function Kasir() {
                   </select>
                 </div>
                 
-                {/* KARTU BBM MODERN */}
+                {/* KARTU BBM MODERN DENGAN LOGO */}
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Jenis BBM</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -223,7 +223,12 @@ export default function Kasir() {
                         onClick={() => handleBBMSelect(bbm.jenis_bbm)}
                         className={`cursor-pointer border rounded-xl p-3 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : getBBMColor(bbm.jenis_bbm)}`}
                       >
-                        <Fuel size={24} className="mb-1" />
+                        {/* LOGO BBM (Jika ada, tampilkan gambar. Jika tidak, tampilkan ikon Fuel) */}
+                        {bbm.logo_url ? (
+                          <img src={bbm.logo_url} alt={bbm.jenis_bbm} className="h-10 object-contain mb-2" />
+                        ) : (
+                          <Fuel size={24} className="mb-1" />
+                        )}
                         <span className="text-[10px] font-bold text-center leading-tight">{bbm.jenis_bbm}</span>
                         <span className="text-xs font-bold mt-1">{formatRupiah(bbm.harga_per_liter)}/L</span>
                       </div>
