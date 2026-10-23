@@ -8,34 +8,27 @@ export default function Kasir() {
   const [activeTab, setActiveTab] = useState('BBM'); // 'BBM' atau 'NFR'
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
-  const [transaksiHariIni, setTransaksiHariIni] = useState([]);
   
-  // State Form Umum
+  // State untuk menampung data dari KEDUA tabel
+  const [transaksiBBM, setTransaksiBBM] = useState([]);
+  const [transaksiNFR, setTransaksiNFR] = useState([]);
+  
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     shift: '',
     total_harga: ''
   });
 
-  // State Form BBM (Fuel Retail)
   const [bbmData, setBbmData] = useState({
-    dispenser: 'DISPENSER 1',
-    jenis_bbm: 'PERTALITE',
-    jumlah: '',
-    operator: '' // Nama operator ketik manual untuk BBM
+    dispenser: 'DISPENSER 1', jenis_bbm: 'PERTALITE', jumlah_liter: '', operator: ''
   });
 
-  // State Form NFR (LPG & Oli)
   const [nfrData, setNfrData] = useState({
-    jenis_nfr: 'LPG', // 'LPG' atau 'OLI'
-    produk_nfr: 'LPG 3 KG',
-    jumlah: '',
-    kasir_foreman: '' // Dropdown Kasir/Foreman
+    jenis_nfr: 'LPG', produk_nfr: 'LPG 3 KG', jumlah: '', kasir_foreman: ''
   });
 
   const [displayHarga, setDisplayHarga] = useState('');
 
-  // Daftar Pilihan
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
   const listBBM = ['PERTALITE', 'PERTAMAX', 'PERTAMAX TURBO', 'BIOSOLAR', 'DEXLITE'];
   const listLPG = ['LPG 3 KG', 'LPG 5.5 KG', 'LPG 12 KG'];
@@ -52,15 +45,21 @@ export default function Kasir() {
 
   const fetchData = async () => {
     setIsLoading(true);
+    // Ambil Shift
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData && shiftData.length > 0) {
       setListShift(shiftData.map(s => s.nama_shift));
       if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
     }
 
-    const { data: transaksiData } = await supabase
-      .from('penjualan').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
-    if (transaksiData) setTransaksiHariIni(transaksiData);
+    // Ambil Transaksi BBM Hari Ini
+    const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
+    if (dataBBM) setTransaksiBBM(dataBBM);
+
+    // Ambil Transaksi NFR Hari Ini
+    const { data: dataNFR } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
+    if (dataNFR) setTransaksiNFR(dataNFR);
+
     setIsLoading(false);
   };
 
@@ -74,73 +73,85 @@ export default function Kasir() {
 
   const handleSimpan = async (e) => {
     e.preventDefault();
-    if (!formData.total_harga) {
-      alert('Total Harga harus diisi!');
-      return;
-    }
-
-    // Siapkan data dasar (TIDAK ADA jumlah_liter lagi)
-    let dataToInsert = {
-      tanggal: formData.tanggal,
-      shift: formData.shift,
-      total_harga: parseFloat(formData.total_harga),
-      kategori: activeTab === 'BBM' ? 'BBM' : 'NFR'
-    };
+    if (!formData.total_harga) return alert('Total Harga harus diisi!');
 
     if (activeTab === 'BBM') {
-      if (!bbmData.jumlah || !bbmData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
-      dataToInsert = { 
-        ...dataToInsert, 
-        dispenser: bbmData.dispenser, 
-        jenis_bbm: bbmData.jenis_bbm, 
-        jumlah: parseFloat(bbmData.jumlah),
+      if (!bbmData.jumlah_liter || !bbmData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
+      
+      const { error } = await supabase.from('penjualan_bbm').insert([{
+        tanggal: formData.tanggal,
+        shift: formData.shift,
+        dispenser: bbmData.dispenser,
+        jenis_bbm: bbmData.jenis_bbm,
+        jumlah_liter: parseFloat(bbmData.jumlah_liter),
+        total_harga: parseFloat(formData.total_harga),
         operator: bbmData.operator.toUpperCase()
-      };
+      }]);
+
+      if (error) alert('Gagal: ' + error.message);
+      else {
+        setBbmData({ ...bbmData, jumlah_liter: '', operator: '' });
+        setFormData({ ...formData, total_harga: '' });
+        setDisplayHarga('');
+        fetchData();
+      }
+
     } else if (activeTab === 'NFR') {
       if (!nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Jumlah dan Pilih Kasir/Foreman!');
       
-      // Jika user pilih OLI, produknya dari listOli. Jika LPG, dari listLPG.
-      dataToInsert = { 
-        ...dataToInsert, 
-        produk_nfr: nfrData.produk_nfr, 
+      const { error } = await supabase.from('penjualan_nfr').insert([{
+        tanggal: formData.tanggal,
+        shift: formData.shift,
+        produk_nfr: nfrData.produk_nfr,
         jumlah: parseFloat(nfrData.jumlah),
-        operator: nfrData.kasir_foreman // Operator diisi Kasir/Foreman
-      };
-    }
+        total_harga: parseFloat(formData.total_harga),
+        kasir_foreman: nfrData.kasir_foreman
+      }]);
 
-    const { error } = await supabase.from('penjualan').insert([dataToInsert]);
-
-    if (error) {
-      alert('Gagal menyimpan: ' + error.message);
-    } else {
-      // Reset Form
-      setFormData({ ...formData, total_harga: '' });
-      setBbmData({ ...bbmData, jumlah: '', operator: '' });
-      setNfrData({ ...nfrData, jumlah: '', kasir_foreman: '' });
-      setDisplayHarga('');
-      fetchData();
+      if (error) alert('Gagal: ' + error.message);
+      else {
+        setNfrData({ ...nfrData, jumlah: '', kasir_foreman: '' });
+        setFormData({ ...formData, total_harga: '' });
+        setDisplayHarga('');
+        fetchData();
+      }
     }
   };
 
-  const handleHapus = async (id) => {
-    if (!window.confirm('Hapus transaksi ini?')) return;
-    await supabase.from('penjualan').delete().eq('id', id);
+  const handleHapusBBM = async (id) => {
+    if (!window.confirm('Hapus transaksi BBM ini?')) return;
+    await supabase.from('penjualan_bbm').delete().eq('id', id);
     fetchData();
   };
 
-  const totalPendapatan = transaksiHariIni.reduce((acc, curr) => acc + curr.total_harga, 0);
+  const handleHapusNFR = async (id) => {
+    if (!window.confirm('Hapus transaksi NFR ini?')) return;
+    await supabase.from('penjualan_nfr').delete().eq('id', id);
+    fetchData();
+  };
+
+  const totalPendapatanBBM = transaksiBBM.reduce((acc, curr) => acc + curr.total_harga, 0);
+  const totalPendapatanNFR = transaksiNFR.reduce((acc, curr) => acc + curr.total_harga, 0);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Kasir & Penjualan</h1>
-        <p className="text-slate-500 mt-1">Catat penjualan Fuel Retail (BBM) dan NFR (LPG & Oli).</p>
+        <p className="text-slate-500 mt-1">Catat penjualan Fuel Retail (BBM) dan Non-Fuel Retail (NFR).</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
           <div className="p-2 bg-green-100 text-green-600 rounded-lg"><DollarSign size={24} /></div>
-          <div><p className="text-xs text-slate-500 font-medium">Total Pendapatan Hari Ini</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatan)}</p></div>
+          <div><p className="text-xs text-slate-500 font-medium">Total Pendapatan Hari Ini</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanBBM + totalPendapatanNFR)}</p></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Fuel size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Pendapatan BBM</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanBBM)}</p></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><ShoppingBag size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Pendapatan NFR</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanNFR)}</p></div>
         </div>
       </div>
 
@@ -148,8 +159,6 @@ export default function Kasir() {
         
         {/* KOLOM KIRI: FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
-          
-          {/* TAB NAVIGATION */}
           <div className="flex border-b mb-4">
             <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'BBM' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><Fuel size={16} className="inline mr-1"/> Fuel Retail (BBM)</button>
             <button type="button" onClick={() => setActiveTab('NFR')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'NFR' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><ShoppingBag size={16} className="inline mr-1"/> NFR (LPG & Oli)</button>
@@ -169,7 +178,6 @@ export default function Kasir() {
               </div>
             </div>
 
-            {/* FORM BBM */}
             {activeTab === 'BBM' && (
               <>
                 <div>
@@ -186,7 +194,7 @@ export default function Kasir() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Liter)</label>
-                  <input type="number" step="0.01" required value={bbmData.jumlah} onChange={(e) => setBbmData({...bbmData, jumlah: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: 10.5" />
+                  <input type="number" step="0.01" required value={bbmData.jumlah_liter} onChange={(e) => setBbmData({...bbmData, jumlah_liter: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: 10.5" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Nama Operator</label>
@@ -195,7 +203,6 @@ export default function Kasir() {
               </>
             )}
 
-            {/* FORM NFR (LPG & Oli) */}
             {activeTab === 'NFR' && (
               <>
                 <div>
@@ -251,40 +258,56 @@ export default function Kasir() {
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
-            ) : (
+            ) : activeTab === 'BBM' ? (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase">
-                    <th className="py-4 px-6 font-semibold">Kategori</th>
                     <th className="py-4 px-6 font-semibold">Shift</th>
-                    <th className="py-4 px-6 font-semibold">Detail Produk</th>
-                    <th className="py-4 px-6 font-semibold">Jumlah</th>
+                    <th className="py-4 px-6 font-semibold">Dispenser</th>
+                    <th className="py-4 px-6 font-semibold">Jenis BBM</th>
+                    <th className="py-4 px-6 font-semibold">Jumlah (L)</th>
                     <th className="py-4 px-6 font-semibold">Total Harga</th>
                     <th className="py-4 px-6 font-semibold">Operator</th>
                     <th className="py-4 px-6 font-semibold text-center">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {transaksiHariIni.length > 0 ? (
-                    transaksiHariIni.map((trx) => (
-                      <tr key={trx.id} className="hover:bg-slate-50/50">
-                        <td className="py-4 px-6 font-semibold text-blue-600">{trx.kategori}</td>
-                        <td className="py-4 px-6 text-slate-600 font-medium">{trx.shift}</td>
-                        <td className="py-4 px-6">
-                          {trx.kategori === 'BBM' && <span className="font-semibold">{trx.dispenser} - {trx.jenis_bbm}</span>}
-                          {trx.kategori === 'NFR' && <span className="font-semibold">{trx.produk_nfr}</span>}
-                        </td>
-                        <td className="py-4 px-6 text-slate-600">{trx.jumlah} {trx.kategori === 'BBM' ? 'L' : 'Pcs'}</td>
-                        <td className="py-4 px-6 font-medium text-slate-800">{formatRupiah(trx.total_harga)}</td>
-                        <td className="py-4 px-6 text-slate-600 uppercase text-xs">{trx.operator}</td>
-                        <td className="py-4 px-6 text-center">
-                          <button onClick={() => handleHapus(trx.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan="7" className="py-8 text-center text-slate-500">Belum ada transaksi hari ini.</td></tr>
-                  )}
+                  {transaksiBBM.length > 0 ? transaksiBBM.map(trx => (
+                    <tr key={trx.id} className="hover:bg-slate-50/50">
+                      <td className="py-4 px-6 text-slate-600 font-medium">{trx.shift}</td>
+                      <td className="py-4 px-6 font-semibold text-blue-600">{trx.dispenser}</td>
+                      <td className="py-4 px-6 text-slate-600">{trx.jenis_bbm}</td>
+                      <td className="py-4 px-6 text-slate-600">{trx.jumlah_liter} L</td>
+                      <td className="py-4 px-6 font-medium text-slate-800">{formatRupiah(trx.total_harga)}</td>
+                      <td className="py-4 px-6 text-slate-600 uppercase text-xs">{trx.operator}</td>
+                      <td className="py-4 px-6 text-center"><button onClick={() => handleHapusBBM(trx.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button></td>
+                    </tr>
+                  )) : <tr><td colSpan="7" className="py-8 text-center text-slate-500">Belum ada transaksi BBM hari ini.</td></tr>}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase">
+                    <th className="py-4 px-6 font-semibold">Shift</th>
+                    <th className="py-4 px-6 font-semibold">Produk NFR</th>
+                    <th className="py-4 px-6 font-semibold">Jumlah</th>
+                    <th className="py-4 px-6 font-semibold">Total Harga</th>
+                    <th className="py-4 px-6 font-semibold">Kasir/Foreman</th>
+                    <th className="py-4 px-6 font-semibold text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transaksiNFR.length > 0 ? transaksiNFR.map(trx => (
+                    <tr key={trx.id} className="hover:bg-slate-50/50">
+                      <td className="py-4 px-6 text-slate-600 font-medium">{trx.shift}</td>
+                      <td className="py-4 px-6 font-semibold text-blue-600">{trx.produk_nfr}</td>
+                      <td className="py-4 px-6 text-slate-600">{trx.jumlah} Pcs/Tabung</td>
+                      <td className="py-4 px-6 font-medium text-slate-800">{formatRupiah(trx.total_harga)}</td>
+                      <td className="py-4 px-6 text-slate-600 uppercase text-xs">{trx.kasir_foreman}</td>
+                      <td className="py-4 px-6 text-center"><button onClick={() => handleHapusNFR(trx.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button></td>
+                    </tr>
+                  )) : <tr><td colSpan="6" className="py-8 text-center text-slate-500">Belum ada transaksi NFR hari ini.</td></tr>}
                 </tbody>
               </table>
             )}
