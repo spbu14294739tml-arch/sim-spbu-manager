@@ -14,8 +14,16 @@ export default function Kasir() {
   const [transaksiBBM, setTransaksiBBM] = useState([]);
   const [transaksiNFR, setTransaksiNFR] = useState([]);
   
+  // State untuk memantau tanggal hari ini
+  const getTodayDate = () => {
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const localToday = new Date(today.getTime() - (offset * 60 * 1000));
+    return localToday.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState({
-    tanggal: new Date().toISOString().split('T')[0],
+    tanggal: getTodayDate(),
     shift: '',
   });
 
@@ -31,14 +39,6 @@ export default function Kasir() {
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
   const listKasirForeman = ['KASIR', 'FOREMAN'];
-
-  const getTodayDate = () => {
-    const today = new Date();
-    const offset = today.getTimezoneOffset();
-    const localToday = new Date(today.getTime() - (offset * 60 * 1000));
-    return localToday.toISOString().split('T')[0];
-  };
-  const hariIni = getTodayDate();
 
   // Warna untuk masing-masing BBM agar modern (Jika logo tidak ada)
   const getBBMColor = (jenis) => {
@@ -67,16 +67,30 @@ export default function Kasir() {
       setListHargaBBM(hargaBBMData);
     }
 
-    const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
+    const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', formData.tanggal).order('id', { ascending: false });
     if (dataBBM) setTransaksiBBM(dataBBM);
 
-    const { data: dataNFR } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', hariIni).order('id', { ascending: false });
+    const { data: dataNFR } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', formData.tanggal).order('id', { ascending: false });
     if (dataNFR) setTransaksiNFR(dataNFR);
 
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  // Efek untuk Timer Otomatis (Pergantian Hari)
+  useEffect(() => {
+    fetchData();
+
+    // Cek setiap 60 detik apakah hari sudah berganti
+    const timer = setInterval(() => {
+      const today = getTodayDate();
+      if (today !== formData.tanggal) {
+        setFormData(prev => ({ ...prev, tanggal: today }));
+        fetchData(); // Refresh data transaksi untuk hari baru
+      }
+    }, 60000); 
+
+    return () => clearInterval(timer);
+  }, [formData.tanggal]); 
 
   // Hitung Otomatis BBM
   const handleBBMJumlahChange = (e) => {
@@ -194,7 +208,7 @@ export default function Kasir() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Tanggal</label>
-                <input type="date" value={formData.tanggal} readOnly className="w-full px-3 py-2 border rounded-lg bg-slate-50 text-sm" />
+                <input type="date" value={formData.tanggal} readOnly className="w-full px-3 py-2 border rounded-lg bg-slate-50 text-sm font-bold text-slate-700" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Shift</label>
@@ -223,7 +237,6 @@ export default function Kasir() {
                         onClick={() => handleBBMSelect(bbm.jenis_bbm)}
                         className={`cursor-pointer border rounded-xl p-3 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : getBBMColor(bbm.jenis_bbm)}`}
                       >
-                        {/* LOGO BBM (Jika ada, tampilkan gambar. Jika tidak, tampilkan ikon Fuel) */}
                         {bbm.logo_url ? (
                           <img src={bbm.logo_url} alt={bbm.jenis_bbm} className="h-10 object-contain mb-2" />
                         ) : (
@@ -305,7 +318,7 @@ export default function Kasir() {
         {/* KOLOM KANAN: TABEL TRANSAKSI HARI INI */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <div className="p-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="text-lg font-bold text-slate-800">Transaksi Hari Ini ({hariIni})</h2>
+            <h2 className="text-lg font-bold text-slate-800">Transaksi Hari Ini ({formData.tanggal})</h2>
           </div>
           <div className="overflow-x-auto">
             {isLoading ? (
