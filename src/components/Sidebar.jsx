@@ -9,7 +9,8 @@ import {
   Settings, 
   LogOut,
   UserCircle,
-  UserCheck
+  UserCheck,
+  ShoppingCart
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -46,6 +47,7 @@ export default function Sidebar() {
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] }, // Hanya Manager
+    { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting'] },
   ];
 
   // Filter menu berdasarkan role user

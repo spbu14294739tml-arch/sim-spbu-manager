@@ -13,6 +13,7 @@ import Absensi from './pages/Absensi';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
+import Kasir from './pages/Kasir';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -70,7 +71,7 @@ function App() {
             <Route path="absensi" element={<Absensi />} />
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-
+            <Route path="kasir" element={<Kasir />} />
             {/* Satpam Khusus: Hanya Manager yang bisa masuk */}
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
