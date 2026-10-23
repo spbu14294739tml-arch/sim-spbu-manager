@@ -4,26 +4,6 @@ import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User } from 'lu
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 
-// KOMPONEN INPUT DENGAN DATALIST
-const InputFieldWithList = ({ label, name, placeholder = "", listId, options, formData, setFormData, onChange }) => (
-  <div>
-    <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-    <input
-      type="text"
-      list={listId}
-      value={formData[name] || ''}
-      onChange={onChange ? onChange : (e) => setFormData({...formData, [name]: e.target.value.toUpperCase()})}
-      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-      placeholder={placeholder}
-    />
-    <datalist id={listId}>
-      {options.map((opt, idx) => (
-        <option key={idx} value={opt} />
-      ))}
-    </datalist>
-  </div>
-);
-
 const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
@@ -57,23 +37,31 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // DATA WILAYAH & KODE POS BATAM
-  const listKecamatan = ['BATAM KOTA', 'SEKUPANG', 'BATU AJI', 'LUBUK BAJA', 'BENGKONG', 'NONGSA', 'SAGULUNG', 'BATU AMPAR', 'GALANG', 'BULANG'];
-  const listKelurahan = ['SUNGAI LANGKAI', 'TELUK TERING', 'BATU AJI', 'BALOI PERMAI', 'BENGKONG INDAH', 'SAGULUNG KOTA', 'TIBAN LAMA', 'TIBAN INDAH', 'KABIL', 'BATU BESAR'];
-  
-  // KAMUS KODE POS (Bisa ditambah manual)
-  const dataKodePos = {
-    'SUNGAI LANGKAI': '29432',
-    'TELUK TERING': '29411',
-    'BATU AJI': '29438',
-    'BALOI PERMAI': '29432',
-    'BENGKONG INDAH': '29433',
-    'SAGULUNG KOTA': '29439',
-    'TIBAN LAMA': '29425',
-    'TIBAN INDAH': '29425',
-    'KABIL': '29444',
-    'BATU BESAR': '29444'
+  // DATABASE WILAYAH TERKELOMPOK (Kecamatan -> Kelurahan -> Kode Pos)
+  const dataWilayah = {
+    'SAGULUNG': {
+      'SUNGAI LANGKAI': '29432',
+      'SAGULUNG KOTA': '29439',
+      'TIBAN LAMA': '29425',
+      'TIBAN INDAH': '29425',
+      'BATU BESAR': '29444'
+    },
+    'BATAM KOTA': {
+      'TELUK TERING': '29411',
+      'BALOI PERMAI': '29432',
+      'BATU AJI': '29438',
+      'KABIL': '29444'
+    },
+    'BENGKONG': {
+      'BENGKONG INDAH': '29433',
+      'BENGKONG HARAPAN': '29433'
+    }
   };
+
+  const listKecamatan = Object.keys(dataWilayah);
+  
+  // State untuk Kelurahan yang akan tampil (mengikuti Kecamatan yang dipilih)
+  const [listKelurahanTampil, setListKelurahanTampil] = useState([]);
 
   const [formData, setFormData] = useState({
     nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
@@ -145,10 +133,29 @@ export default function DatabaseKaryawan() {
     }
   };
 
-  // FUNGSI OTOMATIS KODE POS
+  // LOGIKA WILAYAH: Saat Kecamatan diubah
+  const handleKecamatanChange = (e) => {
+    const kecamatanDipilih = e.target.value.toUpperCase();
+    
+    // Ambil daftar kelurahan berdasarkan kecamatan yang dipilih
+    const kelurahanTersedia = dataWilayah[kecamatanDipilih] ? Object.keys(dataWilayah[kecamatanDipilih]) : [];
+    setListKelurahanTampil(kelurahanTersedia);
+
+    // Reset Kelurahan dan Kode Pos saat Kecamatan berubah
+    setFormData({ 
+      ...formData, 
+      kecamatan: kecamatanDipilih, 
+      kelurahan: '', 
+      kode_pos: '' 
+    });
+  };
+
+  // LOGIKA WILAYAH: Saat Kelurahan diubah (Otomatis isi Kode Pos)
   const handleKelurahanChange = (e) => {
     const kelurahanDipilih = e.target.value.toUpperCase();
-    const kodePosOtomatis = dataKodePos[kelurahanDipilih] || '';
+    
+    // Cari Kode Pos dari Kamus Data
+    const kodePosOtomatis = dataWilayah[formData.kecamatan]?.[kelurahanDipilih] || '';
     
     setFormData({ 
       ...formData, 
@@ -178,6 +185,15 @@ export default function DatabaseKaryawan() {
     setPreviewFoto(karyawan.foto_url || '');
     setFileFoto(null);
     setEditingId(karyawan.id);
+
+    // Set daftar kelurahan yang sesuai dengan kecamatan karyawan tersebut
+    const kecamatanKaryawan = dataKaryawan.kecamatan;
+    if (kecamatanKaryawan && dataWilayah[kecamatanKaryawan]) {
+      setListKelurahanTampil(Object.keys(dataWilayah[kecamatanKaryawan]));
+    } else {
+      setListKelurahanTampil([]);
+    }
+
     setIsModalOpen(true);
     setActiveTab(1);
   };
@@ -196,6 +212,7 @@ export default function DatabaseKaryawan() {
     setDisplayGaji('');
     setFileFoto(null);
     setPreviewFoto('');
+    setListKelurahanTampil([]); // Reset daftar kelurahan
     setEditingId(null);
     setIsModalOpen(false);
     setActiveTab(1);
@@ -396,28 +413,34 @@ export default function DatabaseKaryawan() {
                     <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
                   </div>
                   
-                  <InputFieldWithList 
-                    label="Kecamatan" 
-                    name="kecamatan" 
-                    placeholder="Pilih atau ketik Kecamatan..." 
-                    listId="list-kecamatan" 
-                    options={listKecamatan} 
-                    formData={formData} 
-                    setFormData={setFormData} 
-                  />
+                  {/* KECAMATAN DROPDOWN */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Kecamatan</label>
+                    <select value={formData.kecamatan || ''} onChange={handleKecamatanChange} className="w-full px-4 py-2 border rounded-xl bg-white">
+                      <option value="">Pilih Kecamatan...</option>
+                      {listKecamatan.map((kec, idx) => (
+                        <option key={idx} value={kec}>{kec}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* KELURAHAN DROPDOWN (Hanya muncul jika Kecamatan dipilih) */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Kelurahan / Desa</label>
+                    <select 
+                      value={formData.kelurahan || ''} 
+                      onChange={handleKelurahanChange} 
+                      disabled={!formData.kecamatan}
+                      className="w-full px-4 py-2 border rounded-xl bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Pilih Kelurahan...</option>
+                      {listKelurahanTampil.map((kel, idx) => (
+                        <option key={idx} value={kel}>{kel}</option>
+                      ))}
+                    </select>
+                  </div>
                   
-                  {/* KELURAHAN DENGAN OTOMATIS KODE POS */}
-                  <InputFieldWithList 
-                    label="Kelurahan / Desa" 
-                    name="kelurahan" 
-                    placeholder="Pilih atau ketik Kelurahan..." 
-                    listId="list-kelurahan" 
-                    options={listKelurahan} 
-                    formData={formData} 
-                    onChange={handleKelurahanChange} 
-                  />
-                  
-                  <InputField label="Kode Pos" name="kode_pos" placeholder="Contoh: 29432" formData={formData} setFormData={setFormData} />
+                  <InputField label="Kode Pos" name="kode_pos" placeholder="Otomatis / Ketik manual" formData={formData} setFormData={setFormData} />
                 </div>
               )}
 
