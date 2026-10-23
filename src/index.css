@@ -1,14 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
-body {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f8fafc;
-}
+/* Aturan Khusus untuk Cetak (Print) */
+@media print {
+  /* Sembunyikan Sidebar, tombol, dan elemen navigasi */
+  aside, nav, button, .no-print {
+    display: none !important;
+  }
+  
+  /* Pastikan area konten mengambil lebar penuh */
+  main, .print-area {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
 
-* {
-  box-sizing: border-box;
+  /* Atur warna teks agar jelas saat dicetak */
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Pastikan tabel tidak terpotong */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
 }

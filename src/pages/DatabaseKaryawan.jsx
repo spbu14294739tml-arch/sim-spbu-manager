@@ -1,6 +1,6 @@
 // src/pages/DatabaseKaryawan.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 
@@ -37,30 +37,12 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // DATABASE WILAYAH TERKELOMPOK (Kecamatan -> Kelurahan -> Kode Pos)
   const dataWilayah = {
-    'SAGULUNG': {
-      'SUNGAI LANGKAI': '29432',
-      'SAGULUNG KOTA': '29439',
-      'TIBAN LAMA': '29425',
-      'TIBAN INDAH': '29425',
-      'BATU BESAR': '29444'
-    },
-    'BATAM KOTA': {
-      'TELUK TERING': '29411',
-      'BALOI PERMAI': '29432',
-      'BATU AJI': '29438',
-      'KABIL': '29444'
-    },
-    'BENGKONG': {
-      'BENGKONG INDAH': '29433',
-      'BENGKONG HARAPAN': '29433'
-    }
+    'SAGULUNG': { 'SUNGAI LANGKAI': '29432', 'SAGULUNG KOTA': '29439', 'TIBAN LAMA': '29425', 'TIBAN INDAH': '29425', 'BATU BESAR': '29444' },
+    'BATAM KOTA': { 'TELUK TERING': '29411', 'BALOI PERMAI': '29432', 'BATU AJI': '29438', 'KABIL': '29444' },
+    'BENGKONG': { 'BENGKONG INDAH': '29433', 'BENGKONG HARAPAN': '29433' }
   };
-
   const listKecamatan = Object.keys(dataWilayah);
-  
-  // State untuk Kelurahan yang akan tampil (mengikuti Kecamatan yang dipilih)
   const [listKelurahanTampil, setListKelurahanTampil] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -90,10 +72,7 @@ export default function DatabaseKaryawan() {
     else setListShift(['Pagi', 'Siang', 'Malam', '-']);
   };
 
-  useEffect(() => { 
-    fetchKaryawan(); 
-    fetchShift();
-  }, []);
+  useEffect(() => { fetchKaryawan(); fetchShift(); }, []);
 
   const generateNomorKaryawan = (posisiDipilih) => {
     if (!posisiDipilih) return '';
@@ -133,35 +112,17 @@ export default function DatabaseKaryawan() {
     }
   };
 
-  // LOGIKA WILAYAH: Saat Kecamatan diubah
   const handleKecamatanChange = (e) => {
     const kecamatanDipilih = e.target.value.toUpperCase();
-    
-    // Ambil daftar kelurahan berdasarkan kecamatan yang dipilih
     const kelurahanTersedia = dataWilayah[kecamatanDipilih] ? Object.keys(dataWilayah[kecamatanDipilih]) : [];
     setListKelurahanTampil(kelurahanTersedia);
-
-    // Reset Kelurahan dan Kode Pos saat Kecamatan berubah
-    setFormData({ 
-      ...formData, 
-      kecamatan: kecamatanDipilih, 
-      kelurahan: '', 
-      kode_pos: '' 
-    });
+    setFormData({ ...formData, kecamatan: kecamatanDipilih, kelurahan: '', kode_pos: '' });
   };
 
-  // LOGIKA WILAYAH: Saat Kelurahan diubah (Otomatis isi Kode Pos)
   const handleKelurahanChange = (e) => {
     const kelurahanDipilih = e.target.value.toUpperCase();
-    
-    // Cari Kode Pos dari Kamus Data
     const kodePosOtomatis = dataWilayah[formData.kecamatan]?.[kelurahanDipilih] || '';
-    
-    setFormData({ 
-      ...formData, 
-      kelurahan: kelurahanDipilih, 
-      kode_pos: kodePosOtomatis 
-    });
+    setFormData({ ...formData, kelurahan: kelurahanDipilih, kode_pos: kodePosOtomatis });
   };
 
   const handleGajiChange = (e) => {
@@ -185,15 +146,11 @@ export default function DatabaseKaryawan() {
     setPreviewFoto(karyawan.foto_url || '');
     setFileFoto(null);
     setEditingId(karyawan.id);
-
-    // Set daftar kelurahan yang sesuai dengan kecamatan karyawan tersebut
-    const kecamatanKaryawan = dataKaryawan.kecamatan;
-    if (kecamatanKaryawan && dataWilayah[kecamatanKaryawan]) {
-      setListKelurahanTampil(Object.keys(dataWilayah[kecamatanKaryawan]));
+    if (dataKaryawan.kecamatan && dataWilayah[dataKaryawan.kecamatan]) {
+      setListKelurahanTampil(Object.keys(dataWilayah[dataKaryawan.kecamatan]));
     } else {
       setListKelurahanTampil([]);
     }
-
     setIsModalOpen(true);
     setActiveTab(1);
   };
@@ -212,7 +169,7 @@ export default function DatabaseKaryawan() {
     setDisplayGaji('');
     setFileFoto(null);
     setPreviewFoto('');
-    setListKelurahanTampil([]); // Reset daftar kelurahan
+    setListKelurahanTampil([]);
     setEditingId(null);
     setIsModalOpen(false);
     setActiveTab(1);
@@ -284,11 +241,17 @@ export default function DatabaseKaryawan() {
           <h1 className="text-3xl font-bold text-slate-800">Database Karyawan</h1>
           <p className="text-slate-500 mt-1">Kelola data seluruh staf SPBU 14.294.739</p>
         </div>
-        <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
-          <Plus size={20} /> Tambah Karyawan
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+            <Printer size={20} /> Cetak
+          </button>
+          <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
+            <Plus size={20} /> Tambah Karyawan
+          </button>
+        </div>
       </div>
 
+      {/* FILTER & SEARCH */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
@@ -302,7 +265,15 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      {/* JUDUL KHUSUS CETAK */}
+      <div className="hidden print:block mb-6 text-center">
+        <h1 className="text-2xl font-bold text-black uppercase">Data Karyawan SPBU 14.294.739</h1>
+        <p className="text-black text-sm">Dicetak pada: {new Date().toLocaleDateString('id-ID')}</p>
+        <hr className="border-black my-4" />
+      </div>
+
+      {/* TABEL DATA */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
@@ -311,7 +282,7 @@ export default function DatabaseKaryawan() {
               <th className="py-4 px-6 font-semibold">Posisi</th>
               <th className="py-4 px-6 font-semibold">Gaji Pokok</th>
               <th className="py-4 px-6 font-semibold">Status</th>
-              <th className="py-4 px-6 font-semibold text-center">Aksi</th>
+              <th className="py-4 px-6 font-semibold text-center no-print">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -333,7 +304,7 @@ export default function DatabaseKaryawan() {
                 <td className="py-4 px-6 text-slate-600">{k.posisi}</td>
                 <td className="py-4 px-6 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
                 <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
-                <td className="py-4 px-6">
+                <td className="py-4 px-6 no-print">
                   <div className="flex items-center justify-center gap-2">
                     <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
                     <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
@@ -345,43 +316,34 @@ export default function DatabaseKaryawan() {
         </table>
       </div>
 
+      {/* MODAL 3 TAB (Kode Modal Sama Seperti Sebelumnya) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          {/* ... (Isi modal tetap sama, tidak perlu diubah) ... */}
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            
             <div className="flex justify-between items-center p-5 border-b bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h2>
               <button onClick={handleTutupModal}><X size={20} /></button>
             </div>
-
             <div className="flex border-b px-5 bg-white">
               <button type="button" onClick={() => setActiveTab(1)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 1 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Data Pribadi</button>
               <button type="button" onClick={() => setActiveTab(2)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 2 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Kepegawaian</button>
               <button type="button" onClick={() => setActiveTab(3)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 3 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Berkas</button>
             </div>
-
             <form onSubmit={handleSimpan} className="flex-1 overflow-y-auto p-6 space-y-4">
-              
               {activeTab === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-2">
                     <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0">
-                      {previewFoto ? (
-                        <img src={previewFoto} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="text-slate-400" size={40} />
-                      )}
+                      {previewFoto ? (<img src={previewFoto} alt="Preview" className="w-full h-full object-cover" />) : (<User className="text-slate-400" size={40} />)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">Pas Photo Karyawan</label>
                       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFotoChange} className="hidden" />
-                      <button type="button" onClick={() => fileInputRef.current.click()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm">
-                        <Upload size={16} /> Pilih Foto
-                      </button>
+                      <button type="button" onClick={() => fileInputRef.current.click()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2 shadow-sm"><Upload size={16} /> Pilih Foto</button>
                       <p className="text-xs text-slate-500 mt-2">Format: JPG/PNG. Maks 2MB.</p>
                     </div>
                   </div>
-
                   <InputField label="Nama Lengkap *" name="nama" placeholder="Sesuai KTP" formData={formData} setFormData={setFormData} />
                   <InputField label="No. Handphone" name="no_hp" placeholder="0812..." formData={formData} setFormData={setFormData} />
                   <InputField label="Email" name="email" type="email" placeholder="nama@email.com" formData={formData} setFormData={setFormData} />
@@ -390,60 +352,27 @@ export default function DatabaseKaryawan() {
                   <InputField label="Tanggal Lahir" name="tanggal_lahir" type="date" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label>
-                    <select value={formData.jenis_kelamin || ''} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      <option value="">Pilih...</option>
-                      <option value="Laki-Laki">Laki-Laki</option>
-                      <option value="Perempuan">Perempuan</option>
-                    </select>
+                    <select value={formData.jenis_kelamin || ''} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="Laki-Laki">Laki-Laki</option><option value="Perempuan">Perempuan</option></select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Status Pernikahan</label>
-                    <select value={formData.status_pernikahan || ''} onChange={(e) => setFormData({...formData, status_pernikahan: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      <option value="">Pilih...</option>
-                      <option value="TK/0">TK/0 (Belum Menikah)</option>
-                      <option value="K/0">K/0 (Menikah, 0 Anak)</option>
-                      <option value="K/1">K/1 (Menikah, 1 Anak)</option>
-                      <option value="K/2">K/2 (Menikah, 2 Anak)</option>
-                      <option value="K/3">K/3 (Menikah, 3 Anak)</option>
-                    </select>
+                    <select value={formData.status_pernikahan || ''} onChange={(e) => setFormData({...formData, status_pernikahan: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="TK/0">TK/0 (Belum Menikah)</option><option value="K/0">K/0 (Menikah, 0 Anak)</option><option value="K/1">K/1 (Menikah, 1 Anak)</option><option value="K/2">K/2 (Menikah, 2 Anak)</option><option value="K/3">K/3 (Menikah, 3 Anak)</option></select>
                   </div>
-                  
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap (Jalan/Dusun)</label>
                     <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
                   </div>
-                  
-                  {/* KECAMATAN DROPDOWN */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Kecamatan</label>
-                    <select value={formData.kecamatan || ''} onChange={handleKecamatanChange} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      <option value="">Pilih Kecamatan...</option>
-                      {listKecamatan.map((kec, idx) => (
-                        <option key={idx} value={kec}>{kec}</option>
-                      ))}
-                    </select>
+                    <select value={formData.kecamatan || ''} onChange={handleKecamatanChange} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih Kecamatan...</option>{listKecamatan.map((kec, idx) => (<option key={idx} value={kec}>{kec}</option>))}</select>
                   </div>
-
-                  {/* KELURAHAN DROPDOWN (Hanya muncul jika Kecamatan dipilih) */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Kelurahan / Desa</label>
-                    <select 
-                      value={formData.kelurahan || ''} 
-                      onChange={handleKelurahanChange} 
-                      disabled={!formData.kecamatan}
-                      className="w-full px-4 py-2 border rounded-xl bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"
-                    >
-                      <option value="">Pilih Kelurahan...</option>
-                      {listKelurahanTampil.map((kel, idx) => (
-                        <option key={idx} value={kel}>{kel}</option>
-                      ))}
-                    </select>
+                    <select value={formData.kelurahan || ''} onChange={handleKelurahanChange} disabled={!formData.kecamatan} className="w-full px-4 py-2 border rounded-xl bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"><option value="">Pilih Kelurahan...</option>{listKelurahanTampil.map((kel, idx) => (<option key={idx} value={kel}>{kel}</option>))}</select>
                   </div>
-                  
                   <InputField label="Kode Pos" name="kode_pos" placeholder="Otomatis / Ketik manual" formData={formData} setFormData={setFormData} />
                 </div>
               )}
-
               {activeTab === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -453,20 +382,11 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Shift</label>
-                    <select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      {listShift.map((shift, idx) => (
-                        <option key={idx} value={shift}>{shift}</option>
-                      ))}
-                      <option value="-">-</option>
-                    </select>
+                    <select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">{listShift.map((shift, idx) => (<option key={idx} value={shift}>{shift}</option>))}<option value="-">-</option></select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select value={formData.status || 'Aktif'} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
-                      <option value="Aktif">Aktif</option>
-                      <option value="Cuti">Cuti</option>
-                      <option value="Tidak Aktif">Tidak Aktif</option>
-                    </select>
+                    <select value={formData.status || 'Aktif'} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="Aktif">Aktif</option><option value="Cuti">Cuti</option><option value="Tidak Aktif">Tidak Aktif</option></select>
                   </div>
                   <InputField label="Tanggal Masuk" name="tanggal_masuk" type="date" formData={formData} setFormData={setFormData} />
                   <InputField label="Tanggal Keluar" name="tanggal_keluar" type="date" formData={formData} setFormData={setFormData} />
@@ -481,7 +401,6 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor Rekening" name="nomor_rekening" formData={formData} setFormData={setFormData} />
                 </div>
               )}
-
               {activeTab === 3 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." formData={formData} setFormData={setFormData} />
@@ -493,7 +412,6 @@ export default function DatabaseKaryawan() {
                 </div>
               )}
             </form>
-
             <div className="p-5 border-t bg-slate-50 flex justify-end gap-3">
               <button type="button" onClick={handleTutupModal} className="px-5 py-2.5 border rounded-xl font-medium">Batal</button>
               <button type="button" onClick={handleSimpan} disabled={isUploading} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-sm flex items-center gap-2 disabled:opacity-50">
