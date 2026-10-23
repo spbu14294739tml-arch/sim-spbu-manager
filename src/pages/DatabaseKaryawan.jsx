@@ -4,15 +4,15 @@ import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User } from 'lu
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 
-// KOMPONEN INPUT DENGAN DATALIST (Bisa pilih atau ketik manual)
-const InputFieldWithList = ({ label, name, placeholder = "", listId, options, formData, setFormData }) => (
+// KOMPONEN INPUT DENGAN DATALIST
+const InputFieldWithList = ({ label, name, placeholder = "", listId, options, formData, setFormData, onChange }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
     <input
       type="text"
       list={listId}
       value={formData[name] || ''}
-      onChange={(e) => setFormData({...formData, [name]: e.target.value.toUpperCase()})}
+      onChange={onChange ? onChange : (e) => setFormData({...formData, [name]: e.target.value.toUpperCase()})}
       className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
       placeholder={placeholder}
     />
@@ -57,9 +57,23 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Data Dummy Wilayah (Khusus Batam & Sekitarnya)
+  // DATA WILAYAH & KODE POS BATAM
   const listKecamatan = ['BATAM KOTA', 'SEKUPANG', 'BATU AJI', 'LUBUK BAJA', 'BENGKONG', 'NONGSA', 'SAGULUNG', 'BATU AMPAR', 'GALANG', 'BULANG'];
   const listKelurahan = ['SUNGAI LANGKAI', 'TELUK TERING', 'BATU AJI', 'BALOI PERMAI', 'BENGKONG INDAH', 'SAGULUNG KOTA', 'TIBAN LAMA', 'TIBAN INDAH', 'KABIL', 'BATU BESAR'];
+  
+  // KAMUS KODE POS (Bisa ditambah manual)
+  const dataKodePos = {
+    'SUNGAI LANGKAI': '29432',
+    'TELUK TERING': '29411',
+    'BATU AJI': '29438',
+    'BALOI PERMAI': '29432',
+    'BENGKONG INDAH': '29433',
+    'SAGULUNG KOTA': '29439',
+    'TIBAN LAMA': '29425',
+    'TIBAN INDAH': '29425',
+    'KABIL': '29444',
+    'BATU BESAR': '29444'
+  };
 
   const [formData, setFormData] = useState({
     nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
@@ -129,6 +143,18 @@ export default function DatabaseKaryawan() {
     } else {
       setFormData({ ...formData, posisi: posisiBaru });
     }
+  };
+
+  // FUNGSI OTOMATIS KODE POS
+  const handleKelurahanChange = (e) => {
+    const kelurahanDipilih = e.target.value.toUpperCase();
+    const kodePosOtomatis = dataKodePos[kelurahanDipilih] || '';
+    
+    setFormData({ 
+      ...formData, 
+      kelurahan: kelurahanDipilih, 
+      kode_pos: kodePosOtomatis 
+    });
   };
 
   const handleGajiChange = (e) => {
@@ -370,7 +396,6 @@ export default function DatabaseKaryawan() {
                     <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
                   </div>
                   
-                  {/* FITUR DATALIST KECAMATAN & KELURAHAN */}
                   <InputFieldWithList 
                     label="Kecamatan" 
                     name="kecamatan" 
@@ -380,6 +405,8 @@ export default function DatabaseKaryawan() {
                     formData={formData} 
                     setFormData={setFormData} 
                   />
+                  
+                  {/* KELURAHAN DENGAN OTOMATIS KODE POS */}
                   <InputFieldWithList 
                     label="Kelurahan / Desa" 
                     name="kelurahan" 
@@ -387,7 +414,7 @@ export default function DatabaseKaryawan() {
                     listId="list-kelurahan" 
                     options={listKelurahan} 
                     formData={formData} 
-                    setFormData={setFormData} 
+                    onChange={handleKelurahanChange} 
                   />
                   
                   <InputField label="Kode Pos" name="kode_pos" placeholder="Contoh: 29432" formData={formData} setFormData={setFormData} />
