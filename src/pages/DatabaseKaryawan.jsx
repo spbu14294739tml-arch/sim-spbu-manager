@@ -4,6 +4,26 @@ import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User } from 'lu
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 
+// KOMPONEN INPUT DENGAN DATALIST (Bisa pilih atau ketik manual)
+const InputFieldWithList = ({ label, name, placeholder = "", listId, options, formData, setFormData }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
+    <input
+      type="text"
+      list={listId}
+      value={formData[name] || ''}
+      onChange={(e) => setFormData({...formData, [name]: e.target.value.toUpperCase()})}
+      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+      placeholder={placeholder}
+    />
+    <datalist id={listId}>
+      {options.map((opt, idx) => (
+        <option key={idx} value={opt} />
+      ))}
+    </datalist>
+  </div>
+);
+
 const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
     <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
@@ -32,11 +52,14 @@ export default function DatabaseKaryawan() {
   const [activeTab, setActiveTab] = useState(1);
   const [editingId, setEditingId] = useState(null);
 
-  // State untuk Upload Foto
   const [fileFoto, setFileFoto] = useState(null);
   const [previewFoto, setPreviewFoto] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Data Dummy Wilayah (Khusus Batam & Sekitarnya)
+  const listKecamatan = ['BATAM KOTA', 'SEKUPANG', 'BATU AJI', 'LUBUK BAJA', 'BENGKONG', 'NONGSA', 'SAGULUNG', 'BATU AMPAR', 'GALANG', 'BULANG'];
+  const listKelurahan = ['SUNGAI LANGKAI', 'TELUK TERING', 'BATU AJI', 'BALOI PERMAI', 'BENGKONG INDAH', 'SAGULUNG KOTA', 'TIBAN LAMA', 'TIBAN INDAH', 'KABIL', 'BATU BESAR'];
 
   const [formData, setFormData] = useState({
     nama: '', nomor_karyawan: '', posisi: '', shift: 'Pagi', status: 'Aktif',
@@ -114,7 +137,6 @@ export default function DatabaseKaryawan() {
     setDisplayGaji(rawValue ? formatRupiah(rawValue) : '');
   };
 
-  // FUNGSI UPLOAD FOTO
   const handleFotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -158,13 +180,10 @@ export default function DatabaseKaryawan() {
     setIsUploading(true);
     let finalFotoUrl = formData.foto_url;
 
-    // 1. Proses Upload Foto ke Supabase Storage (jika ada file baru)
     if (fileFoto) {
       const fileExt = fileFoto.name.split('.').pop();
       const fileName = `${Date.now()}_${formData.nama.replace(/\s+/g, '_')}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('foto_karyawan')
-        .upload(fileName, fileFoto);
+      const { error: uploadError } = await supabase.storage.from('foto_karyawan').upload(fileName, fileFoto);
 
       if (uploadError) {
         alert('Gagal upload foto: ' + uploadError.message);
@@ -172,12 +191,10 @@ export default function DatabaseKaryawan() {
         return;
       }
 
-      // Dapatkan URL publik foto
       const { data: publicUrlData } = supabase.storage.from('foto_karyawan').getPublicUrl(fileName);
       finalFotoUrl = publicUrlData.publicUrl;
     }
 
-    // 2. Simpan Data ke Tabel
     const dataToInsert = {
       ...formData,
       foto_url: finalFotoUrl,
@@ -219,7 +236,6 @@ export default function DatabaseKaryawan() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative">
-      {/* Header & Tombol */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Database Karyawan</h1>
@@ -230,7 +246,6 @@ export default function DatabaseKaryawan() {
         </button>
       </div>
 
-      {/* Filter & Search */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
@@ -244,7 +259,6 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
-      {/* Tabel Data */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -288,7 +302,6 @@ export default function DatabaseKaryawan() {
         </table>
       </div>
 
-      {/* MODAL 3 TAB */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -306,10 +319,8 @@ export default function DatabaseKaryawan() {
 
             <form onSubmit={handleSimpan} className="flex-1 overflow-y-auto p-6 space-y-4">
               
-              {/* TAB 1: DATA PRIBADI */}
               {activeTab === 1 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* FOTO PROFIL */}
                   <div className="md:col-span-2 flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-2">
                     <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0">
                       {previewFoto ? (
@@ -354,18 +365,35 @@ export default function DatabaseKaryawan() {
                     </select>
                   </div>
                   
-                  {/* ALAMAT DETAIL */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap (Jalan/Dusun)</label>
                     <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
                   </div>
-                  <InputField label="Kecamatan" name="kecamatan" placeholder="Nama Kecamatan" formData={formData} setFormData={setFormData} />
-                  <InputField label="Kelurahan / Desa" name="kelurahan" placeholder="Nama Kelurahan" formData={formData} setFormData={setFormData} />
+                  
+                  {/* FITUR DATALIST KECAMATAN & KELURAHAN */}
+                  <InputFieldWithList 
+                    label="Kecamatan" 
+                    name="kecamatan" 
+                    placeholder="Pilih atau ketik Kecamatan..." 
+                    listId="list-kecamatan" 
+                    options={listKecamatan} 
+                    formData={formData} 
+                    setFormData={setFormData} 
+                  />
+                  <InputFieldWithList 
+                    label="Kelurahan / Desa" 
+                    name="kelurahan" 
+                    placeholder="Pilih atau ketik Kelurahan..." 
+                    listId="list-kelurahan" 
+                    options={listKelurahan} 
+                    formData={formData} 
+                    setFormData={setFormData} 
+                  />
+                  
                   <InputField label="Kode Pos" name="kode_pos" placeholder="Contoh: 29432" formData={formData} setFormData={setFormData} />
                 </div>
               )}
 
-              {/* TAB 2: KEPEGAWAIAN */}
               {activeTab === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -404,7 +432,6 @@ export default function DatabaseKaryawan() {
                 </div>
               )}
 
-              {/* TAB 3: BERKAS */}
               {activeTab === 3 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." formData={formData} setFormData={setFormData} />
