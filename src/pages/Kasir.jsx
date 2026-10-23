@@ -8,7 +8,7 @@ export default function Kasir() {
   const [activeTab, setActiveTab] = useState('BBM'); // 'BBM' atau 'NFR'
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
-  const [listProdukNFR, setListProdukNFR] = useState([]); // State untuk produk NFR
+  const [listProdukNFR, setListProdukNFR] = useState([]); 
   
   const [transaksiBBM, setTransaksiBBM] = useState([]);
   const [transaksiNFR, setTransaksiNFR] = useState([]);
@@ -24,14 +24,15 @@ export default function Kasir() {
     dispenser: 'DISPENSER 1', jenis_bbm: 'PERTALITE', jumlah_liter: '', operator: ''
   });
 
-  // State Form NFR
+  // State Form NFR (Diperbarui)
   const [nfrData, setNfrData] = useState({
-    produk_id: '', // Menyimpan ID produk dari database
+    produk: null, // Menyimpan objek produk yang dipilih
     jumlah: '',
-    kasir_foreman: ''
+    kasir_foreman: '',
+    total_harga: ''
   });
 
-  const [displayHarga, setDisplayHarga] = useState('');
+  const [displayHargaBBM, setDisplayHargaBBM] = useState('');
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
   const listBBM = ['PERTALITE', 'PERTAMAX', 'PERTAMAX TURBO', 'BIOSOLAR', 'DEXLITE'];
@@ -72,17 +73,31 @@ export default function Kasir() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const handleHargaChange = (e) => {
+  const handleHargaBBMChange = (e) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, '');
     setFormData({ ...formData, total_harga: rawValue });
-    setDisplayHarga(rawValue ? formatRupiah(rawValue) : '');
+    setDisplayHargaBBM(rawValue ? formatRupiah(rawValue) : '');
+  };
+
+  // Fungsi Otomatis Hitung Total Harga NFR
+  const handleNFRProdukClick = (produk) => {
+    setNfrData({ ...nfrData, produk: produk, total_harga: '' });
+  };
+
+  const handleNFRJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (nfrData.produk && jumlah) {
+      total = parseFloat(jumlah) * nfrData.produk.harga_jual;
+    }
+    setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
   };
 
   const handleSimpan = async (e) => {
     e.preventDefault();
-    if (!formData.total_harga) return alert('Total Harga harus diisi!');
 
     if (activeTab === 'BBM') {
+      if (!formData.total_harga) return alert('Total Harga harus diisi!');
       if (!bbmData.jumlah_liter || !bbmData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
       
       const { error } = await supabase.from('penjualan_bbm').insert([{
@@ -99,30 +114,25 @@ export default function Kasir() {
       else {
         setBbmData({ ...bbmData, jumlah_liter: '', operator: '' });
         setFormData({ ...formData, total_harga: '' });
-        setDisplayHarga('');
+        setDisplayHargaBBM('');
         fetchData();
       }
 
     } else if (activeTab === 'NFR') {
-      if (!nfrData.produk_id || !nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Produk, Jumlah, dan Kasir/Foreman!');
+      if (!nfrData.produk || !nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Produk, Jumlah, dan Kasir/Foreman!');
       
-      // Cari nama produk yang dipilih untuk disimpan
-      const selectedProduk = listProdukNFR.find(p => p.id.toString() === nfrData.produk_id.toString());
-
       const { error } = await supabase.from('penjualan_nfr').insert([{
         tanggal: formData.tanggal,
         shift: formData.shift,
-        produk_nfr: selectedProduk ? selectedProduk.nama_produk : 'Produk Tidak Diketahui',
+        produk_nfr: nfrData.produk.nama_produk,
         jumlah: parseFloat(nfrData.jumlah),
-        total_harga: parseFloat(formData.total_harga),
+        total_harga: nfrData.total_harga,
         kasir_foreman: nfrData.kasir_foreman
       }]);
 
       if (error) alert('Gagal: ' + error.message);
       else {
-        setNfrData({ ...nfrData, produk_id: '', jumlah: '', kasir_foreman: '' });
-        setFormData({ ...formData, total_harga: '' });
-        setDisplayHarga('');
+        setNfrData({ produk: null, jumlah: '', kasir_foreman: '', total_harga: '' });
         fetchData();
       }
     }
@@ -143,7 +153,6 @@ export default function Kasir() {
   const totalPendapatanBBM = transaksiBBM.reduce((acc, curr) => acc + curr.total_harga, 0);
   const totalPendapatanNFR = transaksiNFR.reduce((acc, curr) => acc + curr.total_harga, 0);
 
-  // Filter produk berdasarkan kategori (LPG / OLI)
   const produkLPG = listProdukNFR.filter(p => p.kategori === 'LPG');
   const produkOLI = listProdukNFR.filter(p => p.kategori === 'OLI');
 
@@ -174,8 +183,8 @@ export default function Kasir() {
         {/* KOLOM KIRI: FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
           <div className="flex border-b mb-4">
-            <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'BBM' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><Fuel size={16} className="inline mr-1"/> Fuel Retail (BBM)</button>
-            <button type="button" onClick={() => setActiveTab('NFR')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'NFR' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><ShoppingBag size={16} className="inline mr-1"/> NFR (LPG & Oli)</button>
+            <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'BBM' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><Fuel size={16} className="inline mr-1"/> BBM</button>
+            <button type="button" onClick={() => setActiveTab('NFR')} className={`flex-1 py-2 text-sm font-medium ${activeTab === 'NFR' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}><ShoppingBag size={16} className="inline mr-1"/> NFR</button>
           </div>
 
           <form onSubmit={handleSimpan} className="space-y-4">
@@ -214,26 +223,54 @@ export default function Kasir() {
                   <label className="block text-xs font-medium text-slate-700 mb-1">Nama Operator</label>
                   <input type="text" required value={bbmData.operator} onChange={(e) => setBbmData({...bbmData, operator: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nama Operator" />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Rp)</label>
+                  <input type="text" required value={displayHargaBBM} onChange={handleHargaBBMChange} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Rp 0" />
+                </div>
               </>
             )}
 
             {activeTab === 'NFR' && (
               <>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Pilih Produk NFR</label>
-                  <select value={nfrData.produk_id} onChange={(e) => setNfrData({...nfrData, produk_id: e.target.value})} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
-                    <option value="">-- Pilih Produk --</option>
-                    <optgroup label="LPG">
-                      {produkLPG.map(p => <option key={p.id} value={p.id}>{p.nama_produk} - {formatRupiah(p.harga_jual)}</option>)}
-                    </optgroup>
-                    <optgroup label="Oli / Pelumas">
-                      {produkOLI.map(p => <option key={p.id} value={p.id}>{p.nama_produk} - {formatRupiah(p.harga_jual)}</option>)}
-                    </optgroup>
-                  </select>
+                  <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Produk NFR</label>
+                  
+                  {/* TAMPILAN KARTU PRODUK LPG */}
+                  <p className="text-[10px] font-bold text-slate-500 mb-1 mt-2">KATEGORI LPG</p>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {produkLPG.map(p => (
+                      <div 
+                        key={p.id} 
+                        onClick={() => handleNFRProdukClick(p)}
+                        className={`cursor-pointer border rounded-lg p-2 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:border-blue-300'}`}
+                      >
+                        {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-10 h-10 object-cover rounded-md mb-1" /> : <div className="w-10 h-10 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={16} className="text-slate-400"/></div>}
+                        <span className="text-[10px] font-semibold text-center leading-tight">{p.nama_produk}</span>
+                        <span className="text-[10px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* TAMPILAN KARTU PRODUK OLI */}
+                  <p className="text-[10px] font-bold text-slate-500 mb-1 mt-4">KATEGORI OLI / PELUMAS</p>
+                  <div className="grid grid-cols-2 gap-2 mb-3 max-h-48 overflow-y-auto pr-1">
+                    {produkOLI.map(p => (
+                      <div 
+                        key={p.id} 
+                        onClick={() => handleNFRProdukClick(p)}
+                        className={`cursor-pointer border rounded-lg p-2 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:border-blue-300'}`}
+                      >
+                        {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-10 h-10 object-cover rounded-md mb-1" /> : <div className="w-10 h-10 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={16} className="text-slate-400"/></div>}
+                        <span className="text-[10px] font-semibold text-center leading-tight">{p.nama_produk}</span>
+                        <span className="text-[10px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Pcs/Tabung)</label>
-                  <input type="number" required value={nfrData.jumlah} onChange={(e) => setNfrData({...nfrData, jumlah: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Jumlah" />
+                  <input type="number" required value={nfrData.jumlah} onChange={handleNFRJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Jumlah" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Nama Kasir / Foreman</label>
@@ -242,13 +279,12 @@ export default function Kasir() {
                     {listKasirForeman.map((kf, i) => <option key={i} value={kf}>{kf}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Otomatis)</label>
+                  <input type="text" readOnly value={nfrData.total_harga ? formatRupiah(nfrData.total_harga) : 'Rp 0'} className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-100 font-bold text-blue-600" />
+                </div>
               </>
             )}
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Rp)</label>
-              <input type="text" required value={displayHarga} onChange={handleHargaChange} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Rp 0" />
-            </div>
             
             <button type="submit" className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm mt-2 text-sm">
               Simpan Transaksi
