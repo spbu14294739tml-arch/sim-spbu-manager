@@ -10,7 +10,8 @@ import {
   LogOut,
   UserCircle,
   UserCheck,
-  ShoppingCart // <-- Ikon baru untuk Kasir
+  ShoppingCart,
+  FileText // <-- Ikon baru untuk Kasir
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
