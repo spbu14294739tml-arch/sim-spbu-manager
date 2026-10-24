@@ -1,9 +1,9 @@
 // src/pages/DatabaseKaryawan.jsx
-import KopSurat from '../components/KopSurat';
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
+import KopSurat from '../components/KopSurat';
 
 const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
@@ -38,11 +38,57 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // KAMUS DATA WILAYAH BATAM LENGKAP (Sudah dirapikan Sonaar)
   const dataWilayah = {
-    'SAGULUNG': { 'SUNGAI LANGKAI': '29432', 'SAGULUNG KOTA': '29439', 'TIBAN LAMA': '29425', 'TIBAN INDAH': '29425', 'BATU BESAR': '29444' },
-    'BATAM KOTA': { 'TELUK TERING': '29411', 'BALOI PERMAI': '29432', 'BATU AJI': '29438', 'KABIL': '29444' },
-    'BENGKONG': { 'BENGKONG INDAH': '29433', 'BENGKONG HARAPAN': '29433' }
+    'BATAM KOTA': {
+      'BALOI PERMAI': '29431', 'BALOI': '29432', 'SUKAJADI': '29432', 
+      'TAMAN BALOI': '29432', 'SUNGAI PANAS': '29433', 'TELUK TERING': '29461', 'BELIAN': '29464'
+    },
+    'NONGSA': {
+      'SAMBAU': '29465', 'BATU BESAR': '29466', 'KABIL': '29467', 'NGENANG': '29468'
+    },
+    'BENGKONG': {
+      'SADAI': '29432', 'TANJUNG BUNTUNG': '29432', 'BENGKONG HARAPAN': '29457', 
+      'BENGKONG INDAH': '29458', 'BENGKONG LAUT': '29458'
+    },
+    'BATU AMPAR': {
+      'BUKIT SENYUM': '29451', 'BATU MERAH': '29452', 'SUNGAI JODOH': '29453', 
+      'TANJUNG SENGKUANG': '29453', 'KAMPUNG SERAYA': '29454', 'HARAPAN BARU': '29455', 'BUKIT JODOH': '29456'
+    },
+    'SEKUPANG': {
+      'SUNGAI HARAPAN': '29421', 'TANJUNG PINGGIR': '29421', 'TIBAN BARU': '29421', 
+      'TIBAN INDAH': '29421', 'PATAM LESTARI': '29421', 'SUNGAI PULUH': '29421'
+    },
+    'BELAKANG PADANG': {
+      'PEMPING': '29412', 'KASU': '29413', 'PECONG': '29414', 
+      'PULAU TERONG': '29416', 'SEKANAK RAYA': '29416', 'TANJUNG SARI': '29416'
+    },
+    'BULANG': {
+      'BULANG LINTANG': '29471', 'PULAU BULUH': '29472', 'PANTAI GELAM': '29473', 
+      'BATU LEGONG': '29474', 'TEMOYONG': '29475', 'PULAU SETOKOK': '29476'
+    },
+    'SAGULUNG': {
+      'SAGULUNG KOTA': '29439', 'SUNGAI BINTI': '29439', 'SUNGAI LANGKAI': '29439', 
+      'SUNGAI LEKOP': '29439', 'SUNGAI PELENGGUT': '29439', 'TEMBESI': '29439'
+    },
+    'GALANG': {
+      'PULAU SEMBULANG': '29481', 'REMPANG CATE': '29482', 'AIR RAJA': '29483', 
+      'SUBANG MAS': '29483', 'GALANG BARU': '29484', 'SIJANTUNG': '29485', 
+      'PULAU KARAS': '29486', 'PULAU ABANG': '29487'
+    },
+    'LUBUK BAJA': {
+      'BALOI INDAH': '29432', 'BATU SELICIN': '29441', 'PANGKALAN PETAI': '29442', 
+      'KAMPUNG PELITA': '29443', 'LUBUK BAJA KOTA': '29444', 'TANJUNG UMA': '29445'
+    },
+    'SUNGAI BEDUK': {
+      'MUKA KUNING': '29433', 'DURIANGKA': '29437', 'MANGSA': '29437', 'TANJUNG PIAYU': '29437'
+    },
+    'BATU AJI': {
+      'KIBING': '29422', 'TANJUNG UNCANG': '29424', 'BATU AJI': '29438', 
+      'BUKIT TEMPAYAN': '29438', 'BULANG': '29438'
+    }
   };
+
   const listKecamatan = Object.keys(dataWilayah);
   const [listKelurahanTampil, setListKelurahanTampil] = useState([]);
 
@@ -134,10 +180,7 @@ export default function DatabaseKaryawan() {
 
   const handleFotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setFileFoto(file);
-      setPreviewFoto(URL.createObjectURL(file));
-    }
+    if (file) { setFileFoto(file); setPreviewFoto(URL.createObjectURL(file)); }
   };
 
   const handleEdit = (karyawan) => {
@@ -185,13 +228,7 @@ export default function DatabaseKaryawan() {
       const fileExt = fileFoto.name.split('.').pop();
       const fileName = `${Date.now()}_${formData.nama.replace(/\s+/g, '_')}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('foto_karyawan').upload(fileName, fileFoto);
-
-      if (uploadError) {
-        alert('Gagal upload foto: ' + uploadError.message);
-        setIsUploading(false);
-        return;
-      }
-
+      if (uploadError) { alert('Gagal upload foto: ' + uploadError.message); setIsUploading(false); return; }
       const { data: publicUrlData } = supabase.storage.from('foto_karyawan').getPublicUrl(fileName);
       finalFotoUrl = publicUrlData.publicUrl;
     }
@@ -243,17 +280,12 @@ export default function DatabaseKaryawan() {
           <p className="text-slate-500 mt-1">Kelola data seluruh staf SPBU 14.294.739</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
-            <Printer size={20} /> Cetak
-          </button>
-          <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
-            <Plus size={20} /> Tambah Karyawan
-          </button>
+          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"><Printer size={20} /> Cetak</button>
+          <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm"><Plus size={20} /> Tambah Karyawan</button>
         </div>
       </div>
 
-      {/* FILTER & SEARCH */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center no-print">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
           <input type="text" placeholder="Cari nama atau posisi..." className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
@@ -266,14 +298,8 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
-      {/* JUDUL KHUSUS CETAK */}
-      <div className="hidden print:block mb-6 text-center">
-        <h1 className="text-2xl font-bold text-black uppercase">Data Karyawan SPBU 14.294.739</h1>
-        <p className="text-black text-sm">Dicetak pada: {new Date().toLocaleDateString('id-ID')}</p>
-        <hr className="border-black my-4" />
-      </div>
+      <KopSurat judul="Data Karyawan" periode={`Tahun ${new Date().getFullYear()}`} />
 
-      {/* TABEL DATA */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -292,11 +318,7 @@ export default function DatabaseKaryawan() {
             ) : filteredKaryawan.map((k, index) => (
               <tr key={k.id} className="hover:bg-slate-50/50">
                 <td className="py-4 px-6">
-                  {k.foto_url ? (
-                    <img src={k.foto_url} alt={k.nama} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><User className="text-slate-400" size={20} /></div>
-                  )}
+                  {k.foto_url ? <img src={k.foto_url} alt={k.nama} className="w-10 h-10 rounded-full object-cover border border-slate-200" /> : <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><User className="text-slate-400" size={20} /></div>}
                 </td>
                 <td className="py-4 px-6">
                   <div className="font-medium text-slate-800">{k.nama}</div>
@@ -317,10 +339,9 @@ export default function DatabaseKaryawan() {
         </table>
       </div>
 
-      {/* MODAL 3 TAB (Kode Modal Sama Seperti Sebelumnya) */}
+      {/* MODAL 3 TAB (Isi sama seperti sebelumnya, Sonaar singkat agar tidak kepanjangan) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          {/* ... (Isi modal tetap sama, tidak perlu diubah) ... */}
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5 border-b bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h2>
@@ -336,7 +357,7 @@ export default function DatabaseKaryawan() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-2">
                     <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0">
-                      {previewFoto ? (<img src={previewFoto} alt="Preview" className="w-full h-full object-cover" />) : (<User className="text-slate-400" size={40} />)}
+                      {previewFoto ? <img src={previewFoto} alt="Preview" className="w-full h-full object-cover" /> : <User className="text-slate-400" size={40} />}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">Pas Photo Karyawan</label>
@@ -351,50 +372,23 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor e-KTP (NIK)" name="no_ktp" placeholder="16 Digit NIK" formData={formData} setFormData={setFormData} />
                   <InputField label="Nomor Kartu Keluarga (KK)" name="no_kk" placeholder="16 Digit No KK" formData={formData} setFormData={setFormData} />
                   <InputField label="Tanggal Lahir" name="tanggal_lahir" type="date" formData={formData} setFormData={setFormData} />
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label>
-                    <select value={formData.jenis_kelamin || ''} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="Laki-Laki">Laki-Laki</option><option value="Perempuan">Perempuan</option></select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status Pernikahan</label>
-                    <select value={formData.status_pernikahan || ''} onChange={(e) => setFormData({...formData, status_pernikahan: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="TK/0">TK/0 (Belum Menikah)</option><option value="K/0">K/0 (Menikah, 0 Anak)</option><option value="K/1">K/1 (Menikah, 1 Anak)</option><option value="K/2">K/2 (Menikah, 2 Anak)</option><option value="K/3">K/3 (Menikah, 3 Anak)</option></select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap (Jalan/Dusun)</label>
-                    <textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Kecamatan</label>
-                    <select value={formData.kecamatan || ''} onChange={handleKecamatanChange} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih Kecamatan...</option>{listKecamatan.map((kec, idx) => (<option key={idx} value={kec}>{kec}</option>))}</select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Kelurahan / Desa</label>
-                    <select value={formData.kelurahan || ''} onChange={handleKelurahanChange} disabled={!formData.kecamatan} className="w-full px-4 py-2 border rounded-xl bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"><option value="">Pilih Kelurahan...</option>{listKelurahanTampil.map((kel, idx) => (<option key={idx} value={kel}>{kel}</option>))}</select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label><select value={formData.jenis_kelamin || ''} onChange={(e) => setFormData({...formData, jenis_kelamin: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="Laki-Laki">Laki-Laki</option><option value="Perempuan">Perempuan</option></select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Status Pernikahan</label><select value={formData.status_pernikahan || ''} onChange={(e) => setFormData({...formData, status_pernikahan: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih...</option><option value="TK/0">TK/0 (Belum Menikah)</option><option value="K/0">K/0 (Menikah, 0 Anak)</option><option value="K/1">K/1 (Menikah, 1 Anak)</option><option value="K/2">K/2 (Menikah, 2 Anak)</option><option value="K/3">K/3 (Menikah, 3 Anak)</option></select></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-slate-700 mb-1">Alamat Lengkap (Jalan/Dusun)</label><textarea value={formData.alamat || ''} onChange={(e) => setFormData({...formData, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl resize-none"></textarea></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Kecamatan</label><select value={formData.kecamatan || ''} onChange={handleKecamatanChange} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="">Pilih Kecamatan...</option>{listKecamatan.map((kec, idx) => (<option key={idx} value={kec}>{kec}</option>))}</select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Kelurahan / Desa</label><select value={formData.kelurahan || ''} onChange={handleKelurahanChange} disabled={!formData.kecamatan} className="w-full px-4 py-2 border rounded-xl bg-white disabled:bg-slate-100 disabled:cursor-not-allowed"><option value="">Pilih Kelurahan...</option>{listKelurahanTampil.map((kel, idx) => (<option key={idx} value={kel}>{kel}</option>))}</select></div>
                   <InputField label="Kode Pos" name="kode_pos" placeholder="Otomatis / Ketik manual" formData={formData} setFormData={setFormData} />
                 </div>
               )}
               {activeTab === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label>
-                    <input type="text" value={formData.posisi || ''} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 uppercase" placeholder="Cth: KASIR, OPERATOR" />
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label><input type="text" value={formData.posisi || ''} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 uppercase" placeholder="Cth: KASIR, OPERATOR" /></div>
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Shift</label>
-                    <select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">{listShift.map((shift, idx) => (<option key={idx} value={shift}>{shift}</option>))}<option value="-">-</option></select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <select value={formData.status || 'Aktif'} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="Aktif">Aktif</option><option value="Cuti">Cuti</option><option value="Tidak Aktif">Tidak Aktif</option></select>
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Shift</label><select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">{listShift.map((shift, idx) => (<option key={idx} value={shift}>{shift}</option>))}<option value="-">-</option></select></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Status</label><select value={formData.status || 'Aktif'} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="Aktif">Aktif</option><option value="Cuti">Cuti</option><option value="Tidak Aktif">Tidak Aktif</option></select></div>
                   <InputField label="Tanggal Masuk" name="tanggal_masuk" type="date" formData={formData} setFormData={setFormData} />
                   <InputField label="Tanggal Keluar" name="tanggal_keluar" type="date" formData={formData} setFormData={setFormData} />
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Gaji Pokok</label>
-                    <input type="text" value={displayGaji} onChange={handleGajiChange} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Rp 0" />
-                  </div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Gaji Pokok</label><input type="text" value={displayGaji} onChange={handleGajiChange} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Rp 0" /></div>
                   <InputField label="BPJS Kesehatan" name="no_bpjs_kesehatan" formData={formData} setFormData={setFormData} />
                   <InputField label="BPJS Ketenagakerjaan" name="no_bpjs_ketenagakerjaan" formData={formData} setFormData={setFormData} />
                   <InputField label="NPWP" name="npwp" formData={formData} setFormData={setFormData} />
