@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 import { Loader2, Printer, Calendar, FileText } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
+import { exportToCSV } from '../lib/formatHelper';
+import { FileSpreadsheet } from 'lucide-react';
 
 export default function LaporanKasir() {
   const [isLoading, setIsLoading] = useState(true);

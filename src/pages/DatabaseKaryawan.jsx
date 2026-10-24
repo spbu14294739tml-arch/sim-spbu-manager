@@ -4,6 +4,8 @@ import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer }
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
 import KopSurat from '../components/KopSurat';
+import { formatRupiah, exportToCSV } from '../lib/formatHelper';
+import { FileSpreadsheet } from 'lucide-react'; // Tambahkan ikon Excel
 
 const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
@@ -281,6 +283,40 @@ export default function DatabaseKaryawan() {
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"><Printer size={20} /> Cetak</button>
+                  <div className="flex gap-2">
+          {/* TOMBOL EKSPOR CSV */}
+          <button 
+            onClick={() => {
+              // Siapkan data yang rapi untuk diekspor
+              const dataEkspor = filteredKaryawan.map((k, i) => ({
+                No: i + 1,
+                'Nama Lengkap': k.nama,
+                'No. Karyawan': k.nomor_karyawan,
+                Posisi: k.posisi,
+                Shift: k.shift,
+                Status: k.status,
+                'No. HP': k.no_hp,
+                Email: k.email,
+                'Gaji Pokok': k.gaji_pokok,
+                Alamat: k.alamat,
+                Kecamatan: k.kecamatan,
+                Kelurahan: k.kelurahan,
+                'Kode Pos': k.kode_pos
+              }));
+              exportToCSV(dataEkspor, `Data_Karyawan_SPBU_${new Date().toISOString().split('T')[0]}`);
+            }} 
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <FileSpreadsheet size={20} /> Ekspor Excel
+          </button>
+
+          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+            <Printer size={20} /> Cetak
+          </button>
+          <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
+            <Plus size={20} /> Tambah Karyawan
+          </button>
+        </div>
           <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm"><Plus size={20} /> Tambah Karyawan</button>
         </div>
       </div>
