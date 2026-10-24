@@ -45,6 +45,7 @@ export default function Sidebar() {
     { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting'] },
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
+    { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },    
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];
 

@@ -72,6 +72,7 @@ function App() {
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
             <Route path="kasir" element={<Kasir />} />
+            <Route path="laporan-kasir" element={<LaporanKasir />} />
             {/* Satpam Khusus: Hanya Manager yang bisa masuk */}
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
