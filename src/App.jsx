@@ -10,10 +10,11 @@ import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
 import DatabaseKaryawan from './pages/DatabaseKaryawan';
 import Absensi from './pages/Absensi';
+import Kasir from './pages/Kasir';
+import LaporanKasir from './pages/LaporanKasir'; // <-- TAMBAHKAN IMPORT INI
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
-import Kasir from './pages/Kasir';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -52,7 +53,6 @@ function ManagerRoute() {
 
   if (isAuthorized === null) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
   
-  // Jika bukan manager, tendang ke Dashboard
   if (!isAuthorized) return <Navigate to="/" replace />;
   
   return <Outlet />;
@@ -64,15 +64,15 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        {/* Satpam Umum: Harus Login */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<LayoutUtama />}>
             <Route index element={<DashboardManager />} />
             <Route path="absensi" element={<Absensi />} />
+            <Route path="kasir" element={<Kasir />} />
+            <Route path="laporan-kasir" element={<LaporanKasir />} /> {/* <-- TAMBAHKAN RUTE INI */}
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-            <Route path="kasir" element={<Kasir />} />
-            <Route path="laporan-kasir" element={<LaporanKasir />} />
+
             {/* Satpam Khusus: Hanya Manager yang bisa masuk */}
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
