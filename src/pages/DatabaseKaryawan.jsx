@@ -1,11 +1,9 @@
 // src/pages/DatabaseKaryawan.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { formatRupiah } from '../lib/formatHelper';
-import KopSurat from '../components/KopSurat';
 import { formatRupiah, exportToCSV } from '../lib/formatHelper';
-import { FileSpreadsheet } from 'lucide-react'; // Tambahkan ikon Excel
+import KopSurat from '../components/KopSurat';
 
 const InputField = ({ label, name, type = "text", placeholder = "", formData, setFormData, onChange, value }) => (
   <div>
@@ -40,55 +38,19 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // KAMUS DATA WILAYAH BATAM LENGKAP (Sudah dirapikan Sonaar)
   const dataWilayah = {
-    'BATAM KOTA': {
-      'BALOI PERMAI': '29431', 'BALOI': '29432', 'SUKAJADI': '29432', 
-      'TAMAN BALOI': '29432', 'SUNGAI PANAS': '29433', 'TELUK TERING': '29461', 'BELIAN': '29464'
-    },
-    'NONGSA': {
-      'SAMBAU': '29465', 'BATU BESAR': '29466', 'KABIL': '29467', 'NGENANG': '29468'
-    },
-    'BENGKONG': {
-      'SADAI': '29432', 'TANJUNG BUNTUNG': '29432', 'BENGKONG HARAPAN': '29457', 
-      'BENGKONG INDAH': '29458', 'BENGKONG LAUT': '29458'
-    },
-    'BATU AMPAR': {
-      'BUKIT SENYUM': '29451', 'BATU MERAH': '29452', 'SUNGAI JODOH': '29453', 
-      'TANJUNG SENGKUANG': '29453', 'KAMPUNG SERAYA': '29454', 'HARAPAN BARU': '29455', 'BUKIT JODOH': '29456'
-    },
-    'SEKUPANG': {
-      'SUNGAI HARAPAN': '29421', 'TANJUNG PINGGIR': '29421', 'TIBAN BARU': '29421', 
-      'TIBAN INDAH': '29421', 'PATAM LESTARI': '29421', 'SUNGAI PULUH': '29421'
-    },
-    'BELAKANG PADANG': {
-      'PEMPING': '29412', 'KASU': '29413', 'PECONG': '29414', 
-      'PULAU TERONG': '29416', 'SEKANAK RAYA': '29416', 'TANJUNG SARI': '29416'
-    },
-    'BULANG': {
-      'BULANG LINTANG': '29471', 'PULAU BULUH': '29472', 'PANTAI GELAM': '29473', 
-      'BATU LEGONG': '29474', 'TEMOYONG': '29475', 'PULAU SETOKOK': '29476'
-    },
-    'SAGULUNG': {
-      'SAGULUNG KOTA': '29439', 'SUNGAI BINTI': '29439', 'SUNGAI LANGKAI': '29439', 
-      'SUNGAI LEKOP': '29439', 'SUNGAI PELENGGUT': '29439', 'TEMBESI': '29439'
-    },
-    'GALANG': {
-      'PULAU SEMBULANG': '29481', 'REMPANG CATE': '29482', 'AIR RAJA': '29483', 
-      'SUBANG MAS': '29483', 'GALANG BARU': '29484', 'SIJANTUNG': '29485', 
-      'PULAU KARAS': '29486', 'PULAU ABANG': '29487'
-    },
-    'LUBUK BAJA': {
-      'BALOI INDAH': '29432', 'BATU SELICIN': '29441', 'PANGKALAN PETAI': '29442', 
-      'KAMPUNG PELITA': '29443', 'LUBUK BAJA KOTA': '29444', 'TANJUNG UMA': '29445'
-    },
-    'SUNGAI BEDUK': {
-      'MUKA KUNING': '29433', 'DURIANGKA': '29437', 'MANGSA': '29437', 'TANJUNG PIAYU': '29437'
-    },
-    'BATU AJI': {
-      'KIBING': '29422', 'TANJUNG UNCANG': '29424', 'BATU AJI': '29438', 
-      'BUKIT TEMPAYAN': '29438', 'BULANG': '29438'
-    }
+    'BATAM KOTA': { 'BALOI PERMAI': '29431', 'BALOI': '29432', 'SUKAJADI': '29432', 'TAMAN BALOI': '29432', 'SUNGAI PANAS': '29433', 'TELUK TERING': '29461', 'BELIAN': '29464' },
+    'NONGSA': { 'SAMBAU': '29465', 'BATU BESAR': '29466', 'KABIL': '29467', 'NGENANG': '29468' },
+    'BENGKONG': { 'SADAI': '29432', 'TANJUNG BUNTUNG': '29432', 'BENGKONG HARAPAN': '29457', 'BENGKONG INDAH': '29458', 'BENGKONG LAUT': '29458' },
+    'BATU AMPAR': { 'BUKIT SENYUM': '29451', 'BATU MERAH': '29452', 'SUNGAI JODOH': '29453', 'TANJUNG SENGKUANG': '29453', 'KAMPUNG SERAYA': '29454', 'HARAPAN BARU': '29455', 'BUKIT JODOH': '29456' },
+    'SEKUPANG': { 'SUNGAI HARAPAN': '29421', 'TANJUNG PINGGIR': '29421', 'TIBAN BARU': '29421', 'TIBAN INDAH': '29421', 'PATAM LESTARI': '29421', 'SUNGAI PULUH': '29421' },
+    'BELAKANG PADANG': { 'PEMPING': '29412', 'KASU': '29413', 'PECONG': '29414', 'PULAU TERONG': '29416', 'SEKANAK RAYA': '29416', 'TANJUNG SARI': '29416' },
+    'BULANG': { 'BULANG LINTANG': '29471', 'PULAU BULUH': '29472', 'PANTAI GELAM': '29473', 'BATU LEGONG': '29474', 'TEMOYONG': '29475', 'PULAU SETOKOK': '29476' },
+    'SAGULUNG': { 'SAGULUNG KOTA': '29439', 'SUNGAI BINTI': '29439', 'SUNGAI LANGKAI': '29439', 'SUNGAI LEKOP': '29439', 'SUNGAI PELENGGUT': '29439', 'TEMBESI': '29439' },
+    'GALANG': { 'PULAU SEMBULANG': '29481', 'REMPANG CATE': '29482', 'AIR RAJA': '29483', 'SUBANG MAS': '29483', 'GALANG BARU': '29484', 'SIJANTUNG': '29485', 'PULAU KARAS': '29486', 'PULAU ABANG': '29487' },
+    'LUBUK BAJA': { 'BALOI INDAH': '29432', 'BATU SELICIN': '29441', 'PANGKALAN PETAI': '29442', 'KAMPUNG PELITA': '29443', 'LUBUK BAJA KOTA': '29444', 'TANJUNG UMA': '29445' },
+    'SUNGAI BEDUK': { 'MUKA KUNING': '29433', 'DURIANGKA': '29437', 'MANGSA': '29437', 'TANJUNG PIAYU': '29437' },
+    'BATU AJI': { 'KIBING': '29422', 'TANJUNG UNCANG': '29424', 'BATU AJI': '29438', 'BUKIT TEMPAYAN': '29438', 'BULANG': '29438' }
   };
 
   const listKecamatan = Object.keys(dataWilayah);
@@ -282,26 +244,10 @@ export default function DatabaseKaryawan() {
           <p className="text-slate-500 mt-1">Kelola data seluruh staf SPBU 14.294.739</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"><Printer size={20} /> Cetak</button>
-                  <div className="flex gap-2">
-          {/* TOMBOL EKSPOR CSV */}
           <button 
             onClick={() => {
-              // Siapkan data yang rapi untuk diekspor
               const dataEkspor = filteredKaryawan.map((k, i) => ({
-                No: i + 1,
-                'Nama Lengkap': k.nama,
-                'No. Karyawan': k.nomor_karyawan,
-                Posisi: k.posisi,
-                Shift: k.shift,
-                Status: k.status,
-                'No. HP': k.no_hp,
-                Email: k.email,
-                'Gaji Pokok': k.gaji_pokok,
-                Alamat: k.alamat,
-                Kecamatan: k.kecamatan,
-                Kelurahan: k.kelurahan,
-                'Kode Pos': k.kode_pos
+                No: i + 1, 'Nama Lengkap': k.nama, 'No. Karyawan': k.nomor_karyawan, Posisi: k.posisi, Shift: k.shift, Status: k.status, 'No. HP': k.no_hp, Email: k.email, 'Gaji Pokok': k.gaji_pokok, Alamat: k.alamat, Kecamatan: k.kecamatan, Kelurahan: k.kelurahan, 'Kode Pos': k.kode_pos
               }));
               exportToCSV(dataEkspor, `Data_Karyawan_SPBU_${new Date().toISOString().split('T')[0]}`);
             }} 
@@ -309,15 +255,12 @@ export default function DatabaseKaryawan() {
           >
             <FileSpreadsheet size={20} /> Ekspor Excel
           </button>
-
           <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
             <Printer size={20} /> Cetak
           </button>
           <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm">
             <Plus size={20} /> Tambah Karyawan
           </button>
-        </div>
-          <button onClick={() => { handleTutupModal(); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 shadow-sm"><Plus size={20} /> Tambah Karyawan</button>
         </div>
       </div>
 

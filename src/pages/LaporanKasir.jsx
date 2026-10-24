@@ -1,21 +1,17 @@
 // src/pages/LaporanKasir.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, FileText } from 'lucide-react';
+import { formatRupiah, exportToCSV } from '../lib/formatHelper';
+import { Loader2, Printer, Calendar, FileText, FileSpreadsheet } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
-import { exportToCSV } from '../lib/formatHelper';
-import { FileSpreadsheet } from 'lucide-react';
 
 export default function LaporanKasir() {
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
   
-  // State Filter
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedShift, setSelectedShift] = useState('SEMUA'); // SEMUA, atau nama shift
+  const [selectedShift, setSelectedShift] = useState('SEMUA');
 
-  // State Data Laporan
   const [laporanBBM, setLaporanBBM] = useState([]);
   const [laporanNFR, setLaporanNFR] = useState([]);
   const [totalBBM, setTotalBBM] = useState(0);
@@ -24,49 +20,39 @@ export default function LaporanKasir() {
   const fetchData = async () => {
     setIsLoading(true);
 
-    // 1. Ambil Shift
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData) setListShift(shiftData.map(s => s.nama_shift));
 
-    // 2. Query BBM
     let queryBBM = supabase.from('penjualan_bbm').select('*').eq('tanggal', selectedDate);
     if (selectedShift !== 'SEMUA') queryBBM = queryBBM.eq('shift', selectedShift);
     const { data: dataBBM } = await queryBBM;
 
-    // 3. Query NFR
     let queryNFR = supabase.from('penjualan_nfr').select('*').eq('tanggal', selectedDate);
     if (selectedShift !== 'SEMUA') queryNFR = queryNFR.eq('shift', selectedShift);
     const { data: dataNFR } = await queryNFR;
 
-    // 4. Olah Data BBM (Rekap per Jenis BBM)
     const rekapBBM = {};
     let sumBBM = 0;
     if (dataBBM) {
       dataBBM.forEach(item => {
-        if (!rekapBBM[item.jenis_bbm]) {
-          rekapBBM[item.jenis_bbm] = { liter: 0, harga: 0 };
-        }
+        if (!rekapBBM[item.jenis_bbm]) rekapBBM[item.jenis_bbm] = { liter: 0, harga: 0 };
         rekapBBM[item.jenis_bbm].liter += item.jumlah_liter;
         rekapBBM[item.jenis_bbm].harga += item.total_harga;
         sumBBM += item.total_harga;
       });
     }
     
-    // 5. Olah Data NFR (Rekap per Produk)
     const rekapNFR = {};
     let sumNFR = 0;
     if (dataNFR) {
       dataNFR.forEach(item => {
-        if (!rekapNFR[item.produk_nfr]) {
-          rekapNFR[item.produk_nfr] = { jumlah: 0, harga: 0 };
-        }
+        if (!rekapNFR[item.produk_nfr]) rekapNFR[item.produk_nfr] = { jumlah: 0, harga: 0 };
         rekapNFR[item.produk_nfr].jumlah += item.jumlah;
         rekapNFR[item.produk_nfr].harga += item.total_harga;
         sumNFR += item.total_harga;
       });
     }
 
-    // 6. Simpan ke State
     setLaporanBBM(Object.keys(rekapBBM).map(key => ({ nama: key, ...rekapBBM[key] })));
     setLaporanNFR(Object.keys(rekapNFR).map(key => ({ nama: key, ...rekapNFR[key] })));
     setTotalBBM(sumBBM);
@@ -88,49 +74,46 @@ export default function LaporanKasir() {
           <h1 className="text-3xl font-bold text-slate-800">Laporan Kasir</h1>
           <p className="text-slate-500 mt-1">Rekap penjualan BBM dan NFR per hari/shift.</p>
         </div>
-        <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
-          <Printer size={20} /> Cetak Laporan
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              const dataEkspor = [
+                ...laporanBBM.map(b => ({ Kategori: 'BBM', 'Nama Produk': b.nama, 'Total Volume': b.liter, 'Total Pendapatan': b.harga })),
+                ...laporanNFR.map(n => ({ Kategori: 'NFR', 'Nama Produk': n.nama, 'Total Volume': n.jumlah, 'Total Pendapatan': n.harga }))
+              ];
+              exportToCSV(dataEkspor, `Laporan_Kasir_${selectedDate}_${selectedShift}`);
+            }} 
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <FileSpreadsheet size={20} /> Ekspor Excel
+          </button>
+          <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
+            <Printer size={20} /> Cetak Laporan
+          </button>
+        </div>
       </div>
 
-      {/* FILTER (Disembunyikan saat dicetak) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Calendar size={18} className="text-slate-500" />
-          <input 
-            type="date" 
-            value={selectedDate} 
-            onChange={(e) => setSelectedDate(e.target.value)} 
-            className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" 
-          />
+          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <FileText size={18} className="text-slate-500" />
-          <select 
-            value={selectedShift} 
-            onChange={(e) => setSelectedShift(e.target.value)} 
-            className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700"
-          >
+          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
             <option value="SEMUA">Semua Shift</option>
             {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
           </select>
         </div>
       </div>
 
-      {/* AREA CETAK */}
-      <KopSurat 
-        judul="Laporan Rekapitulasi Penjualan Kasir" 
-        periode={`Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`} 
-      />
+      <KopSurat judul="Laporan Rekapitulasi Penjualan Kasir" periode={`Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`} />
 
-      {/* KONTEN LAPORAN */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         {isLoading ? (
           <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
         ) : (
           <div className="p-8 space-y-8">
-            
-            {/* REKAP BBM */}
             <div>
               <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">I. REKAP PENJUALAN BBM (FUEL RETAIL)</h2>
               <table className="w-full text-left border-collapse">
@@ -160,7 +143,6 @@ export default function LaporanKasir() {
               </table>
             </div>
 
-            {/* REKAP NFR */}
             <div>
               <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">II. REKAP PENJUALAN NFR (NON-FUEL RETAIL)</h2>
               <table className="w-full text-left border-collapse">
@@ -190,7 +172,6 @@ export default function LaporanKasir() {
               </table>
             </div>
 
-            {/* GRAND TOTAL */}
             <div className="bg-slate-800 text-white p-6 rounded-xl flex justify-between items-center shadow-lg">
               <div>
                 <p className="text-slate-300 font-medium">TOTAL PENDAPATAN KESELURUHAN</p>
@@ -199,7 +180,6 @@ export default function LaporanKasir() {
               <h3 className="text-3xl font-bold">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
 
-            {/* TANDA TANGAN (Hanya muncul saat cetak) */}
             <div className="hidden print:grid grid-cols-2 gap-8 mt-16 text-center">
               <div>
                 <p className="text-slate-600 mb-20">Dibuat oleh,</p>
@@ -210,7 +190,6 @@ export default function LaporanKasir() {
                 <p className="font-bold text-slate-800 border-t border-slate-400 pt-2 mx-8">Manager Operasional</p>
               </div>
             </div>
-
           </div>
         )}
       </div>
