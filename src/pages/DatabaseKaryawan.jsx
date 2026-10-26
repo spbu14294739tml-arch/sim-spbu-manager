@@ -97,7 +97,6 @@ export default function DatabaseKaryawan() {
     
     if (days < 0) {
       months--;
-      // Mengambil jumlah hari di bulan sebelumnya
       const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
       days += prevMonth.getDate();
     }
@@ -270,7 +269,8 @@ export default function DatabaseKaryawan() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      {/* HEADER & TOMBOL (Disembunyikan saat dicetak) */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Database Karyawan</h1>
           <p className="text-slate-500 mt-1">Kelola data seluruh staf SPBU 14.294.739</p>
@@ -296,6 +296,7 @@ export default function DatabaseKaryawan() {
         </div>
       </div>
 
+      {/* FILTER PENCARIAN (Disembunyikan saat dicetak) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center no-print">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
@@ -309,8 +310,10 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
+      {/* KOP SURAT (Hanya muncul saat dicetak) */}
       <KopSurat judul="Data Karyawan" periode={`Tahun ${new Date().getFullYear()}`} />
 
+      {/* TABEL DATA */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -320,7 +323,7 @@ export default function DatabaseKaryawan() {
                 <th className="py-4 px-4 font-semibold">Nama & No. Karyawan</th>
                 <th className="py-4 px-4 font-semibold">Posisi & Shift</th>
                 <th className="py-4 px-4 font-semibold">Gaji Pokok</th>
-                <th className="py-4 px-4 font-semibold text-center">Masa Kerja</th> {/* POSISI CENTER */}
+                <th className="py-4 px-4 font-semibold text-center">Masa Kerja</th> 
                 <th className="py-4 px-4 font-semibold text-center">Status</th>
                 <th className="py-4 px-4 font-semibold text-center no-print">Aksi</th>
               </tr>
