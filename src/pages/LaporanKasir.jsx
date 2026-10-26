@@ -265,14 +265,13 @@ export default function LaporanKasir() {
               </table>
             </div>
 
-            {/* GRAND TOTAL MODERN */}
-            <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white p-8 rounded-3xl flex justify-between items-center shadow-2xl relative overflow-hidden border border-slate-700">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-bl-full -z-0 blur-2xl"></div>
-              <div className="relative z-10">
-                <p className="text-slate-300 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
+            {/* GRAND TOTAL MODERN (Dikecilkan & Diperjelas) */}
+            <div className="bg-slate-900 text-white p-6 rounded-2xl flex justify-between items-center shadow-xl border border-slate-700">
+              <div>
+                <p className="text-slate-400 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
                 <p className="text-slate-500 text-xs">(BBM + NFR)</p>
               </div>
-              <h3 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-blue-300 relative z-10 drop-shadow-lg">{formatRupiah(totalKeseluruhan)}</h3>
+              <h3 className="text-4xl font-black text-green-400 drop-shadow-md">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
           </div>
         ) : (
