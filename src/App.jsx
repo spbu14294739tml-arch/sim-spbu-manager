@@ -1,88 +1,112 @@
-// src/App.jsx
+// src/components/Sidebar.jsx
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { supabase } from './lib/supabaseClient';
-import { Loader2 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Users, 
+  ClipboardList, 
+  AlertTriangle, 
+  Settings, 
+  LogOut,
+  UserCircle,
+  UserCheck,
+  ShoppingCart,
+  FileText
+} from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
-// Import Layout & Halaman
-import LayoutUtama from './layouts/LayoutUtama';
-import Login from './pages/Login';
-import DashboardManager from './pages/DashboardManager';
-import DatabaseKaryawan from './pages/DatabaseKaryawan';
-import Absensi from './pages/Absensi';
-import Kasir from './pages/Kasir';
-import LaporanKasir from './pages/LaporanKasir'; // <-- TAMBAHKAN IMPORT INI
-import MasterTugas from './pages/MasterTugas'; 
-import LaporanKerusakan from './pages/LaporanKerusakan';
-import PengaturanSistem from './pages/PengaturanSistem';
-
-// 1. Satpam Umum (Cek Login)
-function ProtectedRoute() {
-  const [session, setSession] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    return () => authListener.subscription.unsubscribe();
-  }, []);
-
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
-  if (!session) return <Navigate to="/login" replace />;
-  return <Outlet />;
-}
-
-// 2. Satpam Khusus Manager (Cek Role)
-function ManagerRoute() {
-  const [isAuthorized, setIsAuthorized] = useState(null);
+export default function Sidebar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
-    const checkRole = async () => {
+    const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && user.user_metadata?.role === 'manager') {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(false);
+      if (user) {
+        setUserEmail(user.email);
+        setUserRole(user.user_metadata?.role || 'accounting');
       }
     };
-    checkRole();
+    getUser();
   }, []);
 
-  if (isAuthorized === null) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
-  
-  if (!isAuthorized) return <Navigate to="/" replace />;
-  
-  return <Outlet />;
-}
+  const handleLogout = async () => {
+    if (!window.confirm('Apakah Anda yakin ingin keluar dari sistem?')) return;
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
 
-function App() {
+  const menuItems = [
+    { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting'] },
+    { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] }, // HANYA MANAGER
+    { path: '/absensi', name: 'Absensi Harian', icon: UserCheck, roles: ['manager', 'accounting'] },
+    { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting'] },
+    { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
+    { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
+    { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
+    { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] }, // HANYA MANAGER
+  ];
+
+  const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
+
   return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    <div className="w-64 min-h-screen bg-slate-900/95 backdrop-blur-md text-slate-300 flex flex-col shadow-2xl z-20 border-r border-slate-800">
+      
+      <div className="p-6 border-b border-slate-800/50 flex items-center gap-3">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+          <span className="text-white font-bold text-lg">SP</span>
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-white leading-tight">SIM SPBU</h1>
+          <p className="text-xs text-slate-400 font-medium">14.294.739</p>
+        </div>
+      </div>
 
-        <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<LayoutUtama />}>
-            <Route index element={<DashboardManager />} />
-            <Route path="absensi" element={<Absensi />} />
-            <Route path="kasir" element={<Kasir />} />
-            <Route path="laporan-kasir" element={<LaporanKasir />} /> {/* <-- TAMBAHKAN RUTE INI */}
-            <Route path="master-tugas" element={<MasterTugas />} />
-            <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
+      <div className="flex-1 py-6 overflow-y-auto px-4 space-y-1">
+        <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Menu Utama</p>
+        {filteredMenuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+                isActive 
+                  ? 'bg-blue-600 text-white font-medium shadow-md shadow-blue-900/50' 
+                  : 'hover:bg-slate-800/50 hover:text-white'
+              }`}
+            >
+              <Icon size={20} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400 transition-colors'} />
+              <span className="text-sm">{item.name}</span>
+            </Link>
+          );
+        })}
+      </div>
 
-            {/* Satpam Khusus: Hanya Manager yang bisa masuk */}
-            <Route element={<ManagerRoute />}>
-              <Route path="karyawan" element={<DatabaseKaryawan />} />
-              <Route path="pengaturan" element={<PengaturanSistem />} />
-            </Route>
-          </Route>
-        </Route>
-      </Routes>
-    </Router>
+      <div className="p-4 border-t border-slate-800/50 bg-slate-900/50">
+        <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/40 rounded-xl border border-slate-700/50">
+          <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center">
+            <UserCircle size={24} className="text-blue-400" />
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-[10px] text-slate-400 capitalize">Masuk sebagai: <span className="text-blue-400 font-semibold">{userRole}</span></p>
+            <p className="text-xs font-medium text-white truncate" title={userEmail}>
+              {userEmail || 'Memuat...'}
+            </p>
+          </div>
+        </div>
+
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full px-3 py-3 rounded-xl font-medium"
+        >
+          <LogOut size={20} />
+          <span className="text-sm">Keluar</span>
+        </button>
+      </div>
+    </div>
   );
 }
-
-export default App;
