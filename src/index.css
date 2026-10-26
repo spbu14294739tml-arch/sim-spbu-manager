@@ -2,7 +2,7 @@
 
 /* Aturan Khusus untuk Cetak (Print) */
 @media print {
-  /* 1. Sembunyikan Sidebar, Navbar, dan tombol */
+  /* 1. Sembunyikan Sidebar, Navbar, tombol, dan elemen dengan class no-print */
   aside, nav, button, .no-print {
     display: none !important;
   }

@@ -85,7 +85,6 @@ export default function DatabaseKaryawan() {
 
   useEffect(() => { fetchKaryawan(); fetchShift(); }, []);
 
-  // FUNGSI HITUNG MASA KERJA (Tahun, Bulan, Hari)
   const hitungMasaKerja = (tanggalMasuk, tanggalKeluar) => {
     if (!tanggalMasuk) return '-';
     const start = new Date(tanggalMasuk);
@@ -221,11 +220,8 @@ export default function DatabaseKaryawan() {
       finalFotoUrl = publicUrlData.publicUrl;
     }
 
-    // LOGIKA OTOMATIS STATUS
     let finalStatus = formData.status;
-    if (formData.tanggal_keluar) {
-      finalStatus = 'Tidak Aktif';
-    }
+    if (formData.tanggal_keluar) finalStatus = 'Tidak Aktif';
 
     const dataToInsert = {
       ...formData,
@@ -323,7 +319,7 @@ export default function DatabaseKaryawan() {
                 <th className="py-4 px-4 font-semibold">Nama & No. Karyawan</th>
                 <th className="py-4 px-4 font-semibold">Posisi & Shift</th>
                 <th className="py-4 px-4 font-semibold">Gaji Pokok</th>
-                <th className="py-4 px-4 font-semibold text-center">Masa Kerja</th> 
+                <th className="py-4 px-4 font-semibold text-center">Masa Kerja</th>
                 <th className="py-4 px-4 font-semibold text-center">Status</th>
                 <th className="py-4 px-4 font-semibold text-center no-print">Aksi</th>
               </tr>
@@ -345,12 +341,9 @@ export default function DatabaseKaryawan() {
                     <div className="text-xs text-slate-500">Shift: {k.shift}</div>
                   </td>
                   <td className="py-4 px-4 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
-                  
-                  {/* TAMPILAN MASA KERJA RATA TENGAH */}
                   <td className="py-4 px-4 text-sm text-slate-600 text-center font-medium">
                     {hitungMasaKerja(k.tanggal_masuk, k.tanggal_keluar)}
                   </td>
-
                   <td className="py-4 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
                   <td className="py-4 px-4 text-center no-print">
                     <div className="flex items-center justify-center gap-2">
