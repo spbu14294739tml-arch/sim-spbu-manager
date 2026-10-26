@@ -10,12 +10,12 @@ export default function KopSurat({ judul, periode }) {
       {/* Konten Kop Surat */}
       <div className="flex items-center justify-start gap-2 px-1">
         
-        {/* Logo (Ukuran Tetap) */}
+        {/* Logo (Dibesarkan 25%: dari w-10 ke w-12) */}
         <div className="shrink-0">
-          <img src="/logo-tml.png" alt="Logo TML" className="w-10 h-10 object-contain" />
+          <img src="/logo-tml.png" alt="Logo TML" className="w-12 h-12 object-contain" />
         </div>
 
-        {/* Teks (Font Dikecilkan 20% dari Sebelumnya) */}
+        {/* Teks (Font Tetap Kecil) */}
         <div className="flex-1 text-left">
           <h1 className="text-[10px] font-bold text-blue-900 uppercase leading-tight">
             SPBU 14.294.739 – PT. TATA MURDAYA LAKSANA
