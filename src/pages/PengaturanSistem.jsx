@@ -1,3 +1,4 @@
+jsx
 // src/pages/PengaturanSistem.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -10,14 +11,9 @@ export default function PengaturanSistem() {
   const [isSaving, setIsSaving] = useState(false);
   const [notif, setNotif] = useState('');
 
-  // State Profil
   const [profil, setProfil] = useState({ nama_spbu: '', nomor_izin: '', alamat: '', telepon: '', email: '' });
-  
-  // State Shift
   const [daftarShift, setDaftarShift] = useState([]);
   const [shiftBaru, setShiftBaru] = useState({ nama_shift: '', jam_kerja: '' });
-  
-  // State Produk NFR
   const [daftarProduk, setDaftarProduk] = useState([]);
   const [produkBaru, setProdukBaru] = useState({ kategori: 'LPG', nama_produk: '', harga_jual: '' });
   const [displayHargaProduk, setDisplayHargaProduk] = useState('');
@@ -26,18 +22,15 @@ export default function PengaturanSistem() {
   const [isUploadingProduk, setIsUploadingProduk] = useState(false);
   const fileInputRefProduk = useRef(null);
   
-  // State Harga BBM & Upload Logo
   const [daftarHargaBBM, setDaftarHargaBBM] = useState([]);
   const [uploadingLogoId, setUploadingLogoId] = useState(null);
   
-  // State untuk Edit Harga Inline
   const [editingHargaId, setEditingHargaId] = useState(null);
   const [hargaBaruInput, setHargaBaruInput] = useState('');
   const [tanggalEfektif, setTanggalEfektif] = useState(new Date().toISOString().split('T')[0]);
   const [statusHarga, setStatusHarga] = useState('TETAP');
   const [selisihHarga, setSelisihHarga] = useState(0);
 
-  // State Stok Tangki
   const [daftarTangki, setDaftarTangki] = useState([]);
   const [editingTangkiId, setEditingTangkiId] = useState(null);
   const [stokBaru, setStokBaru] = useState('');
@@ -67,7 +60,6 @@ export default function PengaturanSistem() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Simpan Profil
   const handleSimpanProfil = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -78,7 +70,6 @@ export default function PengaturanSistem() {
     setNotif('Profil SPBU berhasil disimpan!'); setTimeout(() => setNotif(''), 3000);
   };
 
-  // Upload Logo BBM
   const handleLogoBBMUpload = async (e, id) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -98,7 +89,6 @@ export default function PengaturanSistem() {
     setUploadingLogoId(null);
   };
 
-  // MULAI EDIT HARGA
   const handleMulaiEditHarga = (bbm) => {
     setEditingHargaId(bbm.id);
     setHargaBaruInput(bbm.harga_per_liter.toString());
@@ -107,7 +97,6 @@ export default function PengaturanSistem() {
     setSelisihHarga(0);
   };
 
-  // SAAT INPUT HARGA BERUBAH (Hitung Selisih Otomatis)
   const handleHargaInputChange = (e, hargaLama) => {
     const val = e.target.value;
     setHargaBaruInput(val);
@@ -127,48 +116,46 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
+  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT (PERBAIKAN TOTAL)
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
 
     setIsSaving(true);
 
-    // 1. Update harga utama di tabel master_produk_bbm
-    const { error: errUpdate } = await supabase.from('master_produk_bbm').update({ harga_per_liter: baru }).eq('id', bbm.id);
+    try {
+      // 1. Update harga utama
+      const { error: errUpdate } = await supabase.from('master_produk_bbm').update({ harga_per_liter: baru }).eq('id', bbm.id);
+      if (errUpdate) throw new Error('Gagal update harga: ' + errUpdate.message);
 
-    if (errUpdate) {
-      alert('Gagal update harga: ' + errUpdate.message);
-      setIsSaving(false);
-      return;
-    }
+      // 2. Catat ke tabel riwayat (HANYA jika harga berubah)
+      if (baru !== bbm.harga_per_liter) {
+        const { error: errRiwayat } = await supabase.from('riwayat_harga_bbm').insert([{
+          jenis_bbm: bbm.jenis_bbm,
+          harga_lama: bbm.harga_per_liter,
+          harga_baru: baru,
+          tanggal_efektif: tanggalEfektif,
+          selisih: selisihHarga,
+          status: statusHarga,
+          updated_by: 'Manager Operasional'
+        }]);
 
-    // 2. Catat ke tabel riwayat_harga_bbm (HANYA jika harga berubah)
-    if (baru !== bbm.harga_per_liter) {
-      const { error: errRiwayat } = await supabase.from('riwayat_harga_bbm').insert([{
-        jenis_bbm: bbm.jenis_bbm,
-        harga_lama: bbm.harga_per_liter,
-        harga_baru: baru,
-        tanggal_efektif: tanggalEfektif,
-        selisih: selisihHarga,
-        status: statusHarga,
-        updated_by: 'Manager Operasional'
-      }]);
-
-      if (errRiwayat) {
-        console.error('Gagal simpan riwayat:', errRiwayat);
-        alert('Gagal mencatat riwayat harga: ' + errRiwayat.message);
+        if (errRiwayat) throw new Error('Gagal simpan riwayat: ' + errRiwayat.message);
       }
-    }
 
-    setIsSaving(false);
-    setEditingHargaId(null);
-    setNotif(`Harga ${bbm.jenis_bbm} berhasil diupdate!`);
-    setTimeout(() => setNotif(''), 3000);
-    fetchData(); // Tarik ulang data agar harga baru muncul
+      // Jika semua sukses
+      setEditingHargaId(null);
+      setNotif(`Harga ${bbm.jenis_bbm} berhasil diupdate!`);
+      setTimeout(() => setNotif(''), 3000);
+      fetchData(); // Tarik ulang data
+      
+    } catch (error) {
+      alert(error.message); // Tampilkan error asli ke layar
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // Update Stok & Kapasitas Tangki
   const handleUpdateTangki = async (id) => {
     if (!stokBaru && stokBaru !== 0) return alert('Masukkan jumlah stok baru!');
     if (!kapasitasBaru) return alert('Masukkan kapasitas maksimal!');
@@ -189,13 +176,13 @@ export default function PengaturanSistem() {
     }
   };
 
-  // Shift & Produk NFR
   const handleTambahShift = async () => {
     if (!shiftBaru.nama_shift || !shiftBaru.jam_kerja) return alert('Lengkapi data shift!');
     await supabase.from('pengaturan_shift').insert([shiftBaru]);
     const { data } = await supabase.from('pengaturan_shift').select('*').order('id');
     setDaftarShift(data); setShiftBaru({ nama_shift: '', jam_kerja: '' });
   };
+
   const handleHapusShift = async (id) => {
     if (!window.confirm('Hapus shift ini?')) return;
     await supabase.from('pengaturan_shift').delete().eq('id', id);
@@ -207,15 +194,18 @@ export default function PengaturanSistem() {
     setProdukBaru({ ...produkBaru, harga_jual: rawValue });
     setDisplayHargaProduk(rawValue ? formatRupiah(rawValue) : '');
   };
+
   const handleFotoProdukChange = (e) => {
     const file = e.target.files[0];
     if (file) { setFileFotoProduk(file); setPreviewFotoProduk(URL.createObjectURL(file)); }
   };
+
   const handleTambahProduk = async (e) => {
     e.preventDefault();
     if (!produkBaru.nama_produk || !produkBaru.harga_jual) return alert('Lengkapi Nama dan Harga Produk!');
     setIsUploadingProduk(true);
     let fotoUrl = '';
+
     if (fileFotoProduk) {
       const fileExt = fileFotoProduk.name.split('.').pop();
       const fileName = `${Date.now()}_${produkBaru.nama_produk.replace(/\s+/g, '_')}.${fileExt}`;
@@ -224,9 +214,11 @@ export default function PengaturanSistem() {
       const { data: publicUrlData } = supabase.storage.from('foto_produk').getPublicUrl(fileName);
       fotoUrl = publicUrlData.publicUrl;
     }
+
     const { error } = await supabase.from('master_produk_nfr').insert([{
       kategori: produkBaru.kategori, nama_produk: produkBaru.nama_produk.toUpperCase(), harga_jual: parseFloat(produkBaru.harga_jual), foto_url: fotoUrl
     }]);
+
     if (error) alert('Gagal simpan produk: ' + error.message);
     else {
       setProdukBaru({ kategori: 'LPG', nama_produk: '', harga_jual: '' }); setDisplayHargaProduk('');
@@ -234,6 +226,7 @@ export default function PengaturanSistem() {
     }
     setIsUploadingProduk(false);
   };
+
   const handleHapusProduk = async (id) => {
     if (!window.confirm('Hapus produk ini?')) return;
     await supabase.from('master_produk_nfr').delete().eq('id', id);
