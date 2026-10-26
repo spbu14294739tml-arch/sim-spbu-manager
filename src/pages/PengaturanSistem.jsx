@@ -56,7 +56,6 @@ export default function PengaturanSistem() {
     const { data: dataProduk } = await supabase.from('master_produk_nfr').select('*').order('id', { ascending: false });
     if (dataProduk) setDaftarProduk(dataProduk);
 
-    // Tarik Harga BBM beserta LOGO
     const { data: dataHargaBBM } = await supabase.from('master_produk_bbm').select('*').order('id');
     if (dataHargaBBM) setDaftarHargaBBM(dataHargaBBM);
 
@@ -163,7 +162,7 @@ export default function PengaturanSistem() {
     setEditingHargaId(null);
     setNotif(`Harga ${bbm.jenis_bbm} berhasil diupdate!`);
     setTimeout(() => setNotif(''), 3000);
-    fetchData();
+    fetchData(); // Tarik ulang data agar harga baru muncul
   };
 
   // Update Stok & Kapasitas Tangki
