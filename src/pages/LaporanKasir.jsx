@@ -1,7 +1,7 @@
 // src/pages/LaporanKasir.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { formatRupiah, exportToCSV } from '../lib/formatHelper';
+import { formatRupiah } from '../lib/formatHelper';
 import { Loader2, Printer, Calendar, FileText, FileSpreadsheet } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
@@ -107,6 +107,7 @@ export default function LaporanKasir() {
         </div>
       </div>
 
+      {/* Komponen Kop Surat (Hanya muncul saat dicetak) */}
       <KopSurat judul="Laporan Rekapitulasi Penjualan Kasir" periode={`Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
