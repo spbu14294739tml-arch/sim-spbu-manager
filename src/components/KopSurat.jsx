@@ -8,30 +8,32 @@ export default function KopSurat({ judul, periode }) {
       <div className="border-t-2 border-black mb-3"></div>
       
       {/* Konten Kop Surat */}
-      <div className="flex items-center justify-between gap-6 px-2">
-        {/* Kiri: Logo & Teks */}
-        <div className="flex items-center gap-4">
-          {/* Logo TML (Ukuran disesuaikan) */}
+      <div className="flex items-start justify-between gap-4 px-2">
+        
+        {/* Kiri: Logo */}
+        <div className="shrink-0">
           <img 
             src="/logo-tml.png" 
             alt="Logo TML" 
             className="w-20 h-20 object-contain" 
           />
-          <div>
-            <h1 className="text-xl font-bold text-blue-900 uppercase leading-tight">
-              SPBU 14.294.739 – PT. TATA MURDAYA LAKSANA
-            </h1>
-            <p className="text-[11px] text-black mt-1 leading-snug">
-              Jalan Raja Haji Fisabilillah (Bundaran Tuah Madani) Batam Center<br />
-              Kelurahan Teluk Tering Kecamatan Batam Kota - Kota Batam<br />
-              Telp. +62 81372252825 - +62 81270800843<br />
-              E-mail: <span className="text-blue-700 underline">spbu_ocarina@gmail.com</span>
-            </p>
-          </div>
+        </div>
+
+        {/* Tengah: Teks Utama */}
+        <div className="flex-1 text-center">
+          <h1 className="text-xl font-bold text-blue-900 uppercase leading-tight">
+            SPBU 14.294.739 – PT. TATA MURDAYA LAKSANA
+          </h1>
+          <p className="text-[11px] text-black mt-1 leading-snug">
+            Jalan Raja Haji Fisabilillah (Bundaran Tuah Madani) Batam Center<br />
+            Kelurahan Teluk Tering Kecamatan Batam Kota - Kota Batam<br />
+            Telp. +62 81372252825 - +62 81270800843<br />
+            E-mail: <span className="text-blue-700">spbu_ocarina@gmail.com</span>
+          </p>
         </div>
 
         {/* Kanan: Info Dokumen */}
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p className="text-[10px] font-bold text-slate-800 uppercase">Dokumen Internal</p>
           <p className="text-[10px] text-slate-600 mt-1">No. Ref: DOC/{judul.substring(0,3).toUpperCase()}/{new Date().getFullYear()}</p>
         </div>
