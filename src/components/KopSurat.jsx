@@ -31,11 +31,11 @@ export default function KopSurat({ judul, periode }) {
       <div className="border-b border-blue-900 mt-1 mb-0.5"></div>
       <div className="border-b border-blue-900 mb-2"></div>
 
-      {/* Judul Laporan & Periode (Dibesarkan 100% Lagi) */}
+      {/* Judul Laporan & Periode (Dikecilkan 20%) */}
       <div className="text-center mb-3">
-        <h2 className="text-2xl font-black text-blue-900 uppercase tracking-wider">{judul}</h2>
+        <h2 className="text-lg font-black text-blue-900 uppercase tracking-wide">{judul}</h2>
         {periode && (
-          <p className="text-sm font-bold text-slate-700 mt-1">Periode: {periode}</p>
+          <p className="text-xs font-bold text-slate-700 mt-1">Periode: {periode}</p>
         )}
       </div>
     </div>
