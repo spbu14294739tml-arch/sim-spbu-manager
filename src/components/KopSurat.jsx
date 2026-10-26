@@ -10,7 +10,7 @@ export default function KopSurat({ judul, periode }) {
       {/* Konten Kop Surat */}
       <div className="flex items-center justify-start gap-2 px-1">
         
-        {/* Logo (Dibesarkan 25%: dari w-10 ke w-12) */}
+        {/* Logo (Ukuran Tetap) */}
         <div className="shrink-0">
           <img src="/logo-tml.png" alt="Logo TML" className="w-12 h-12 object-contain" />
         </div>
@@ -32,11 +32,11 @@ export default function KopSurat({ judul, periode }) {
       <div className="border-b border-blue-900 mt-1 mb-0.5"></div>
       <div className="border-b border-blue-900 mb-2"></div>
 
-      {/* Judul Laporan */}
+      {/* Judul Laporan (Ukuran Lebih Kecil) */}
       <div className="text-center mb-2">
-        <h2 className="text-[11px] font-bold text-blue-900 uppercase">{judul}</h2>
+        <h2 className="text-[9px] font-bold text-blue-900 uppercase">{judul}</h2>
         {periode && (
-          <p className="text-[7px] text-slate-600 italic mt-0.5">Periode: {periode} - SIM SPBU 14.294.739</p>
+          <p className="text-[6px] text-slate-600 italic mt-0.5">Periode: {periode} - SIM SPBU 14.294.739</p>
         )}
       </div>
     </div>
