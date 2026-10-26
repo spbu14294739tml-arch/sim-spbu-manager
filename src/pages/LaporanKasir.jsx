@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah, exportToCSV } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3, TrendingUp, Wallet } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanKasir() {
@@ -198,31 +198,32 @@ export default function LaporanKasir() {
         {isLoading ? (
           <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
         ) : activeTab === 'harian' ? (
-          <div className="p-8 space-y-8">
+          <div className="p-6 space-y-6">
             {/* REKAP BBM MODERN */}
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
+                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><TrendingUp size={20} /></div>
                 <h2 className="text-lg font-bold text-slate-800">I. REKAP PENJUALAN BBM (FUEL RETAIL)</h2>
               </div>
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
-                    <th className="py-3 px-6 font-semibold">Jenis BBM</th>
-                    <th className="py-3 px-6 font-semibold text-right">Total Volume (Liter)</th>
-                    <th className="py-3 px-6 font-semibold text-right">Total Amount (Rp)</th>
+                    <th className="py-4 px-6 font-semibold">Jenis BBM</th>
+                    <th className="py-4 px-6 font-semibold text-right">Total Volume (Liter)</th>
+                    <th className="py-4 px-6 font-semibold text-right">Total Amount (Rp)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {laporanBBM.length > 0 ? laporanBBM.map((bbm, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-3 px-6 font-medium text-slate-800">{bbm.nama}</td>
                       <td className="py-3 px-6 text-right text-slate-600">{bbm.liter.toLocaleString('id-ID')} L</td>
                       <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(bbm.harga)}</td>
                     </tr>
-                  )) : <tr><td colSpan="3" className="py-6 text-center text-slate-500">Tidak ada penjualan BBM.</td></tr>}
+                  )) : <tr><td colSpan="3" className="py-8 text-center text-slate-500">Tidak ada penjualan BBM.</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-blue-50/50 border-t-2 border-blue-100">
+                  <tr className="bg-blue-50/80 border-t-2 border-blue-100">
                     <td className="py-4 px-6 font-bold text-blue-900">TOTAL BBM</td>
                     <td className="py-4 px-6 text-right font-bold text-blue-900">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
                     <td className="py-4 px-6 text-right font-bold text-blue-900 text-lg">{formatRupiah(totalBBM)}</td>
@@ -232,29 +233,30 @@ export default function LaporanKasir() {
             </div>
 
             {/* REKAP NFR MODERN */}
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 px-6 py-4 flex items-center gap-3">
+                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><Wallet size={20} /></div>
                 <h2 className="text-lg font-bold text-slate-800">II. REKAP PENJUALAN NFR (NON-FUEL RETAIL)</h2>
               </div>
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
-                    <th className="py-3 px-6 font-semibold">Nama Produk</th>
-                    <th className="py-3 px-6 font-semibold text-right">Jumlah (Pcs/Tabung)</th>
-                    <th className="py-3 px-6 font-semibold text-right">Total Amount (Rp)</th>
+                    <th className="py-4 px-6 font-semibold">Nama Produk</th>
+                    <th className="py-4 px-6 font-semibold text-right">Jumlah (Pcs/Tabung)</th>
+                    <th className="py-4 px-6 font-semibold text-right">Total Amount (Rp)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-50">
                   {laporanNFR.length > 0 ? laporanNFR.map((nfr, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-3 px-6 font-medium text-slate-800">{nfr.nama}</td>
                       <td className="py-3 px-6 text-right text-slate-600">{nfr.jumlah.toLocaleString('id-ID')}</td>
                       <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(nfr.harga)}</td>
                     </tr>
-                  )) : <tr><td colSpan="3" className="py-6 text-center text-slate-500">Tidak ada penjualan NFR.</td></tr>}
+                  )) : <tr><td colSpan="3" className="py-8 text-center text-slate-500">Tidak ada penjualan NFR.</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-orange-50/50 border-t-2 border-orange-100">
+                  <tr className="bg-orange-50/80 border-t-2 border-orange-100">
                     <td className="py-4 px-6 font-bold text-orange-900">TOTAL NFR</td>
                     <td className="py-4 px-6 text-right font-bold text-orange-900">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
                     <td className="py-4 px-6 text-right font-bold text-orange-900 text-lg">{formatRupiah(totalNFR)}</td>
@@ -264,13 +266,13 @@ export default function LaporanKasir() {
             </div>
 
             {/* GRAND TOTAL MODERN */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-8 rounded-2xl flex justify-between items-center shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -z-0"></div>
+            <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-black text-white p-8 rounded-3xl flex justify-between items-center shadow-2xl relative overflow-hidden border border-slate-700">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-bl-full -z-0 blur-2xl"></div>
               <div className="relative z-10">
-                <p className="text-slate-400 font-medium tracking-widest uppercase text-sm">Total Pendapatan Keseluruhan</p>
-                <p className="text-slate-500 text-xs mt-1">(BBM + NFR)</p>
+                <p className="text-slate-300 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
+                <p className="text-slate-500 text-xs">(BBM + NFR)</p>
               </div>
-              <h3 className="text-4xl font-black text-white relative z-10">{formatRupiah(totalKeseluruhan)}</h3>
+              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-blue-300 relative z-10 drop-shadow-lg">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
           </div>
         ) : (
@@ -289,7 +291,7 @@ export default function LaporanKasir() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rekapHarianBulan.map((hari, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-1.5 px-3 text-[10px] font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                       <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.bbm)}</td>
                       <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.nfr)}</td>
