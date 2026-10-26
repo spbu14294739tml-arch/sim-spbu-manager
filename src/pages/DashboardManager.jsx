@@ -11,6 +11,9 @@ export default function DashboardManager() {
   const [waktu, setWaktu] = useState(new Date());
   const [chartKehadiran, setChartKehadiran] = useState([]);
   const [chartLaporan, setChartLaporan] = useState([]);
+  
+  // State untuk deteksi Online/Offline
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const getTodayDate = () => {
     const today = new Date();
@@ -59,7 +62,19 @@ export default function DashboardManager() {
   useEffect(() => {
     fetchData();
     const timer = setInterval(() => setWaktu(new Date()), 1000);
-    return () => clearInterval(timer);
+
+    // Logika Deteksi Online/Offline
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const formatTanggal = waktu.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -163,8 +178,15 @@ export default function DashboardManager() {
           <div className="absolute top-0 right-0 p-4 opacity-10"><ShieldCheck size={180} /></div>
           <h2 className="text-2xl font-bold mb-3 relative z-10">Sistem Berjalan Normal</h2>
           <p className="text-slate-300 text-base mb-8 relative z-10 leading-relaxed">Semua modul terhubung dengan baik ke Server Cloud Supabase. Data tersimpan secara aman dan terpusat.</p>
-          <div className="flex items-center gap-3 text-base font-medium bg-white/10 w-fit px-5 py-2.5 rounded-2xl relative z-10 backdrop-blur-md border border-white/10">
-            <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></div>Status: Online
+          
+          {/* INDIKATOR STATUS DINAMIS */}
+          <div className={`flex items-center gap-3 text-base font-medium px-5 py-2.5 rounded-2xl relative z-10 backdrop-blur-md border transition-colors duration-300 ${
+            isOnline 
+              ? 'bg-blue-500/30 text-blue-100 border-blue-400/30' 
+              : 'bg-red-500/30 text-red-100 border-red-400/30'
+          }`}>
+            <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isOnline ? 'bg-blue-400' : 'bg-red-400'}`}></div>
+            Status: {isOnline ? 'Online' : 'Offline'}
           </div>
         </div>
       </div>
