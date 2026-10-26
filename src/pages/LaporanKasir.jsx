@@ -2,25 +2,38 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah, exportToCSV } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, FileText, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3 } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanKasir() {
+  const [activeTab, setActiveTab] = useState('harian'); // 'harian' atau 'bulanan'
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
+  
+  // Filter Harian
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedShift, setSelectedShift] = useState('SEMUA');
+
+  // Filter Bulanan
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Data Laporan
   const [laporanBBM, setLaporanBBM] = useState([]);
   const [laporanNFR, setLaporanNFR] = useState([]);
   const [totalBBM, setTotalBBM] = useState(0);
   const [totalNFR, setTotalNFR] = useState(0);
+  
+  // Data Bulanan (Rekap Harian)
+  const [rekapHarianBulan, setRekapHarianBulan] = useState([]);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-
+  const fetchShift = async () => {
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData) setListShift(shiftData.map(s => s.nama_shift));
+  };
 
+  const fetchLaporanHarian = async () => {
+    setIsLoading(true);
     let queryBBM = supabase.from('penjualan_bbm').select('*').eq('tanggal', selectedDate);
     if (selectedShift !== 'SEMUA') queryBBM = queryBBM.eq('shift', selectedShift);
     const { data: dataBBM } = await queryBBM;
@@ -58,7 +71,62 @@ export default function LaporanKasir() {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [selectedDate, selectedShift]);
+  const fetchLaporanBulanan = async () => {
+    setIsLoading(true);
+    // Buat format tanggal awal dan akhir bulan
+    const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+    const endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
+
+    // Tarik data BBM dan NFR di bulan tersebut
+    const { data: dataBBM } = await supabase.from('penjualan_bbm').select('tanggal, total_harga').gte('tanggal', startDate).lte('tanggal', endDate);
+    const { data: dataNFR } = await supabase.from('penjualan_nfr').select('tanggal, total_harga').gte('tanggal', startDate).lte('tanggal', endDate);
+
+    // Olah data per hari
+    const rekapHarian = {};
+    let sumBulanBBM = 0;
+    let sumBulanNFR = 0;
+
+    // Inisialisasi semua hari di bulan tersebut dengan 0
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) {
+      const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      rekapHarian[dateStr] = { tanggal: dateStr, bbm: 0, nfr: 0, total: 0 };
+    }
+
+    if (dataBBM) {
+      dataBBM.forEach(item => {
+        if (rekapHarian[item.tanggal]) {
+          rekapHarian[item.tanggal].bbm += item.total_harga;
+          rekapHarian[item.tanggal].total += item.total_harga;
+          sumBulanBBM += item.total_harga;
+        }
+      });
+    }
+
+    if (dataNFR) {
+      dataNFR.forEach(item => {
+        if (rekapHarian[item.tanggal]) {
+          rekapHarian[item.tanggal].nfr += item.total_harga;
+          rekapHarian[item.tanggal].total += item.total_harga;
+          sumBulanNFR += item.total_harga;
+        }
+      });
+    }
+
+    setRekapHarianBulan(Object.values(rekapHarian));
+    setTotalBBM(sumBulanBBM);
+    setTotalNFR(sumBulanNFR);
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchShift();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'harian') fetchLaporanHarian();
+    else fetchLaporanBulanan();
+  }, [activeTab, selectedDate, selectedShift, selectedMonth, selectedYear]);
 
   const totalKeseluruhan = totalBBM + totalNFR;
 
@@ -67,16 +135,21 @@ export default function LaporanKasir() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Laporan Kasir</h1>
-          <p className="text-slate-500 mt-1">Rekap penjualan BBM dan NFR per hari/shift.</p>
+          <p className="text-slate-500 mt-1">Rekap penjualan BBM dan NFR.</p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={() => {
-              const dataEkspor = [
-                ...laporanBBM.map(b => ({ Kategori: 'BBM', 'Nama Produk': b.nama, 'Total Volume': b.liter, 'Total Pendapatan': b.harga })),
-                ...laporanNFR.map(n => ({ Kategori: 'NFR', 'Nama Produk': n.nama, 'Total Volume': n.jumlah, 'Total Pendapatan': n.harga }))
-              ];
-              exportToCSV(dataEkspor, `Laporan_Kasir_${selectedDate}_${selectedShift}`);
+              if (activeTab === 'harian') {
+                const dataEkspor = [
+                  ...laporanBBM.map(b => ({ Kategori: 'BBM', 'Nama Produk': b.nama, 'Total Volume': b.liter, 'Total Pendapatan': b.harga })),
+                  ...laporanNFR.map(n => ({ Kategori: 'NFR', 'Nama Produk': n.nama, 'Total Volume': n.jumlah, 'Total Pendapatan': n.harga }))
+                ];
+                exportToCSV(dataEkspor, `Laporan_Harian_${selectedDate}`);
+              } else {
+                const dataEkspor = rekapHarianBulan.map(r => ({ Tanggal: r.tanggal, 'Total BBM': r.bbm, 'Total NFR': r.nfr, 'Total Keseluruhan': r.total }));
+                exportToCSV(dataEkspor, `Laporan_Bulanan_${selectedMonth}_${selectedYear}`);
+              }
             }} 
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-sm"
           >
@@ -88,26 +161,59 @@ export default function LaporanKasir() {
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Calendar size={18} className="text-slate-500" />
-          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
-        </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <FileText size={18} className="text-slate-500" />
-          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
-            <option value="SEMUA">Semua Shift</option>
-            {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
-          </select>
-        </div>
+      {/* TAB NAVIGATION */}
+      <div className="flex border-b mb-6 border-slate-200 no-print">
+        <button type="button" onClick={() => setActiveTab('harian')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'harian' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Calendar size={18}/> Laporan Harian</button>
+        <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'bulanan' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><BarChart3 size={18}/> Laporan Bulanan</button>
       </div>
 
-      <KopSurat judul="Laporan Rekapitulasi Penjualan Kasir" periode={`Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`} />
+      {/* FILTER */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
+        {activeTab === 'harian' ? (
+          <>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <Calendar size={18} className="text-slate-500" />
+              <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <FileText size={18} className="text-slate-500" />
+              <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
+                <option value="SEMUA">Semua Shift</option>
+                {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-medium text-slate-600">Pilih Periode:</span>
+            <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
+              {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
+                <option key={i+1} value={i+1}>{m}</option>
+              ))}
+            </select>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
+              <option value={2026}>2026</option>
+              <option value={2027}>2027</option>
+            </select>
+          </>
+        )}
+      </div>
 
+      {/* KOP SURAT (Hanya muncul saat dicetak) */}
+      <KopSurat 
+        judul={activeTab === 'harian' ? "Laporan Rekapitulasi Penjualan Kasir (Harian)" : "Laporan Rekapitulasi Penjualan Kasir (Bulanan)"} 
+        periode={activeTab === 'harian' 
+          ? `Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`
+          : `Bulan: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][selectedMonth-1]} ${selectedYear}`
+        } 
+      />
+
+      {/* KONTEN LAPORAN */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         {isLoading ? (
           <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
-        ) : (
+        ) : activeTab === 'harian' ? (
+          // TAMPILAN HARIAN (Sama seperti sebelumnya)
           <div className="p-8 space-y-8">
             <div>
               <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">I. REKAP PENJUALAN BBM (FUEL RETAIL)</h2>
@@ -174,17 +280,39 @@ export default function LaporanKasir() {
               </div>
               <h3 className="text-3xl font-bold">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
-
-            <div className="hidden print:grid grid-cols-2 gap-8 mt-16 text-center">
-              <div>
-                <p className="text-slate-600 mb-20">Dibuat oleh,</p>
-                <p className="font-bold text-slate-800 border-t border-slate-400 pt-2 mx-8">Accounting / Kasir</p>
-              </div>
-              <div>
-                <p className="text-slate-600 mb-20">Diperiksa oleh,</p>
-                <p className="font-bold text-slate-800 border-t border-slate-400 pt-2 mx-8">Manager Operasional</p>
-              </div>
-            </div>
+          </div>
+        ) : (
+          // TAMPILAN BULANAN (Tabel Rekap Harian)
+          <div className="p-8">
+            <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">REKAP PENJUALAN HARIAN (BULAN INI)</h2>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 text-sm">
+                  <th className="py-3 px-4 font-semibold">Tanggal</th>
+                  <th className="py-3 px-4 font-semibold text-right">Total BBM</th>
+                  <th className="py-3 px-4 font-semibold text-right">Total NFR</th>
+                  <th className="py-3 px-4 font-semibold text-right">Total Pendapatan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rekapHarianBulan.map((hari, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="py-3 px-4 font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    <td className="py-3 px-4 text-right text-slate-600">{formatRupiah(hari.bbm)}</td>
+                    <td className="py-3 px-4 text-right text-slate-600">{formatRupiah(hari.nfr)}</td>
+                    <td className="py-3 px-4 text-right font-bold text-blue-600">{formatRupiah(hari.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-800 text-white border-t-2 border-slate-600">
+                  <td className="py-4 px-4 font-bold">TOTAL BULAN INI</td>
+                  <td className="py-4 px-4 text-right font-bold">{formatRupiah(totalBBM)}</td>
+                  <td className="py-4 px-4 text-right font-bold">{formatRupiah(totalNFR)}</td>
+                  <td className="py-4 px-4 text-right font-bold text-green-400 text-lg">{formatRupiah(totalKeseluruhan)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         )}
       </div>
