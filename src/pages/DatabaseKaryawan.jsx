@@ -85,7 +85,7 @@ export default function DatabaseKaryawan() {
 
   useEffect(() => { fetchKaryawan(); fetchShift(); }, []);
 
-  // FUNGSI: Hitung Masa Kerja
+  // FUNGSI HITUNG MASA KERJA (Tahun, Bulan, Hari)
   const hitungMasaKerja = (tanggalMasuk, tanggalKeluar) => {
     if (!tanggalMasuk) return '-';
     const start = new Date(tanggalMasuk);
@@ -93,13 +93,21 @@ export default function DatabaseKaryawan() {
     
     let years = end.getFullYear() - start.getFullYear();
     let months = end.getMonth() - start.getMonth();
+    let days = end.getDate() - start.getDate();
     
-    if (months < 0 || (months === 0 && end.getDate() < start.getDate())) {
+    if (days < 0) {
+      months--;
+      // Mengambil jumlah hari di bulan sebelumnya
+      const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    
+    if (months < 0) {
       years--;
       months += 12;
     }
     
-    return `${years} Tahun ${months} Bulan`;
+    return `${years} Tahun, ${months} Bulan, ${days} Hari`;
   };
 
   const generateNomorKaryawan = (posisiDipilih) => {
@@ -312,7 +320,7 @@ export default function DatabaseKaryawan() {
                 <th className="py-4 px-4 font-semibold">Nama & No. Karyawan</th>
                 <th className="py-4 px-4 font-semibold">Posisi & Shift</th>
                 <th className="py-4 px-4 font-semibold">Gaji Pokok</th>
-                <th className="py-4 px-4 font-semibold">Masa Kerja</th> {/* KOLOM BARU */}
+                <th className="py-4 px-4 font-semibold text-center">Masa Kerja</th> {/* POSISI CENTER */}
                 <th className="py-4 px-4 font-semibold text-center">Status</th>
                 <th className="py-4 px-4 font-semibold text-center no-print">Aksi</th>
               </tr>
@@ -335,8 +343,8 @@ export default function DatabaseKaryawan() {
                   </td>
                   <td className="py-4 px-4 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
                   
-                  {/* TAMPILAN MASA KERJA */}
-                  <td className="py-4 px-4 text-sm text-slate-600">
+                  {/* TAMPILAN MASA KERJA RATA TENGAH */}
+                  <td className="py-4 px-4 text-sm text-slate-600 text-center font-medium">
                     {hitungMasaKerja(k.tanggal_masuk, k.tanggal_keluar)}
                   </td>
 
