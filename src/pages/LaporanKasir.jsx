@@ -226,7 +226,7 @@ export default function LaporanKasir() {
                   <tr className="bg-blue-50/80 border-t-2 border-blue-100">
                     <td className="py-4 px-6 font-bold text-blue-900">TOTAL BBM</td>
                     <td className="py-4 px-6 text-right font-bold text-blue-900">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
-                    <td className="py-4 px-6 text-right font-bold text-blue-900 text-lg">{formatRupiah(totalBBM)}</td>
+                    <td className="py-4 px-6 text-right font-black text-blue-900 text-xl">{formatRupiah(totalBBM)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -259,7 +259,7 @@ export default function LaporanKasir() {
                   <tr className="bg-orange-50/80 border-t-2 border-orange-100">
                     <td className="py-4 px-6 font-bold text-orange-900">TOTAL NFR</td>
                     <td className="py-4 px-6 text-right font-bold text-orange-900">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
-                    <td className="py-4 px-6 text-right font-bold text-orange-900 text-lg">{formatRupiah(totalNFR)}</td>
+                    <td className="py-4 px-6 text-right font-black text-orange-900 text-xl">{formatRupiah(totalNFR)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -272,7 +272,7 @@ export default function LaporanKasir() {
                 <p className="text-slate-300 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
                 <p className="text-slate-500 text-xs">(BBM + NFR)</p>
               </div>
-              <h3 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-blue-300 relative z-10 drop-shadow-lg">{formatRupiah(totalKeseluruhan)}</h3>
+              <h3 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-blue-300 relative z-10 drop-shadow-lg">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
           </div>
         ) : (
