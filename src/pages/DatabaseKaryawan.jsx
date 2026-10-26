@@ -38,6 +38,7 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Data Wilayah Batam Lengkap
   const dataWilayah = {
     'BATAM KOTA': { 'BALOI PERMAI': '29431', 'BALOI': '29432', 'SUKAJADI': '29432', 'TAMAN BALOI': '29432', 'SUNGAI PANAS': '29433', 'TELUK TERING': '29461', 'BELIAN': '29464' },
     'NONGSA': { 'SAMBAU': '29465', 'BATU BESAR': '29466', 'KABIL': '29467', 'NGENANG': '29468' },
@@ -280,45 +281,50 @@ export default function DatabaseKaryawan() {
       <KopSurat judul="Data Karyawan" periode={`Tahun ${new Date().getFullYear()}`} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
-              <th className="py-4 px-6 font-semibold">Foto</th>
-              <th className="py-4 px-6 font-semibold">Nama & No. Karyawan</th>
-              <th className="py-4 px-6 font-semibold">Posisi</th>
-              <th className="py-4 px-6 font-semibold">Gaji Pokok</th>
-              <th className="py-4 px-6 font-semibold">Status</th>
-              <th className="py-4 px-6 font-semibold text-center no-print">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr><td colSpan="6" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
-            ) : filteredKaryawan.map((k, index) => (
-              <tr key={k.id} className="hover:bg-slate-50/50">
-                <td className="py-4 px-6">
-                  {k.foto_url ? <img src={k.foto_url} alt={k.nama} className="w-10 h-10 rounded-full object-cover border border-slate-200" /> : <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200"><User className="text-slate-400" size={20} /></div>}
-                </td>
-                <td className="py-4 px-6">
-                  <div className="font-medium text-slate-800">{k.nama}</div>
-                  <div className="text-xs text-slate-500">{k.nomor_karyawan || '-'}</div>
-                </td>
-                <td className="py-4 px-6 text-slate-600">{k.posisi}</td>
-                <td className="py-4 px-6 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
-                <td className="py-4 px-6"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
-                <td className="py-4 px-6 no-print">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
-                    <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-sm">
+                <th className="py-4 px-4 font-semibold w-12 text-center">Foto</th>
+                <th className="py-4 px-4 font-semibold">Nama & No. Karyawan</th>
+                <th className="py-4 px-4 font-semibold">Posisi & Shift</th>
+                <th className="py-4 px-4 font-semibold">Gaji Pokok</th>
+                <th className="py-4 px-4 font-semibold text-center">Status</th>
+                <th className="py-4 px-4 font-semibold text-center no-print">Aksi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr><td colSpan="6" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
+              ) : filteredKaryawan.map((k, index) => (
+                <tr key={k.id} className="hover:bg-slate-50/50">
+                  <td className="py-4 px-4 text-center">
+                    {k.foto_url ? <img src={k.foto_url} alt={k.nama} className="w-10 h-10 rounded-full object-cover border border-slate-200 mx-auto" /> : <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 mx-auto"><User className="text-slate-400" size={20} /></div>}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-slate-800">{k.nama}</div>
+                    <div className="text-xs text-slate-500">{k.nomor_karyawan || '-'}</div>
+                  </td>
+                  <td className="py-4 px-4 text-sm">
+                    <div className="font-medium text-slate-700">{k.posisi}</div>
+                    <div className="text-xs text-slate-500">Shift: {k.shift}</div>
+                  </td>
+                  <td className="py-4 px-4 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
+                  <td className="py-4 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
+                  <td className="py-4 px-4 text-center no-print">
+                    <div className="flex items-center justify-center gap-2">
+                      <button onClick={() => handleEdit(k)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18} /></button>
+                      <button onClick={() => handleHapus(k.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* MODAL 3 TAB (Isi sama seperti sebelumnya, Sonaar singkat agar tidak kepanjangan) */}
+      {/* MODAL 3 TAB (Sama seperti sebelumnya) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
