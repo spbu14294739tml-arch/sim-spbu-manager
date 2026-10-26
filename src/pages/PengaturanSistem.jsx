@@ -1,4 +1,3 @@
-jsx
 // src/pages/PengaturanSistem.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -11,9 +10,14 @@ export default function PengaturanSistem() {
   const [isSaving, setIsSaving] = useState(false);
   const [notif, setNotif] = useState('');
 
+  // State Profil
   const [profil, setProfil] = useState({ nama_spbu: '', nomor_izin: '', alamat: '', telepon: '', email: '' });
+  
+  // State Shift
   const [daftarShift, setDaftarShift] = useState([]);
   const [shiftBaru, setShiftBaru] = useState({ nama_shift: '', jam_kerja: '' });
+  
+  // State Produk NFR
   const [daftarProduk, setDaftarProduk] = useState([]);
   const [produkBaru, setProdukBaru] = useState({ kategori: 'LPG', nama_produk: '', harga_jual: '' });
   const [displayHargaProduk, setDisplayHargaProduk] = useState('');
@@ -22,15 +26,18 @@ export default function PengaturanSistem() {
   const [isUploadingProduk, setIsUploadingProduk] = useState(false);
   const fileInputRefProduk = useRef(null);
   
+  // State Harga BBM & Upload Logo
   const [daftarHargaBBM, setDaftarHargaBBM] = useState([]);
   const [uploadingLogoId, setUploadingLogoId] = useState(null);
   
+  // State untuk Edit Harga Inline
   const [editingHargaId, setEditingHargaId] = useState(null);
   const [hargaBaruInput, setHargaBaruInput] = useState('');
   const [tanggalEfektif, setTanggalEfektif] = useState(new Date().toISOString().split('T')[0]);
   const [statusHarga, setStatusHarga] = useState('TETAP');
   const [selisihHarga, setSelisihHarga] = useState(0);
 
+  // State Stok Tangki
   const [daftarTangki, setDaftarTangki] = useState([]);
   const [editingTangkiId, setEditingTangkiId] = useState(null);
   const [stokBaru, setStokBaru] = useState('');
@@ -60,6 +67,7 @@ export default function PengaturanSistem() {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Simpan Profil
   const handleSimpanProfil = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -70,6 +78,7 @@ export default function PengaturanSistem() {
     setNotif('Profil SPBU berhasil disimpan!'); setTimeout(() => setNotif(''), 3000);
   };
 
+  // Upload Logo BBM
   const handleLogoBBMUpload = async (e, id) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -89,6 +98,7 @@ export default function PengaturanSistem() {
     setUploadingLogoId(null);
   };
 
+  // MULAI EDIT HARGA
   const handleMulaiEditHarga = (bbm) => {
     setEditingHargaId(bbm.id);
     setHargaBaruInput(bbm.harga_per_liter.toString());
@@ -97,6 +107,7 @@ export default function PengaturanSistem() {
     setSelisihHarga(0);
   };
 
+  // SAAT INPUT HARGA BERUBAH (Hitung Selisih Otomatis)
   const handleHargaInputChange = (e, hargaLama) => {
     const val = e.target.value;
     setHargaBaruInput(val);
@@ -116,7 +127,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT (PERBAIKAN TOTAL)
+  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
@@ -150,12 +161,13 @@ export default function PengaturanSistem() {
       fetchData(); // Tarik ulang data
       
     } catch (error) {
-      alert(error.message); // Tampilkan error asli ke layar
+      alert(error.message);
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Update Stok & Kapasitas Tangki
   const handleUpdateTangki = async (id) => {
     if (!stokBaru && stokBaru !== 0) return alert('Masukkan jumlah stok baru!');
     if (!kapasitasBaru) return alert('Masukkan kapasitas maksimal!');
@@ -176,6 +188,7 @@ export default function PengaturanSistem() {
     }
   };
 
+  // Shift & Produk NFR
   const handleTambahShift = async () => {
     if (!shiftBaru.nama_shift || !shiftBaru.jam_kerja) return alert('Lengkapi data shift!');
     await supabase.from('pengaturan_shift').insert([shiftBaru]);
@@ -253,13 +266,130 @@ export default function PengaturanSistem() {
       </div>
 
       {/* TAB PROFIL */}
-      {activeTab === 'profil' && ( <form onSubmit={handleSimpanProfil} className="bg-white rounded-xl shadow-sm border border-slate-100 p-6"><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Nama SPBU</label><input type="text" value={profil.nama_spbu || ''} onChange={(e) => setProfil({...profil, nama_spbu: e.target.value})} className="w-full px-4 py-2 border rounded-xl" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Badan Hukum / Izin</label><input type="text" value={profil.nomor_izin || ''} onChange={(e) => setProfil({...profil, nomor_izin: e.target.value})} className="w-full px-4 py-2 border rounded-xl" /></div><div className="md:col-span-2"><label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label><textarea value={profil.alamat || ''} onChange={(e) => setProfil({...profil, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl"></textarea></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Telepon</label><input type="text" value={profil.telepon || ''} onChange={(e) => setProfil({...profil, telepon: e.target.value})} className="w-full px-4 py-2 border rounded-xl" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Email</label><input type="email" value={profil.email || ''} onChange={(e) => setProfil({...profil, email: e.target.value})} className="w-full px-4 py-2 border rounded-xl" /></div></div><div className="mt-6 flex justify-end"><button type="submit" disabled={isSaving} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-blue-700">{isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Profil</button></div></form>) }
+      {activeTab === 'profil' && (
+        <form onSubmit={handleSimpanProfil} className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nama SPBU</label>
+              <input type="text" value={profil.nama_spbu || ''} onChange={(e) => setProfil({...profil, nama_spbu: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Badan Hukum / Izin</label>
+              <input type="text" value={profil.nomor_izin || ''} onChange={(e) => setProfil({...profil, nomor_izin: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
+              <textarea value={profil.alamat || ''} onChange={(e) => setProfil({...profil, alamat: e.target.value})} rows="2" className="w-full px-4 py-2 border rounded-xl"></textarea>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Telepon</label>
+              <input type="text" value={profil.telepon || ''} onChange={(e) => setProfil({...profil, telepon: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <input type="email" value={profil.email || ''} onChange={(e) => setProfil({...profil, email: e.target.value})} className="w-full px-4 py-2 border rounded-xl" />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end">
+            <button type="submit" disabled={isSaving} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-blue-700">
+              {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Profil
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* TAB SHIFT */}
-      {activeTab === 'shift' && ( <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6"><div className="space-y-3 mb-6">{daftarShift.map((shift) => (<div key={shift.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200"><div><span className="font-semibold text-slate-700">{shift.nama_shift}:</span> <span className="text-slate-600">{shift.jam_kerja}</span></div><button onClick={() => handleHapusShift(shift.id)} className="text-red-500 hover:bg-red-100 p-2 rounded-lg"><Trash2 size={18} /></button></div>))}</div><div className="flex gap-3 items-end bg-blue-50 p-4 rounded-lg border border-blue-100"><div className="flex-1"><label className="block text-xs font-medium text-slate-600 mb-1">Nama Shift</label><input type="text" value={shiftBaru.nama_shift} onChange={(e) => setShiftBaru({...shiftBaru, nama_shift: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: Shift 1" /></div><div className="flex-1"><label className="block text-xs font-medium text-slate-600 mb-1">Jam Kerja</label><input type="text" value={shiftBaru.jam_kerja} onChange={(e) => setShiftBaru({...shiftBaru, jam_kerja: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: 08:00 - 16:00" /></div><button onClick={handleTambahShift} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button></div></div>) }
+      {activeTab === 'shift' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+          <div className="space-y-3 mb-6">
+            {daftarShift.map((shift) => (
+              <div key={shift.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div><span className="font-semibold text-slate-700">{shift.nama_shift}:</span> <span className="text-slate-600">{shift.jam_kerja}</span></div>
+                <button onClick={() => handleHapusShift(shift.id)} className="text-red-500 hover:bg-red-100 p-2 rounded-lg"><Trash2 size={18} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 items-end bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Nama Shift</label>
+              <input type="text" value={shiftBaru.nama_shift} onChange={(e) => setShiftBaru({...shiftBaru, nama_shift: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: Shift 1" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Jam Kerja</label>
+              <input type="text" value={shiftBaru.jam_kerja} onChange={(e) => setShiftBaru({...shiftBaru, jam_kerja: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: 08:00 - 16:00" />
+            </div>
+            <button onClick={handleTambahShift} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button>
+          </div>
+        </div>
+      )}
 
       {/* TAB PRODUK NFR */}
-      {activeTab === 'produk' && ( <div className="space-y-6"><div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6"><h2 className="text-lg font-bold text-slate-800 mb-4">Tambah Produk NFR Baru</h2><form onSubmit={handleTambahProduk} className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label><select value={produkBaru.kategori} onChange={(e) => setProdukBaru({...produkBaru, kategori: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="LPG">LPG</option><option value="OLI">Oli / Pelumas</option></select></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Nama Produk</label><input type="text" required value={produkBaru.nama_produk} onChange={(e) => setProdukBaru({...produkBaru, nama_produk: e.target.value})} className="w-full px-4 py-2 border rounded-xl" placeholder="Cth: LPG 3 KG / Mesran" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Harga Jual (Rp)</label><input type="text" required value={displayHargaProduk} onChange={handleHargaProdukChange} className="w-full px-4 py-2 border rounded-xl" placeholder="Rp 0" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Foto Produk (Opsional)</label><div className="flex items-center gap-4"><div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">{previewFotoProduk ? <img src={previewFotoProduk} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-400" size={24} />}</div><input type="file" accept="image/*" ref={fileInputRefProduk} onChange={handleFotoProdukChange} className="hidden" /><button type="button" onClick={() => fileInputRefProduk.current.click()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><Upload size={16} /> Pilih Foto</button></div></div><div className="md:col-span-2 flex justify-end mt-2"><button type="submit" disabled={isUploadingProduk} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-blue-700 disabled:opacity-50">{isUploadingProduk ? <><Loader2 className="animate-spin" size={18} /> Menyimpan...</> : <><Plus size={18} /> Tambah Produk</>}</button></div></form></div><div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden"><table className="w-full text-left"><thead className="bg-slate-50 border-b"><tr className="text-slate-500 text-sm"><th className="py-4 px-6 font-semibold">Foto</th><th className="py-4 px-6 font-semibold">Kategori</th><th className="py-4 px-6 font-semibold">Nama Produk</th><th className="py-4 px-6 font-semibold">Harga Jual</th><th className="py-4 px-6 font-semibold text-center">Aksi</th></tr></thead><tbody className="divide-y divide-slate-100">{daftarProduk.length > 0 ? daftarProduk.map(prod => (<tr key={prod.id} className="hover:bg-slate-50/50"><td className="py-3 px-6">{prod.foto_url ? <img src={prod.foto_url} alt={prod.nama_produk} className="w-12 h-12 rounded-lg object-cover border" /> : <div className="w-12 h-12 rounded-lg bg-slate-100 border flex items-center justify-center"><ImageIcon className="text-slate-400" size={20} /></div>}</td><td className="py-3 px-6"><span className={`px-2 py-1 rounded text-xs font-semibold ${prod.kategori === 'LPG' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>{prod.kategori}</span></td><td className="py-3 px-6 font-medium text-slate-800">{prod.nama_produk}</td><td className="py-3 px-6 font-semibold text-green-600">{formatRupiah(prod.harga_jual)}</td><td className="py-3 px-6 text-center"><button onClick={() => handleHapusProduk(prod.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button></td></tr>)) : <tr><td colSpan="5" className="py-8 text-center text-slate-500">Belum ada produk NFR.</td></tr>}</tbody></table></div></div>) }
+      {activeTab === 'produk' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Tambah Produk NFR Baru</h2>
+            <form onSubmit={handleTambahProduk} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
+                <select value={produkBaru.kategori} onChange={(e) => setProdukBaru({...produkBaru, kategori: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">
+                  <option value="LPG">LPG</option>
+                  <option value="OLI">Oli / Pelumas</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nama Produk</label>
+                <input type="text" required value={produkBaru.nama_produk} onChange={(e) => setProdukBaru({...produkBaru, nama_produk: e.target.value})} className="w-full px-4 py-2 border rounded-xl" placeholder="Cth: LPG 3 KG / Mesran" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Harga Jual (Rp)</label>
+                <input type="text" required value={displayHargaProduk} onChange={handleHargaProdukChange} className="w-full px-4 py-2 border rounded-xl" placeholder="Rp 0" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Foto Produk (Opsional)</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
+                    {previewFotoProduk ? <img src={previewFotoProduk} alt="Preview" className="w-full h-full object-cover" /> : <ImageIcon className="text-slate-400" size={24} />}
+                  </div>
+                  <input type="file" accept="image/*" ref={fileInputRefProduk} onChange={handleFotoProdukChange} className="hidden" />
+                  <button type="button" onClick={() => fileInputRefProduk.current.click()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><Upload size={16} /> Pilih Foto</button>
+                </div>
+              </div>
+              <div className="md:col-span-2 flex justify-end mt-2">
+                <button type="submit" disabled={isUploadingProduk} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-blue-700 disabled:opacity-50">
+                  {isUploadingProduk ? <><Loader2 className="animate-spin" size={18} /> Menyimpan...</> : <><Plus size={18} /> Tambah Produk</>}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b">
+                <tr className="text-slate-500 text-sm">
+                  <th className="py-4 px-6 font-semibold">Foto</th>
+                  <th className="py-4 px-6 font-semibold">Kategori</th>
+                  <th className="py-4 px-6 font-semibold">Nama Produk</th>
+                  <th className="py-4 px-6 font-semibold">Harga Jual</th>
+                  <th className="py-4 px-6 font-semibold text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {daftarProduk.length > 0 ? daftarProduk.map(prod => (
+                  <tr key={prod.id} className="hover:bg-slate-50/50">
+                    <td className="py-3 px-6">
+                      {prod.foto_url ? <img src={prod.foto_url} alt={prod.nama_produk} className="w-12 h-12 rounded-lg object-cover border" /> : <div className="w-12 h-12 rounded-lg bg-slate-100 border flex items-center justify-center"><ImageIcon className="text-slate-400" size={20} /></div>}
+                    </td>
+                    <td className="py-3 px-6"><span className={`px-2 py-1 rounded text-xs font-semibold ${prod.kategori === 'LPG' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>{prod.kategori}</span></td>
+                    <td className="py-3 px-6 font-medium text-slate-800">{prod.nama_produk}</td>
+                    <td className="py-3 px-6 font-semibold text-green-600">{formatRupiah(prod.harga_jual)}</td>
+                    <td className="py-3 px-6 text-center"><button onClick={() => handleHapusProduk(prod.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button></td>
+                  </tr>
+                )) : <tr><td colSpan="5" className="py-8 text-center text-slate-500">Belum ada produk NFR.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* TAB HARGA BBM (DENGAN FITUR RIWAYAT HARGA) */}
       {activeTab === 'harga_bbm' && (
@@ -377,7 +507,89 @@ export default function PengaturanSistem() {
       )}
 
       {/* TAB STOK TANGKI */}
-      {activeTab === 'stok_tangki' && ( <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden"><div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center"><div><h2 className="text-lg font-bold text-slate-800">Monitor Stok Tangki Pendam</h2><p className="text-sm text-slate-500 mt-1">Update stok dan kapasitas maksimal tangki.</p></div><button onClick={fetchData} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><RefreshCw size={16} /> Refresh</button></div><div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">{daftarTangki.map((tangki) => { const persentase = (tangki.stok_saat_ini / tangki.kapasitas_maksimal) * 100; const isLow = persentase < 30; const isMedium = persentase >= 30 && persentase < 60; return ( <div key={tangki.id} className="border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-shadow relative overflow-hidden"><div className={`absolute top-0 left-0 w-2 h-full ${isLow ? 'bg-red-500' : isMedium ? 'bg-yellow-500' : 'bg-green-500'}`}></div><div className="flex justify-between items-start mb-4 ml-2"><div><h3 className="font-bold text-lg text-slate-800">{tangki.nomor_tangki}</h3><p className="text-blue-600 font-semibold text-sm">{tangki.jenis_bbm}</p></div><div className="text-right"><p className="text-xs text-slate-500">Stok Saat Ini</p><p className={`font-bold text-xl ${isLow ? 'text-red-600' : isMedium ? 'text-yellow-600' : 'text-green-600'}`}>{tangki.stok_saat_ini} L</p></div></div><div className="ml-2 mb-4"><div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden relative"><div className={`h-full rounded-full transition-all duration-1000 ${isLow ? 'bg-red-500' : isMedium ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${persentase}%` }}></div><div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-800">{persentase.toFixed(1)}% dari {tangki.kapasitas_maksimal} L</div></div></div><div className="ml-2 mt-4">{editingTangkiId === tangki.id ? ( <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200"><div className="grid grid-cols-2 gap-2"><div><label className="block text-[10px] font-bold text-slate-500 mb-1">Jenis BBM</label><select value={jenisBBMBaru} onChange={(e) => setJenisBBMBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm">{['PERTALITE', 'PERTAMAX', 'PERTAMAX TURBO', 'BIOSOLAR', 'DEXLITE'].map(b => <option key={b} value={b}>{b}</option>)}</select></div><div><label className="block text-[10px] font-bold text-slate-500 mb-1">Kapasitas (L)</label><input type="number" value={kapasitasBaru} onChange={(e) => setKapasitasBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm" /></div></div><div><label className="block text-[10px] font-bold text-slate-500 mb-1">Stok Saat Ini (L)</label><input type="number" value={stokBaru} onChange={(e) => setStokBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm" /></div><div className="flex gap-2 justify-end mt-2"><button onClick={() => setEditingTangkiId(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border rounded-lg">Batal</button><button onClick={() => handleUpdateTangki(tangki.id)} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan</button></div></div> ) : ( <button onClick={() => { setEditingTangkiId(tangki.id); setStokBaru(tangki.stok_saat_ini); setKapasitasBaru(tangki.kapasitas_maksimal); setJenisBBMBaru(tangki.jenis_bbm); }} className="w-full flex items-center justify-center gap-2 bg-slate-50 border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"><Edit size={16} /> Edit Tangki</button> )}</div></div> ); })}</div></div>) }
+      {activeTab === 'stok_tangki' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Monitor Stok Tangki Pendam</h2>
+              <p className="text-sm text-slate-500 mt-1">Update stok dan kapasitas maksimal tangki.</p>
+            </div>
+            <button onClick={fetchData} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><RefreshCw size={16} /> Refresh</button>
+          </div>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {daftarTangki.map((tangki) => {
+              const persentase = (tangki.stok_saat_ini / tangki.kapasitas_maksimal) * 100;
+              const isLow = persentase < 30;
+              const isMedium = persentase >= 30 && persentase < 60;
+
+              return (
+                <div key={tangki.id} className="border border-slate-200 rounded-2xl p-5 hover:shadow-md transition-shadow relative overflow-hidden">
+                  <div className={`absolute top-0 left-0 w-2 h-full ${isLow ? 'bg-red-500' : isMedium ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                  
+                  <div className="flex justify-between items-start mb-4 ml-2">
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-800">{tangki.nomor_tangki}</h3>
+                      <p className="text-blue-600 font-semibold text-sm">{tangki.jenis_bbm}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">Stok Saat Ini</p>
+                      <p className={`font-bold text-xl ${isLow ? 'text-red-600' : isMedium ? 'text-yellow-600' : 'text-green-600'}`}>{tangki.stok_saat_ini} L</p>
+                    </div>
+                  </div>
+
+                  <div className="ml-2 mb-4">
+                    <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden relative">
+                      <div className={`h-full rounded-full transition-all duration-1000 ${isLow ? 'bg-red-500' : isMedium ? 'bg-yellow-500' : 'bg-green-500'}`} style={{ width: `${persentase}%` }}></div>
+                      <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-slate-800">
+                        {persentase.toFixed(1)}% dari {tangki.kapasitas_maksimal} L
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="ml-2 mt-4">
+                    {editingTangkiId === tangki.id ? (
+                      <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Jenis BBM</label>
+                            <select value={jenisBBMBaru} onChange={(e) => setJenisBBMBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm">
+                              {['PERTALITE', 'PERTAMAX', 'PERTAMAX TURBO', 'BIOSOLAR', 'DEXLITE'].map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-1">Kapasitas (L)</label>
+                            <input type="number" value={kapasitasBaru} onChange={(e) => setKapasitasBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">Stok Saat Ini (L)</label>
+                          <input type="number" value={stokBaru} onChange={(e) => setStokBaru(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg text-sm" />
+                        </div>
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button onClick={() => setEditingTangkiId(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border rounded-lg">Batal</button>
+                          <button onClick={() => handleUpdateTangki(tangki.id)} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Simpan</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => { 
+                          setEditingTangkiId(tangki.id); 
+                          setStokBaru(tangki.stok_saat_ini); 
+                          setKapasitasBaru(tangki.kapasitas_maksimal);
+                          setJenisBBMBaru(tangki.jenis_bbm);
+                        }} 
+                        className="w-full flex items-center justify-center gap-2 bg-slate-50 border border-slate-200 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 transition-colors"
+                      >
+                        <Edit size={16} /> Edit Tangki
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
