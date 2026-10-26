@@ -127,7 +127,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
+  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT (PERBAIKAN TOTAL)
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
@@ -135,8 +135,14 @@ export default function PengaturanSistem() {
     setIsSaving(true);
 
     try {
-      // 1. Update harga utama
-      const { error: errUpdate } = await supabase.from('master_produk_bbm').update({ harga_per_liter: baru }).eq('id', bbm.id);
+      // 1. Update harga utama & data riwayat terakhir di master_produk_bbm
+      const { error: errUpdate } = await supabase.from('master_produk_bbm').update({ 
+        harga_per_liter: baru,
+        tanggal_efektif: tanggalEfektif,
+        status_harga: statusHarga,
+        selisih_harga: selisihHarga
+      }).eq('id', bbm.id);
+      
       if (errUpdate) throw new Error('Gagal update harga: ' + errUpdate.message);
 
       // 2. Catat ke tabel riwayat (HANYA jika harga berubah)
@@ -453,7 +459,7 @@ export default function PengaturanSistem() {
                             className="px-2 py-1.5 border-2 border-blue-400 rounded-lg text-sm font-medium text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600" 
                           />
                         ) : (
-                          <span className="text-slate-500 text-sm">-</span>
+                          <span className="text-slate-500 text-sm">{bbm.tanggal_efektif || '-'}</span>
                         )}
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -468,7 +474,19 @@ export default function PengaturanSistem() {
                             {statusHarga}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs italic">Belum ada perubahan</span>
+                          bbm.status_harga ? (
+                            <span className={`px-2 py-1 rounded text-xs font-bold flex items-center justify-center gap-1 w-fit mx-auto ${
+                              bbm.status_harga === 'NAIK' ? 'bg-red-100 text-red-600' : 
+                              bbm.status_harga === 'TURUN' ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {bbm.status_harga === 'NAIK' && <ArrowUp size={14} />}
+                              {bbm.status_harga === 'TURUN' && <ArrowDown size={14} />}
+                              {bbm.status_harga === 'TETAP' && <Minus size={14} />}
+                              {bbm.status_harga}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">Belum ada</span>
+                          )
                         )}
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -477,7 +495,13 @@ export default function PengaturanSistem() {
                             {selisihHarga === 0 ? '-' : formatRupiah(Math.abs(selisihHarga))}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs italic">-</span>
+                          bbm.selisih_harga ? (
+                            <span className={`font-medium ${bbm.selisih_harga > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {formatRupiah(Math.abs(bbm.selisih_harga))}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs italic">-</span>
+                          )
                         )}
                       </td>
                       <td className="py-4 px-4 text-center">
