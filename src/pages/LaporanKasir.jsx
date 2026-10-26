@@ -8,10 +8,8 @@ import KopSurat from '../components/KopSurat';
 export default function LaporanKasir() {
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
-  
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedShift, setSelectedShift] = useState('SEMUA');
-
   const [laporanBBM, setLaporanBBM] = useState([]);
   const [laporanNFR, setLaporanNFR] = useState([]);
   const [totalBBM, setTotalBBM] = useState(0);
@@ -31,7 +29,6 @@ export default function LaporanKasir() {
     if (selectedShift !== 'SEMUA') queryNFR = queryNFR.eq('shift', selectedShift);
     const { data: dataNFR } = await queryNFR;
 
-    // Olah Data BBM
     const rekapBBM = {};
     let sumBBM = 0;
     if (dataBBM) {
@@ -43,7 +40,6 @@ export default function LaporanKasir() {
       });
     }
     
-    // Olah Data NFR
     const rekapNFR = {};
     let sumNFR = 0;
     if (dataNFR) {
@@ -59,13 +55,10 @@ export default function LaporanKasir() {
     setLaporanNFR(Object.keys(rekapNFR).map(key => ({ nama: key, ...rekapNFR[key] })));
     setTotalBBM(sumBBM);
     setTotalNFR(sumNFR);
-
     setIsLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedDate, selectedShift]);
+  useEffect(() => { fetchData(); }, [selectedDate, selectedShift]);
 
   const totalKeseluruhan = totalBBM + totalNFR;
 
@@ -109,7 +102,6 @@ export default function LaporanKasir() {
         </div>
       </div>
 
-      {/* Kop Surat (Hanya muncul saat dicetak) */}
       <KopSurat judul="Laporan Rekapitulasi Penjualan Kasir" periode={`Tanggal: ${new Date(selectedDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${selectedShift}`} />
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
