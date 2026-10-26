@@ -1,6 +1,6 @@
 // src/pages/DatabaseKaryawan.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, X, Loader2, Upload, User, Printer, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, Loader2, Upload, User, Printer, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah, exportToCSV } from '../lib/formatHelper';
 import KopSurat from '../components/KopSurat';
@@ -38,7 +38,6 @@ export default function DatabaseKaryawan() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Data Wilayah Batam Lengkap
   const dataWilayah = {
     'BATAM KOTA': { 'BALOI PERMAI': '29431', 'BALOI': '29432', 'SUKAJADI': '29432', 'TAMAN BALOI': '29432', 'SUNGAI PANAS': '29433', 'TELUK TERING': '29461', 'BELIAN': '29464' },
     'NONGSA': { 'SAMBAU': '29465', 'BATU BESAR': '29466', 'KABIL': '29467', 'NGENANG': '29468' },
@@ -85,6 +84,23 @@ export default function DatabaseKaryawan() {
   };
 
   useEffect(() => { fetchKaryawan(); fetchShift(); }, []);
+
+  // FUNGSI: Hitung Masa Kerja
+  const hitungMasaKerja = (tanggalMasuk, tanggalKeluar) => {
+    if (!tanggalMasuk) return '-';
+    const start = new Date(tanggalMasuk);
+    const end = tanggalKeluar ? new Date(tanggalKeluar) : new Date();
+    
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    
+    if (months < 0 || (months === 0 && end.getDate() < start.getDate())) {
+      years--;
+      months += 12;
+    }
+    
+    return `${years} Tahun ${months} Bulan`;
+  };
 
   const generateNomorKaryawan = (posisiDipilih) => {
     if (!posisiDipilih) return '';
@@ -198,8 +214,15 @@ export default function DatabaseKaryawan() {
       finalFotoUrl = publicUrlData.publicUrl;
     }
 
+    // LOGIKA OTOMATIS STATUS
+    let finalStatus = formData.status;
+    if (formData.tanggal_keluar) {
+      finalStatus = 'Tidak Aktif';
+    }
+
     const dataToInsert = {
       ...formData,
+      status: finalStatus,
       foto_url: finalFotoUrl,
       tanggal_lahir: formData.tanggal_lahir || null,
       tanggal_masuk: formData.tanggal_masuk || null,
@@ -289,13 +312,14 @@ export default function DatabaseKaryawan() {
                 <th className="py-4 px-4 font-semibold">Nama & No. Karyawan</th>
                 <th className="py-4 px-4 font-semibold">Posisi & Shift</th>
                 <th className="py-4 px-4 font-semibold">Gaji Pokok</th>
+                <th className="py-4 px-4 font-semibold">Masa Kerja</th> {/* KOLOM BARU */}
                 <th className="py-4 px-4 font-semibold text-center">Status</th>
                 <th className="py-4 px-4 font-semibold text-center no-print">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan="6" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
+                <tr><td colSpan="7" className="py-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={24} /></td></tr>
               ) : filteredKaryawan.map((k, index) => (
                 <tr key={k.id} className="hover:bg-slate-50/50">
                   <td className="py-4 px-4 text-center">
@@ -310,6 +334,12 @@ export default function DatabaseKaryawan() {
                     <div className="text-xs text-slate-500">Shift: {k.shift}</div>
                   </td>
                   <td className="py-4 px-4 font-medium text-slate-700">{k.gaji_pokok ? formatRupiah(k.gaji_pokok) : '-'}</td>
+                  
+                  {/* TAMPILAN MASA KERJA */}
+                  <td className="py-4 px-4 text-sm text-slate-600">
+                    {hitungMasaKerja(k.tanggal_masuk, k.tanggal_keluar)}
+                  </td>
+
                   <td className="py-4 px-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(k.status)}`}>{k.status}</span></td>
                   <td className="py-4 px-4 text-center no-print">
                     <div className="flex items-center justify-center gap-2">
