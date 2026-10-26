@@ -127,7 +127,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT (PERBAIKAN TOTAL)
+  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
