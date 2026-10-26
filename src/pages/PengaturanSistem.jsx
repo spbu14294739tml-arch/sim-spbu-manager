@@ -155,7 +155,10 @@ export default function PengaturanSistem() {
         updated_by: 'Manager Operasional'
       }]);
 
-      if (errRiwayat) console.error('Gagal simpan riwayat:', errRiwayat);
+      if (errRiwayat) {
+        console.error('Gagal simpan riwayat:', errRiwayat);
+        alert('Gagal mencatat riwayat harga: ' + errRiwayat.message);
+      }
     }
 
     setIsSaving(false);
