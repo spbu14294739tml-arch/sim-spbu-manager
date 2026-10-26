@@ -2,27 +2,39 @@
 
 /* Aturan Khusus untuk Cetak (Print) */
 @media print {
-  /* Sembunyikan Sidebar, tombol, dan elemen navigasi */
+  /* 1. Sembunyikan Sidebar, Navbar, dan tombol */
   aside, nav, button, .no-print {
     display: none !important;
   }
   
-  /* Pastikan area konten mengambil lebar penuh */
-  main, .print-area {
+  /* 2. Sembunyikan Sidebar secara spesifik (karena class-nya w-64) */
+  .w-64 {
+    display: none !important;
+  }
+
+  /* 3. Pastikan body dan konten utama mengambil lebar penuh */
+  body, main, #root, .print-area {
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    float: none !important;
   }
 
-  /* Atur warna teks agar jelas saat dicetak */
-  body {
+  /* 4. Hilangkan background abu-abu agar bersih saat dicetak */
+  body, .bg-slate-50 {
     background-color: white !important;
     color: black !important;
   }
 
-  /* Pastikan tabel tidak terpotong */
+  /* 5. Atur margin halaman cetak */
+  @page {
+    margin: 1cm;
+  }
+
+  /* 6. Pastikan tabel tidak terpotong */
   table {
     page-break-inside: auto;
   }
