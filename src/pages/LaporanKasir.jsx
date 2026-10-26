@@ -6,7 +6,7 @@ import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3 } from
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanKasir() {
-  const [activeTab, setActiveTab] = useState('harian'); // 'harian' atau 'bulanan'
+  const [activeTab, setActiveTab] = useState('harian'); 
   const [isLoading, setIsLoading] = useState(true);
   const [listShift, setListShift] = useState([]);
   
@@ -199,104 +199,114 @@ export default function LaporanKasir() {
           <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
         ) : activeTab === 'harian' ? (
           <div className="p-8 space-y-8">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">I. REKAP PENJUALAN BBM (FUEL RETAIL)</h2>
+            {/* REKAP BBM MODERN */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-800">I. REKAP PENJUALAN BBM (FUEL RETAIL)</h2>
+              </div>
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 text-sm">
-                    <th className="py-3 px-4 font-semibold">Jenis BBM</th>
-                    <th className="py-3 px-4 font-semibold text-right">Total Volume (Liter)</th>
-                    <th className="py-3 px-4 font-semibold text-right">Total Amount (Rp)</th>
+                  <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
+                    <th className="py-3 px-6 font-semibold">Jenis BBM</th>
+                    <th className="py-3 px-6 font-semibold text-right">Total Volume (Liter)</th>
+                    <th className="py-3 px-6 font-semibold text-right">Total Amount (Rp)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {laporanBBM.length > 0 ? laporanBBM.map((bbm, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-medium text-slate-800">{bbm.nama}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{bbm.liter.toLocaleString('id-ID')} L</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-800">{formatRupiah(bbm.harga)}</td>
+                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-6 font-medium text-slate-800">{bbm.nama}</td>
+                      <td className="py-3 px-6 text-right text-slate-600">{bbm.liter.toLocaleString('id-ID')} L</td>
+                      <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(bbm.harga)}</td>
                     </tr>
                   )) : <tr><td colSpan="3" className="py-6 text-center text-slate-500">Tidak ada penjualan BBM.</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-blue-50 border-t-2 border-blue-200">
-                    <td className="py-4 px-4 font-bold text-blue-800">TOTAL BBM</td>
-                    <td className="py-4 px-4 text-right font-bold text-blue-800">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
-                    <td className="py-4 px-4 text-right font-bold text-blue-800">{formatRupiah(totalBBM)}</td>
+                  <tr className="bg-blue-50/50 border-t-2 border-blue-100">
+                    <td className="py-4 px-6 font-bold text-blue-900">TOTAL BBM</td>
+                    <td className="py-4 px-6 text-right font-bold text-blue-900">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
+                    <td className="py-4 px-6 text-right font-bold text-blue-900 text-lg">{formatRupiah(totalBBM)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 pb-2 border-b-2 border-slate-200">II. REKAP PENJUALAN NFR (NON-FUEL RETAIL)</h2>
+            {/* REKAP NFR MODERN */}
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-bold text-slate-800">II. REKAP PENJUALAN NFR (NON-FUEL RETAIL)</h2>
+              </div>
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 text-sm">
-                    <th className="py-3 px-4 font-semibold">Nama Produk</th>
-                    <th className="py-3 px-4 font-semibold text-right">Jumlah (Pcs/Tabung)</th>
-                    <th className="py-3 px-4 font-semibold text-right">Total Amount (Rp)</th>
+                  <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
+                    <th className="py-3 px-6 font-semibold">Nama Produk</th>
+                    <th className="py-3 px-6 font-semibold text-right">Jumlah (Pcs/Tabung)</th>
+                    <th className="py-3 px-6 font-semibold text-right">Total Amount (Rp)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {laporanNFR.length > 0 ? laporanNFR.map((nfr, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-medium text-slate-800">{nfr.nama}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{nfr.jumlah.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-800">{formatRupiah(nfr.harga)}</td>
+                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-6 font-medium text-slate-800">{nfr.nama}</td>
+                      <td className="py-3 px-6 text-right text-slate-600">{nfr.jumlah.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(nfr.harga)}</td>
                     </tr>
                   )) : <tr><td colSpan="3" className="py-6 text-center text-slate-500">Tidak ada penjualan NFR.</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-orange-50 border-t-2 border-orange-200">
-                    <td className="py-4 px-4 font-bold text-orange-800">TOTAL NFR</td>
-                    <td className="py-4 px-4 text-right font-bold text-orange-800">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
-                    <td className="py-4 px-4 text-right font-bold text-orange-800">{formatRupiah(totalNFR)}</td>
+                  <tr className="bg-orange-50/50 border-t-2 border-orange-100">
+                    <td className="py-4 px-6 font-bold text-orange-900">TOTAL NFR</td>
+                    <td className="py-4 px-6 text-right font-bold text-orange-900">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
+                    <td className="py-4 px-6 text-right font-bold text-orange-900 text-lg">{formatRupiah(totalNFR)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div className="bg-slate-800 text-white p-6 rounded-xl flex justify-between items-center shadow-lg">
-              <div>
-                <p className="text-slate-300 font-medium">TOTAL PENDAPATAN KESELURUHAN</p>
-                <p className="text-sm text-slate-400 mt-1">(BBM + NFR)</p>
+            {/* GRAND TOTAL MODERN */}
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-8 rounded-2xl flex justify-between items-center shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -z-0"></div>
+              <div className="relative z-10">
+                <p className="text-slate-400 font-medium tracking-widest uppercase text-sm">Total Pendapatan Keseluruhan</p>
+                <p className="text-slate-500 text-xs mt-1">(BBM + NFR)</p>
               </div>
-              <h3 className="text-3xl font-bold">{formatRupiah(totalKeseluruhan)}</h3>
+              <h3 className="text-4xl font-black text-white relative z-10">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
           </div>
         ) : (
-          // TAMPILAN BULANAN (Tabel Rekap Harian - Dikecilkan agar Muat 1 Halaman)
+          // TAMPILAN BULANAN (Tabel Rekap Harian - Modern)
           <div className="p-4">
-            <h2 className="text-base font-bold text-slate-800 mb-2 pb-1 border-b border-slate-200">REKAP PENJUALAN HARIAN (BULAN INI)</h2>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 text-[10px] uppercase">
-                  <th className="py-2 px-2 font-semibold">Tanggal</th>
-                  <th className="py-2 px-2 font-semibold text-right">Total BBM</th>
-                  <th className="py-2 px-2 font-semibold text-right">Total NFR</th>
-                  <th className="py-2 px-2 font-semibold text-right">Total Pendapatan</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rekapHarianBulan.map((hari, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50">
-                    <td className="py-1.5 px-2 text-[10px] font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td className="py-1.5 px-2 text-[10px] text-right text-slate-600">{formatRupiah(hari.bbm)}</td>
-                    <td className="py-1.5 px-2 text-[10px] text-right text-slate-600">{formatRupiah(hari.nfr)}</td>
-                    <td className="py-1.5 px-2 text-[10px] text-right font-bold text-blue-600">{formatRupiah(hari.total)}</td>
+            <h2 className="text-base font-bold text-slate-800 mb-3 pb-2 border-b-2 border-slate-200">REKAP PENJUALAN HARIAN (BULAN INI)</h2>
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[10px] uppercase tracking-wider">
+                    <th className="py-2 px-3 font-semibold">Tanggal</th>
+                    <th className="py-2 px-3 font-semibold text-right">Total BBM</th>
+                    <th className="py-2 px-3 font-semibold text-right">Total NFR</th>
+                    <th className="py-2 px-3 font-semibold text-right">Total Pendapatan</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-800 text-white border-t border-slate-600">
-                  <td className="py-2 px-2 font-bold text-[10px]">TOTAL BULAN INI</td>
-                  <td className="py-2 px-2 text-right font-bold text-[10px]">{formatRupiah(totalBBM)}</td>
-                  <td className="py-2 px-2 text-right font-bold text-[10px]">{formatRupiah(totalNFR)}</td>
-                  <td className="py-2 px-2 text-right font-bold text-green-400 text-xs">{formatRupiah(totalKeseluruhan)}</td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rekapHarianBulan.map((hari, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-1.5 px-3 text-[10px] font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.bbm)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.nfr)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right font-bold text-blue-600">{formatRupiah(hari.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-800 text-white">
+                    <td className="py-2 px-3 font-bold text-[10px]">TOTAL BULAN INI</td>
+                    <td className="py-2 px-3 text-right font-bold text-[10px]">{formatRupiah(totalBBM)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-[10px]">{formatRupiah(totalNFR)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-green-400 text-xs">{formatRupiah(totalKeseluruhan)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         )}
       </div>
