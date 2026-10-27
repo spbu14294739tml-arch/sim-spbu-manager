@@ -64,7 +64,6 @@ export default function Kasir() {
         setMasterShift(shiftData);
         if (!shift) setShift(shiftData[0].nama_shift);
       } else {
-        // Fallback jika shift belum diisi di pengaturan
         setMasterShift([{ id: 1, nama_shift: 'Pagi' }, { id: 2, nama_shift: 'Siang' }, { id: 3, nama_shift: 'Malam' }]);
         setShift('Pagi');
       }
@@ -136,15 +135,20 @@ export default function Kasir() {
     const liter = parseFloat(bbmForm.liter);
     if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus > 0.');
 
-    // Ambil harga dari Master BBM
     const selectedBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis);
     const hargaPerLiter = selectedBbm ? parseFloat(selectedBbm.harga_per_liter) : 0;
     const total = Math.round(hargaPerLiter * liter);
 
     setLoading(true);
     const { error } = await supabase.from('penjualan_bbm').insert({
-      tanggal: today, shift, jenis_bbm: bbmForm.jenis, jumlah_liter: liter,
-      harga_per_liter: hargaPerLiter, total_harga: total, operator,
+      tanggal: today, 
+      shift, 
+      jenis_bbm: bbmForm.jenis, 
+      jumlah_liter: liter,
+      harga_per_liter: hargaPerLiter, 
+      total_harga: total, 
+      operator,
+      kasir_foreman: operator // <--- ANTISIPASI KOLOM WAJIB
     });
     setLoading(false);
 
@@ -164,15 +168,24 @@ export default function Kasir() {
     if (!jumlah || jumlah <= 0) return showMsg('error', 'Jumlah harus > 0.');
 
     setLoading(true);
+    // KITA ISI SEMUA KEMUNGKINAN NAMA KOLOM AGAR TIDAK ERROR
     const { error } = await supabase.from('penjualan_nfr').insert({
-      tanggal: today, shift, kategori: nfrForm.kategori, nama_produk: nfrForm.nama,
-      jumlah, harga_satuan: parseFloat(nfrForm.harga), total_harga: jumlah * parseFloat(nfrForm.harga), operator,
+      tanggal: today, 
+      shift, 
+      kategori: nfrForm.kategori, 
+      nama_produk: nfrForm.nama, 
+      produk_nfr: nfrForm.nama, // <--- UNTUK LAPORAN
+      jumlah, 
+      harga_satuan: parseFloat(nfrForm.harga), 
+      total_harga: jumlah * parseFloat(nfrForm.harga), 
+      operator,
+      kasir_foreman: operator // <--- UNTUK DATABASE
     });
     setLoading(false);
 
     if (error) return showMsg('error', 'Gagal simpan NFR: ' + error.message);
     showMsg('success', `NFR ${nfrForm.nama} berhasil dicatat.`);
-    setNfrForm({ ...nfrForm, produk_id: '', nama: '', jumlah: '', harga: '' }); // Reset
+    setNfrForm({ ...nfrForm, produk_id: '', nama: '', jumlah: '', harga: '' }); 
     loadNfr();
   };
 
@@ -192,8 +205,14 @@ export default function Kasir() {
 
     setLoading(true);
     const { error } = await supabase.from('penjualan_voucher').insert({
-      tanggal: today, shift, no_voucher: noVoucher, jenis_bbm: voucherForm.jenis_bbm,
-      jumlah_liter: liter, total_harga: harga, operator,
+      tanggal: today, 
+      shift, 
+      no_voucher: noVoucher, 
+      jenis_bbm: voucherForm.jenis_bbm,
+      jumlah_liter: liter, 
+      total_harga: harga, 
+      operator,
+      kasir_foreman: operator // <--- ANTISIPASI KOLOM WAJIB
     });
     setLoading(false);
 
@@ -225,7 +244,6 @@ export default function Kasir() {
 
   useEffect(() => { if (activeTab === 'tutup') hitungTutupKasir(); }, [activeTab, bbmList, nfrList, voucherList]);
 
-  // Dapatkan Harga BBM saat ini untuk ditampilkan di form
   const currentHargaBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis)?.harga_per_liter || 0;
 
   // ==== RENDER ====
@@ -329,7 +347,6 @@ export default function Kasir() {
                   </select>
                 </div>
                 
-                {/* DROPDOWN PRODUK OTOMATIS */}
                 <div>
                   <label className="text-sm font-medium text-slate-600">Pilih Produk</label>
                   <select value={nfrForm.produk_id} onChange={handlePilihProdukNfr} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
@@ -372,7 +389,7 @@ export default function Kasir() {
                     <div>
                       <p className="font-semibold">
                         <span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded mr-2">{n.kategori || 'Lainnya'}</span>
-                        {n.nama_produk}
+                        {n.nama_produk || n.produk_nfr}
                       </p>
                       <p className="text-xs text-slate-500">{n.jumlah} x {formatRupiah(n.harga_satuan)}</p>
                     </div>
