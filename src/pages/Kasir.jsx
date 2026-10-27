@@ -1,447 +1,656 @@
-import { useState, useEffect } from 'react';
+// src/pages/Kasir.jsx
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-
-const formatRupiah = (n) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
+import { formatRupiah } from '../lib/formatHelper';
+import { Loader2, Trash2, DollarSign, Fuel, ShoppingBag, Image as ImageIcon, Droplet, Ticket, Printer } from 'lucide-react';
+import KopSurat from '../components/KopSurat';
 
 export default function Kasir() {
-  const [activeTab, setActiveTab] = useState('bbm');
-  const [shift, setShift] = useState('');
-  const [operator, setOperator] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null);
+  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'NFR', 'VOUCHER', atau 'CLOSING'
+  const [isLoading, setIsLoading] = useState(true);
+  const [listShift, setListShift] = useState([]);
+  const [listProdukNFR, setListProdukNFR] = useState([]);
+  const [listHargaBBM, setListHargaBBM] = useState([]);
 
-  // ==== STATE MASTER DATA ====
-  const [masterBbm, setMasterBbm] = useState([]);
-  const [masterNfr, setMasterNfr] = useState([]);
-  const [masterShift, setMasterShift] = useState([]);
-  const [masterVoucher, setMasterVoucher] = useState([]); // <-- UNTUK VOUCHER AKTIF
+  const [transaksiBBM, setTransaksiBBM] = useState([]);
+  const [transaksiNFR, setTransaksiNFR] = useState([]);
+  const [transaksiVoucher, setTransaksiVoucher] = useState([]);
 
-  // ==== STATE BBM ====
-  const [bbmForm, setBbmForm] = useState({ jenis: '', liter: '' });
-  const [bbmList, setBbmList] = useState([]);
+  const [formData, setFormData] = useState({
+    tanggal: new Date().toISOString().split('T')[0],
+    shift: '',
+  });
 
-  // ==== STATE NFR ====
-  const [nfrForm, setNfrForm] = useState({ kategori: 'LPG', produk_id: '', nama: '', jumlah: '', harga: '' });
-  const [nfrList, setNfrList] = useState([]);
+  // State Form BBM
+  const [bbmData, setBbmData] = useState({
+    dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: ''
+  });
 
-  // ==== STATE VOUCHER (CEKLIS) ====
-  const [voucherForm, setVoucherForm] = useState({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
-  const [voucherList, setVoucherList] = useState([]);
+  // State Form NFR
+  const [nfrData, setNfrData] = useState({
+    produk: null, jumlah: '', kasir_foreman: '', total_harga: ''
+  });
 
-  // ==== STATE TUTUP KASIR ====
-  const [tutupData, setTutupData] = useState(null);
+  // State Form Voucher
+  const [voucherData, setVoucherData] = useState({
+    no_voucher: '', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: ''
+  });
 
-  const today = new Date().toISOString().slice(0, 10);
+  // State Form Tutup Kasir
+  const [closingData, setClosingData] = useState({
+    shiftClosing: '',
+    uangFisik: '',
+    keterangan: ''
+  });
+  const [isClosingSaving, setIsClosingSaving] = useState(false);
 
-  // ==== LOAD MASTER DATA ====
-  useEffect(() => {
-    const savedOp = localStorage.getItem('operator_nama');
-    if (savedOp) setOperator(savedOp);
+  const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
+  const listKasirForeman = ['KASIR', 'FOREMAN'];
 
-    const fetchMasterData = async () => {
-      // BBM
-      const { data: bbm } = await supabase.from('master_produk_bbm').select('*').order('id');
-      if (bbm) {
-        setMasterBbm(bbm);
-        if (bbm.length > 0 && !bbmForm.jenis) {
-          setBbmForm(prev => ({ ...prev, jenis: bbm[0].jenis_bbm }));
-        }
+  const fetchData = async () => {
+    setIsLoading(true);
+
+    // 1. Ambil Shift
+    const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
+    if (shiftData && shiftData.length > 0) {
+      setListShift(shiftData.map(s => s.nama_shift));
+      if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
+      if (!closingData.shiftClosing) setClosingData(prev => ({ ...prev, shiftClosing: shiftData[0].nama_shift }));
+    }
+
+    // 2. Ambil Produk NFR
+    const { data: produkData } = await supabase.from('master_produk_nfr').select('*').order('nama_produk');
+    if (produkData) setListProdukNFR(produkData);
+
+    // 3. Ambil Harga BBM
+    const { data: hargaBBMData } = await supabase.from('master_produk_bbm').select('*').order('id');
+    if (hargaBBMData && hargaBBMData.length > 0) {
+      setListHargaBBM(hargaBBMData);
+      if (!bbmData.jenis_bbm) setBbmData(prev => ({ ...prev, jenis_bbm: hargaBBMData[0].jenis_bbm }));
+      if (!voucherData.jenis_bbm) setVoucherData(prev => ({ ...prev, jenis_bbm: hargaBBMData[0].jenis_bbm }));
+    }
+
+    // 4. Ambil Transaksi BBM Hari Ini
+    const { data: dataBBM } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', formData.tanggal).order('id', { ascending: false });
+    if (dataBBM) setTransaksiBBM(dataBBM);
+
+    // 5. Ambil Transaksi NFR Hari Ini
+    const { data: dataNFR } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', formData.tanggal).order('id', { ascending: false });
+    if (dataNFR) setTransaksiNFR(dataNFR);
+
+    // 6. Ambil Transaksi Voucher Hari Ini
+    const { data: dataVoucher } = await supabase.from('penjualan_voucher').select('*').eq('tanggal', formData.tanggal).order('id', { ascending: false });
+    if (dataVoucher) setTransaksiVoucher(dataVoucher);
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [formData.tanggal]);
+
+  // Hitung Total Pendapatan (Termasuk Voucher)
+  const totalPendapatanBBM = transaksiBBM.reduce((acc, curr) => acc + curr.total_harga, 0);
+  const totalPendapatanNFR = transaksiNFR.reduce((acc, curr) => acc + curr.total_harga, 0);
+  const totalPendapatanVoucher = transaksiVoucher.reduce((acc, curr) => acc + curr.total_harga, 0);
+  const totalKeseluruhan = totalPendapatanBBM + totalPendapatanNFR + totalPendapatanVoucher;
+
+  // Hitung Selisih Tutup Kasir
+  const uangFisikNum = parseFloat(closingData.uangFisik) || 0;
+  const selisih = uangFisikNum - totalKeseluruhan;
+
+  // ============ HANDLER BBM ============
+  const handleBBMJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (jumlah && bbmData.jenis_bbm) {
+      const selectedBBM = listHargaBBM.find(b => b.jenis_bbm === bbmData.jenis_bbm);
+      if (selectedBBM) total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
+    }
+    setBbmData({ ...bbmData, jumlah_liter: jumlah, total_harga: total });
+  };
+
+  const handleBBMSelect = (jenis_bbm) => {
+    const selectedBBM = listHargaBBM.find(b => b.jenis_bbm === jenis_bbm);
+    const total = (bbmData.jumlah_liter && selectedBBM)
+      ? parseFloat(bbmData.jumlah_liter) * selectedBBM.harga_per_liter
+      : 0;
+    setBbmData({ ...bbmData, jenis_bbm, total_harga: total });
+  };
+
+  // ============ HANDLER NFR ============
+  const handleNFRProdukClick = (produk) => {
+    setNfrData({ ...nfrData, produk: produk, total_harga: nfrData.jumlah ? nfrData.jumlah * produk.harga_jual : 0 });
+  };
+
+  const handleNFRJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (nfrData.produk && jumlah) total = parseFloat(jumlah) * nfrData.produk.harga_jual;
+    setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
+  };
+
+  // ============ HANDLER VOUCHER ============
+  const handleVoucherJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (jumlah && voucherData.jenis_bbm) {
+      const selectedBBM = listHargaBBM.find(b => b.jenis_bbm === voucherData.jenis_bbm);
+      if (selectedBBM) total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
+    }
+    setVoucherData({ ...voucherData, jumlah_liter: jumlah, total_harga: total });
+  };
+
+  const handleVoucherBBMSelect = (jenis_bbm) => {
+    const selectedBBM = listHargaBBM.find(b => b.jenis_bbm === jenis_bbm);
+    const total = (voucherData.jumlah_liter && selectedBBM)
+      ? parseFloat(voucherData.jumlah_liter) * selectedBBM.harga_per_liter
+      : 0;
+    setVoucherData({ ...voucherData, jenis_bbm, total_harga: total });
+  };
+
+  // ============ SIMPAN TRANSAKSI ============
+  const handleSimpanTransaksi = async (e) => {
+    e.preventDefault();
+
+    if (activeTab === 'BBM') {
+      if (!bbmData.jenis_bbm) return alert('Pilih Jenis BBM terlebih dahulu!');
+      if (!bbmData.jumlah_liter || !bbmData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
+
+      const { error } = await supabase.from('penjualan_bbm').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser,
+        jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter),
+        total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase()
+      }]);
+
+      if (error) alert('Gagal: ' + error.message);
+      else {
+        setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '' });
+        fetchData();
       }
-      // NFR
-      const { data: nfr } = await supabase.from('master_produk_nfr').select('*').order('nama_produk');
-      if (nfr) setMasterNfr(nfr);
-      
-      // Shift
-      const { data: shiftData } = await supabase.from('pengaturan_shift').select('*').order('id');
-      if (shiftData && shiftData.length > 0) {
-        setMasterShift(shiftData);
-        if (!shift) setShift(shiftData[0].nama_shift);
-      } else {
-        setMasterShift([{ id: 1, nama_shift: 'Pagi' }, { id: 2, nama_shift: 'Siang' }, { id: 3, nama_shift: 'Malam' }]);
-        setShift('Pagi');
+
+    } else if (activeTab === 'NFR') {
+      if (!nfrData.produk || !nfrData.jumlah || !nfrData.kasir_foreman) return alert('Lengkapi Produk, Jumlah, dan Kasir/Foreman!');
+
+      const { error } = await supabase.from('penjualan_nfr').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk,
+        jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: nfrData.kasir_foreman
+      }]);
+
+      if (error) alert('Gagal: ' + error.message);
+      else {
+        setNfrData({ produk: null, jumlah: '', kasir_foreman: '', total_harga: '' });
+        fetchData();
       }
-    };
-    fetchMasterData();
-  }, []);
 
-  // ==== LOAD VOUCHER AKTIF ====
-  const loadVoucherAktif = async () => {
-    const { data, error } = await supabase.from('master_voucher').select('*').eq('status', 'AKTIF').order('nomor_urut');
-    if (!error) setMasterVoucher(data || []);
-  };
+    } else if (activeTab === 'VOUCHER') {
+      if (!voucherData.no_voucher || !voucherData.jenis_bbm) return alert('Lengkapi No Voucher dan Jenis BBM!');
+      if (!voucherData.jumlah_liter || !voucherData.operator) return alert('Lengkapi Jumlah Liter dan Nama Operator!');
 
-  // ==== LOAD PENJUALAN HARI INI ====
-  useEffect(() => {
-    if (!operator) return;
-    loadBbm();
-    loadNfr();
-    loadVoucherHistory();
-    loadVoucherAktif(); // Panggil voucher aktif
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [operator]);
+      const { error } = await supabase.from('penjualan_voucher').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, no_voucher: voucherData.no_voucher.toUpperCase(),
+        jenis_bbm: voucherData.jenis_bbm, jumlah_liter: parseFloat(voucherData.jumlah_liter),
+        total_harga: voucherData.total_harga, operator: voucherData.operator.toUpperCase()
+      }]);
 
-  const loadBbm = async () => {
-    const { data, error } = await supabase.from('penjualan_bbm').select('*').eq('tanggal', today).eq('operator', operator).order('created_at', { ascending: false });
-    if (!error) setBbmList(data || []);
-  };
-
-  const loadNfr = async () => {
-    const { data, error } = await supabase.from('penjualan_nfr').select('*').eq('tanggal', today).eq('operator', operator).order('created_at', { ascending: false });
-    if (!error) setNfrList(data || []);
-  };
-
-  const loadVoucherHistory = async () => {
-    const { data, error } = await supabase.from('penjualan_voucher').select('*').eq('tanggal', today).eq('operator', operator).order('created_at', { ascending: false });
-    if (!error) setVoucherList(data || []);
-  };
-
-  const showMsg = (type, text) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
-  };
-
-  const handleOperatorChange = (e) => {
-    const val = e.target.value;
-    setOperator(val);
-    localStorage.setItem('operator_nama', val);
-  };
-
-  // ==== AUTO-FILL NFR ====
-  const handlePilihProdukNfr = (e) => {
-    const prodId = e.target.value;
-    const selected = masterNfr.find(p => p.id.toString() === prodId);
-    if (selected) {
-      setNfrForm(prev => ({ ...prev, produk_id: selected.id, nama: selected.nama_produk, harga: selected.harga_jual }));
-    } else {
-      setNfrForm(prev => ({ ...prev, produk_id: '', nama: '', harga: '' }));
-    }
-  };
-  const filteredNfr = masterNfr.filter(p => p.kategori === nfrForm.kategori);
-
-  // ==== AUTO-FILL VOUCHER ====
-  const handlePilihVoucher = (e) => {
-    const vcrId = e.target.value;
-    const selected = masterVoucher.find(v => v.id.toString() === vcrId);
-    if (selected) {
-      setVoucherForm(prev => ({ ...prev, voucher_id: selected.id, jenis_bbm: bbmForm.jenis || 'Pertalite' }));
-    } else {
-      setVoucherForm({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
+      if (error) alert('Gagal: ' + error.message);
+      else {
+        setVoucherData({ ...voucherData, no_voucher: '', jumlah_liter: '', operator: '', total_harga: '' });
+        fetchData();
+      }
     }
   };
 
-  // ==== SUBMIT BBM ====
-  const submitBbm = async (e) => {
+  // ============ SIMPAN TUTUP KASIR ============
+  const handleSimpanClosing = async (e) => {
     e.preventDefault();
-    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
-    const liter = parseFloat(bbmForm.liter);
-    if (!liter || liter <= 0) return showMsg('error', 'Liter harus > 0.');
+    if (!closingData.uangFisik) return alert('Masukkan Uang Fisik terlebih dahulu!');
 
-    const selectedBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis);
-    const hargaPerLiter = selectedBbm ? parseFloat(selectedBbm.harga_per_liter) : 0;
-    
-    setLoading(true);
-    const { error } = await supabase.from('penjualan_bbm').insert({
-      tanggal: today, shift, jenis_bbm: bbmForm.jenis, jumlah_liter: liter,
-      harga_per_liter: hargaPerLiter, total_harga: Math.round(hargaPerLiter * liter), 
-      operator, kasir_foreman: operator 
-    });
-    setLoading(false);
-    if (error) return showMsg('error', error.message);
-    showMsg('success', `BBM dicatat.`);
-    setBbmForm({ ...bbmForm, liter: '' });
-    loadBbm();
-  };
+    setIsClosingSaving(true);
 
-  // ==== SUBMIT NFR ====
-  const submitNfr = async (e) => {
-    e.preventDefault();
-    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
-    if (!nfrForm.produk_id) return showMsg('error', 'Pilih Produk NFR.');
-    const jumlah = parseInt(nfrForm.jumlah);
-    if (!jumlah || jumlah <= 0) return showMsg('error', 'Jumlah harus > 0.');
+    const { error } = await supabase.from('tutup_kasir').insert([{
+      tanggal: formData.tanggal,
+      shift: closingData.shiftClosing,
+      total_bbm: totalPendapatanBBM,
+      total_nfr: totalPendapatanNFR,
+      total_sistem: totalKeseluruhan,
+      uang_fisik: uangFisikNum,
+      selisih: selisih,
+      keterangan: closingData.keterangan.toUpperCase(),
+      kasir: 'Kasir/Manager'
+    }]);
 
-    setLoading(true);
-    const { error } = await supabase.from('penjualan_nfr').insert({
-      tanggal: today, shift, kategori: nfrForm.kategori, 
-      nama_produk: nfrForm.nama, produk_nfr: nfrForm.nama, 
-      jumlah, harga_satuan: parseFloat(nfrForm.harga), 
-      total_harga: jumlah * parseFloat(nfrForm.harga), 
-      operator, kasir_foreman: operator 
-    });
-    setLoading(false);
-    if (error) return showMsg('error', error.message);
-    showMsg('success', `NFR dicatat.`);
-    setNfrForm({ ...nfrForm, produk_id: '', nama: '', jumlah: '', harga: '' });
-    loadNfr();
-  };
-
-  // ==== SUBMIT VOUCHER (CEKLIS) ====
-  const submitVoucher = async (e) => {
-    e.preventDefault();
-    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
-    if (!voucherForm.voucher_id) return showMsg('error', 'Pilih Voucher yang akan dicairkan.');
-    
-    const liter = parseFloat(voucherForm.jumlah_liter);
-    if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus > 0.');
-
-    const selectedVcr = masterVoucher.find(v => v.id.toString() === voucherForm.voucher_id);
-    if (!selectedVcr) return showMsg('error', 'Voucher tidak ditemukan.');
-
-    setLoading(true);
-    
-    // 1. Simpan ke penjualan_voucher
-    const { error: errInsert } = await supabase.from('penjualan_voucher').insert({
-      tanggal: today, shift, no_voucher: selectedVcr.nomor_urut, 
-      jenis_bbm: voucherForm.jenis_bbm, jumlah_liter: liter, 
-      total_harga: selectedVcr.nominal, operator, 
-      nama_pembeli: selectedVcr.nama_pembeli, master_voucher_id: selectedVcr.id 
-    });
-
-    if (errInsert) {
-      setLoading(false);
-      return showMsg('error', 'Gagal cairkan voucher: ' + errInsert.message);
+    if (error) alert('Gagal simpan tutup kasir: ' + error.message);
+    else {
+      alert('Laporan Tutup Kasir Berhasil Disimpan!');
+      setClosingData({ ...closingData, uangFisik: '', keterangan: '' });
+      setActiveTab('BBM');
     }
-
-    // 2. Ubah status master_voucher jadi TERPAKAI
-    const { error: errUpdate } = await supabase.from('master_voucher').update({ status: 'TERPAKAI' }).eq('id', selectedVcr.id);
-    
-    setLoading(false);
-    if (errUpdate) return showMsg('error', 'Gagal update status voucher: ' + errUpdate.message);
-
-    showMsg('success', `Voucher ${selectedVcr.nomor_urut} berhasil dicairkan!`);
-    setVoucherForm({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
-    loadVoucherHistory();
-    loadVoucherAktif(); // Refresh list voucher aktif
+    setIsClosingSaving(false);
   };
 
-  // ==== HAPUS RIWAYAT VOUCHER (KASIR) ====
-  const hapusVoucher = async (id) => {
-    if (!confirm('Hapus riwayat voucher ini?')) return;
+  // ============ HAPUS ============
+  const handleHapusBBM = async (id) => {
+    if (!window.confirm('Hapus transaksi BBM ini?')) return;
+    await supabase.from('penjualan_bbm').delete().eq('id', id);
+    fetchData();
+  };
+
+  const handleHapusNFR = async (id) => {
+    if (!window.confirm('Hapus transaksi NFR ini?')) return;
+    await supabase.from('penjualan_nfr').delete().eq('id', id);
+    fetchData();
+  };
+
+  const handleHapusVoucher = async (id) => {
+    if (!window.confirm('Hapus transaksi Voucher ini?')) return;
     await supabase.from('penjualan_voucher').delete().eq('id', id);
-    loadVoucherHistory();
+    fetchData();
   };
 
-  // ==== TUTUP KASIR ====
-  const hitungTutupKasir = () => {
-    const totalBbm = bbmList.reduce((s, x) => s + Number(x.total_harga || 0), 0);
-    const totalNfr = nfrList.reduce((s, x) => s + Number(x.total_harga || 0), 0);
-    const totalVoucher = voucherList.reduce((s, x) => s + Number(x.total_harga || 0), 0);
-    const totalLiterVoucher = voucherList.reduce((s, x) => s + Number(x.jumlah_liter || 0), 0);
-    setTutupData({
-      totalBbm, totalNfr, totalVoucher, totalLiterVoucher,
-      grandTotal: totalBbm + totalNfr + totalVoucher,
-      countBbm: bbmList.length, countNfr: nfrList.length, countVoucher: voucherList.length,
-    });
+  // ============ CETAK LAPORAN ============
+  const handleCetak = () => {
+    window.print();
   };
-  useEffect(() => { if (activeTab === 'tutup') hitungTutupKasir(); }, [activeTab, bbmList, nfrList, voucherList]);
 
-  const currentHargaBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis)?.harga_per_liter || 0;
+  const produkLPG = listProdukNFR.filter(p => p.kategori === 'LPG');
+  const produkOLI = listProdukNFR.filter(p => p.kategori === 'OLI');
 
-  // ==== RENDER ====
+  // ============ RENDER ============
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Loader2 size={40} className="animate-spin text-blue-600" />
+          <p className="text-sm font-medium">Memuat data kasir...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-6">
-      <div className="max-w-5xl mx-auto">
-        
-        {/* HEADER */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-lg mb-4">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">Kasir SPBU</h1>
-              <div className="text-sm opacity-90 mt-2 flex items-center gap-2">
-                <span>Operator:</span>
-                <input type="text" placeholder="Ketik Nama..." value={operator} onChange={handleOperatorChange}
-                  className="text-slate-800 px-3 py-1 rounded font-semibold text-sm w-48 outline-none focus:ring-2 focus:ring-amber-400" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-white/10 p-2 rounded-lg self-start md:self-center">
-              <label className="text-sm font-semibold">Shift:</label>
-              <select value={shift} onChange={(e) => setShift(e.target.value)} className="bg-white text-slate-800 border-none rounded-lg px-3 py-1.5 text-sm font-bold">
-                {masterShift.map(s => <option key={s.id} value={s.nama_shift}>{s.nama_shift}</option>)}
-              </select>
-            </div>
-          </div>
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* HEADER */}
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">Kasir & Penjualan</h1>
+          <p className="text-slate-500 mt-1">Catat penjualan dan lakukan tutup kasir.</p>
         </div>
+        <button
+          onClick={handleCetak}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Printer size={16} /> Cetak Laporan
+        </button>
+      </div>
 
-        {/* NOTIFIKASI */}
-        {message && (
-          <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`}>
-            {message.text}
-          </div>
-        )}
-
-        {/* TABS */}
-        <div className="flex gap-1 bg-white rounded-xl p-1 shadow mb-4 overflow-x-auto">
-          {[{ key: 'bbm', label: '⛽ BBM' }, { key: 'nfr', label: '🛒 NFR' }, { key: 'voucher', label: '🎫 Cairkan Voucher' }, { key: 'tutup', label: '🔒 Tutup Kasir' }].map((t) => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)} className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-semibold transition ${activeTab === t.key ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}>
-              {t.label}
-            </button>
-          ))}
+      {/* AREA CETAK (KOP SURAT) */}
+      <div className="hidden print:block mb-6">
+        <KopSurat />
+        <div className="text-center mb-4">
+          <h2 className="text-lg font-bold">LAPORAN KASIR HARIAN</h2>
+          <p className="text-sm">Tanggal: {formData.tanggal}</p>
         </div>
+      </div>
 
-        {/* ============ TAB BBM ============ */}
-        {activeTab === 'bbm' && (
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-4">Input Penjualan BBM</h2>
-              <form onSubmit={submitBbm} className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Jenis BBM</label>
-                  <select value={bbmForm.jenis} onChange={(e) => setBbmForm({ ...bbmForm, jenis: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
-                    {masterBbm.map((j) => <option key={j.id} value={j.jenis_bbm}>{j.jenis_bbm} — {formatRupiah(j.harga_per_liter)}/L</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Jumlah Liter</label>
-                  <input type="number" step="0.01" min="0" value={bbmForm.liter} onChange={(e) => setBbmForm({ ...bbmForm, liter: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0.00" />
-                </div>
-                {bbmForm.liter > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">Total: <b>{formatRupiah(currentHargaBbm * parseFloat(bbmForm.liter || 0))}</b></div>
-                )}
-                <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
-                  {loading ? 'Menyimpan...' : 'Simpan BBM'}
-                </button>
-              </form>
-            </div>
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-3">Riwayat BBM Hari Ini ({bbmList.length})</h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {bbmList.length === 0 && <p className="text-sm text-slate-400">Belum ada data.</p>}
-                {bbmList.map((b) => (
-                  <div key={b.id} className="border rounded-lg p-3 text-sm flex justify-between">
-                    <div><p className="font-semibold">{b.jenis_bbm} — {b.jumlah_liter} L</p><p className="text-xs text-slate-500">{b.shift} • {b.operator}</p></div>
-                    <p className="font-bold text-blue-700">{formatRupiah(b.total_harga)}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* DASHBOARD MINI */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 no-print">
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-green-100 text-green-600 rounded-lg"><DollarSign size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Total Pendapatan</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalKeseluruhan)}</p></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Fuel size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Pendapatan BBM</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanBBM)}</p></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><ShoppingBag size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Pendapatan NFR</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanNFR)}</p></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-3">
+          <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Ticket size={24} /></div>
+          <div><p className="text-xs text-slate-500 font-medium">Pendapatan Voucher</p><p className="text-xl font-bold text-slate-800">{formatRupiah(totalPendapatanVoucher)}</p></div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ================= KOLOM KIRI: FORM INPUT ================= */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit no-print">
+
+          {/* TAB NAVIGATION MODERN */}
+          <div className="flex flex-wrap gap-1 mb-4 p-1 bg-slate-100 rounded-xl">
+            <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${activeTab === 'BBM' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800'}`}><Fuel size={14} className="inline mr-1" /> BBM</button>
+            <button type="button" onClick={() => setActiveTab('NFR')} className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${activeTab === 'NFR' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800'}`}><ShoppingBag size={14} className="inline mr-1" /> NFR</button>
+            <button type="button" onClick={() => setActiveTab('VOUCHER')} className={`flex-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${activeTab === 'VOUCHER' ? 'bg-white text-purple-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800'}`}><Ticket size={14} className="inline mr-1" /> Voucher</button>
+            <button type="button" onClick={() => setActiveTab('CLOSING')} className={`w-full mt-1 py-1.5 px-3 text-xs font-semibold rounded-lg transition-all ${activeTab === 'CLOSING' ? 'bg-red-50 text-red-600 ring-1 ring-red-200' : 'text-slate-500 hover:text-slate-800'}`}>Tutup Kasir</button>
           </div>
-        )}
 
-        {/* ============ TAB NFR ============ */}
-        {activeTab === 'nfr' && (
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-4">Input Penjualan NFR</h2>
-              <form onSubmit={submitNfr} className="space-y-3">
+          {activeTab !== 'CLOSING' ? (
+            <form onSubmit={handleSimpanTransaksi} className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-sm font-medium text-slate-600">Kategori NFR</label>
-                  <select value={nfrForm.kategori} onChange={(e) => setNfrForm({ ...nfrForm, kategori: e.target.value, produk_id: '', nama: '', harga: '' })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-blue-50 font-semibold text-blue-800">
-                    <option value="LPG">🔵 LPG (Gas)</option>
-                    <option value="OLI">🟡 Oli / Pelumas</option>
-                  </select>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Tanggal</label>
+                  <input type="date" value={formData.tanggal} readOnly className="w-full px-3 py-2 border rounded-lg bg-slate-50 text-sm" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-600">Pilih Produk</label>
-                  <select value={nfrForm.produk_id} onChange={handlePilihProdukNfr} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
-                    <option value="">-- Pilih Produk --</option>
-                    {filteredNfr.map(p => <option key={p.id} value={p.id}>{p.nama_produk} — {formatRupiah(p.harga_jual)}</option>)}
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Shift</label>
+                  <select value={formData.shift} onChange={(e) => setFormData({ ...formData, shift: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                    {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="text-sm font-medium text-slate-600">Jumlah</label><input type="number" min="1" value={nfrForm.jumlah} onChange={(e) => setNfrForm({ ...nfrForm, jumlah: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" /></div>
-                  <div><label className="text-sm font-medium text-slate-600">Harga Satuan</label><input type="number" value={nfrForm.harga} readOnly className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-slate-100 cursor-not-allowed" placeholder="Otomatis" /></div>
-                </div>
-                {nfrForm.jumlah > 0 && nfrForm.harga > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">Total: <b>{formatRupiah(parseFloat(nfrForm.harga) * parseInt(nfrForm.jumlah))}</b></div>
-                )}
-                <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
-                  {loading ? 'Menyimpan...' : 'Simpan NFR'}
-                </button>
-              </form>
-            </div>
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-3">Riwayat NFR Hari Ini ({nfrList.length})</h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {nfrList.length === 0 && <p className="text-sm text-slate-400">Belum ada data.</p>}
-                {nfrList.map((n) => (
-                  <div key={n.id} className="border rounded-lg p-3 text-sm flex justify-between">
-                    <div><p className="font-semibold"><span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded mr-2">{n.kategori || 'Lainnya'}</span>{n.nama_produk || n.produk_nfr}</p><p className="text-xs text-slate-500">{n.jumlah} x {formatRupiah(n.harga_satuan)}</p></div>
-                    <p className="font-bold text-blue-700">{formatRupiah(n.total_harga)}</p>
-                  </div>
-                ))}
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* ============ TAB VOUCHER (SISTEM CEKLIS) ============ */}
-        {activeTab === 'voucher' && (
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-1">🎫 Cairkan Voucher BBM</h2>
-              <p className="text-xs text-slate-500 mb-4">Pilih voucher aktif dari Accounting untuk dicairkan menjadi BBM.</p>
-              
-              <form onSubmit={submitVoucher} className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Pilih Voucher (Ceklis)</label>
-                  <select value={voucherForm.voucher_id} onChange={handlePilihVoucher} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-amber-50 font-bold text-amber-900 border-amber-300">
-                    <option value="">-- Pilih Voucher Aktif --</option>
-                    {masterVoucher.map(v => (
-                      <option key={v.id} value={v.id}>{v.nomor_urut} — {v.nama_pembeli} (Rp {v.nominal.toLocaleString('id-ID')})</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Jenis BBM</label>
-                  <select value={voucherForm.jenis_bbm} onChange={(e) => setVoucherForm({ ...voucherForm, jenis_bbm: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
-                    {masterBbm.map((j) => <option key={j.id} value={j.jenis_bbm}>{j.jenis_bbm}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-600">Jumlah Liter (Diisi Manual)</label>
-                  <input type="number" step="0.01" min="0" value={voucherForm.jumlah_liter} onChange={(e) => setVoucherForm({ ...voucherForm, jumlah_liter: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0.00" />
-                </div>
-                <button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
-                  {loading ? 'Memproses...' : 'Cairkan Voucher'}
-                </button>
-              </form>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-3">Riwayat Voucher Dicairkan Hari Ini ({voucherList.length})</h2>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {voucherList.length === 0 && <p className="text-sm text-slate-400">Belum ada voucher dicairkan.</p>}
-                {voucherList.map((v) => (
-                  <div key={v.id} className="border rounded-lg p-3 text-sm">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-mono font-bold text-amber-700">{v.no_voucher}</p>
-                        <p className="text-xs font-semibold text-slate-700">{v.nama_pembeli || 'Pribadi'}</p>
-                        <p className="text-xs text-slate-600 mt-0.5">{v.jenis_bbm} • {v.jumlah_liter} L • {v.shift}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-blue-700">{formatRupiah(v.total_harga)}</p>
-                        <button onClick={() => hapusVoucher(v.id)} className="text-xs text-red-500 hover:text-red-700 mt-1">Hapus</button>
-                      </div>
+              {/* --- FORM BBM --- */}
+              {activeTab === 'BBM' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Pompa / Dispenser</label>
+                    <select value={bbmData.dispenser} onChange={(e) => setBbmData({ ...bbmData, dispenser: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                      {listDispenser.map((d, i) => <option key={i} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Jenis BBM</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {listHargaBBM.map((bbm) => (
+                        <div key={bbm.id} onClick={() => handleBBMSelect(bbm.jenis_bbm)} className={`cursor-pointer border rounded-xl p-2 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-white hover:border-blue-300'}`}>
+                          {bbm.logo_url ? <img src={bbm.logo_url} alt={bbm.jenis_bbm} className="h-8 object-contain mb-1" /> : <Fuel size={20} className="mb-1 text-slate-400" />}
+                          <span className="text-[10px] font-bold text-center leading-tight">{bbm.jenis_bbm}</span>
+                          <span className="text-[10px] font-bold mt-1">{formatRupiah(bbm.harga_per_liter)}/L</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Liter)</label>
+                    <input type="number" step="0.01" required value={bbmData.jumlah_liter} onChange={handleBBMJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm font-bold text-lg" placeholder="0.0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Nama Operator</label>
+                    <input type="text" required value={bbmData.operator} onChange={(e) => setBbmData({ ...bbmData, operator: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nama Operator" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Otomatis)</label>
+                    <input type="text" readOnly value={bbmData.total_harga ? formatRupiah(bbmData.total_harga) : 'Rp 0'} className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-100 font-bold text-blue-600" />
+                  </div>
+                </>
+              )}
 
-        {/* ============ TAB TUTUP KASIR ============ */}
-        {activeTab === 'tutup' && (
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="font-bold text-slate-800 mb-4">🔒 Rekap & Tutup Kasir</h2>
-            {!tutupData ? <p className="text-sm text-slate-400">Memuat...</p> : (
-              <div className="space-y-3">
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="bg-blue-50 rounded-lg p-4"><p className="text-xs text-blue-600 font-semibold">TOTAL BBM</p><p className="text-lg font-bold text-blue-800">{formatRupiah(tutupData.totalBbm)}</p><p className="text-xs text-slate-500">{tutupData.countBbm} transaksi</p></div>
-                  <div className="bg-green-50 rounded-lg p-4"><p className="text-xs text-green-600 font-semibold">TOTAL NFR</p><p className="text-lg font-bold text-green-800">{formatRupiah(tutupData.totalNfr)}</p><p className="text-xs text-slate-500">{tutupData.countNfr} transaksi</p></div>
-                  <div className="bg-amber-50 rounded-lg p-4"><p className="text-xs text-amber-600 font-semibold">TOTAL VOUCHER</p><p className="text-lg font-bold text-amber-800">{formatRupiah(tutupData.totalVoucher)}</p><p className="text-xs text-slate-500">{tutupData.countVoucher} voucher • {tutupData.totalLiterVoucher} L</p></div>
-                </div>
-                <div className="bg-slate-800 text-white rounded-lg p-4 flex justify-between items-center">
-                  <span className="font-semibold">GRAND TOTAL</span>
-                  <span className="text-xl font-bold">{formatRupiah(tutupData.grandTotal)}</span>
-                </div>
-                <p className="text-xs text-slate-500">Shift: <b>{shift}</b> • Operator: <b>{operator}</b> • Tanggal: <b>{today}</b></p>
+              {/* --- FORM NFR --- */}
+              {activeTab === 'NFR' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-2">Pilih Produk NFR</label>
+                    <p className="text-[10px] font-bold text-slate-500 mb-1 mt-2">KATEGORI LPG</p>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {produkLPG.map(p => (
+                        <div key={p.id} onClick={() => handleNFRProdukClick(p)} className={`cursor-pointer border rounded-lg p-2 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:border-blue-300'}`}>
+                          {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-8 h-8 object-cover rounded-md mb-1" /> : <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={14} className="text-slate-400" /></div>}
+                          <span className="text-[10px] font-semibold text-center leading-tight">{p.nama_produk}</span>
+                          <span className="text-[10px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500 mb-1 mt-4">KATEGORI OLI / PELUMAS</p>
+                    <div className="grid grid-cols-2 gap-2 mb-3 max-h-48 overflow-y-auto pr-1">
+                      {produkOLI.map(p => (
+                        <div key={p.id} onClick={() => handleNFRProdukClick(p)} className={`cursor-pointer border rounded-lg p-2 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:border-blue-300'}`}>
+                          {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-8 h-8 object-cover rounded-md mb-1" /> : <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={14} className="text-slate-400" /></div>}
+                          <span className="text-[10px] font-semibold text-center leading-tight">{p.nama_produk}</span>
+                          <span className="text-[10px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Pcs/Tabung)</label>
+                    <input type="number" required value={nfrData.jumlah} onChange={handleNFRJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Jumlah" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Nama Kasir / Foreman</label>
+                    <select value={nfrData.kasir_foreman} onChange={(e) => setNfrData({ ...nfrData, kasir_foreman: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                      <option value="">Pilih...</option>
+                      {listKasirForeman.map((kf, i) => <option key={i} value={kf}>{kf}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Otomatis)</label>
+                    <input type="text" readOnly value={nfrData.total_harga ? formatRupiah(nfrData.total_harga) : 'Rp 0'} className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-100 font-bold text-blue-600" />
+                  </div>
+                </>
+              )}
+
+              {/* --- FORM VOUCHER --- */}
+              {activeTab === 'VOUCHER' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Nomor Voucher</label>
+                    <input type="text" required value={voucherData.no_voucher} onChange={(e) => setVoucherData({ ...voucherData, no_voucher: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border-2 border-purple-300 rounded-lg text-sm font-bold text-purple-700 focus:ring-2 focus:ring-purple-500" placeholder="Masukkan No. Voucher..." />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-2">Jenis BBM (Voucher)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {listHargaBBM.map((bbm) => (
+                        <div key={bbm.id} onClick={() => handleVoucherBBMSelect(bbm.jenis_bbm)} className={`cursor-pointer border rounded-xl p-2 flex flex-col items-center justify-center transition-all ${voucherData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-purple-500 bg-purple-50' : 'bg-white hover:border-purple-300'}`}>
+                          {bbm.logo_url ? <img src={bbm.logo_url} alt={bbm.jenis_bbm} className="h-8 object-contain mb-1" /> : <Fuel size={20} className="mb-1 text-slate-400" />}
+                          <span className="text-[10px] font-bold text-center leading-tight">{bbm.jenis_bbm}</span>
+                          <span className="text-[10px] font-bold mt-1">{formatRupiah(bbm.harga_per_liter)}/L</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Jumlah (Liter)</label>
+                    <input type="number" step="0.01" required value={voucherData.jumlah_liter} onChange={handleVoucherJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm font-bold text-lg" placeholder="0.0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Nama Operator</label>
+                    <input type="text" required value={voucherData.operator} onChange={(e) => setVoucherData({ ...voucherData, operator: e.target.value.toUpperCase() })} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Nama Operator" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Total Harga (Otomatis)</label>
+                    <input type="text" readOnly value={voucherData.total_harga ? formatRupiah(voucherData.total_harga) : 'Rp 0'} className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-100 font-bold text-purple-600" />
+                  </div>
+                </>
+              )}
+
+              <button type="submit" className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-colors shadow-sm mt-2 text-sm">
+                Simpan Transaksi {activeTab}
+              </button>
+            </form>
+          ) : (
+            /* ================= FORM TUTUP KASIR ================= */
+            <form onSubmit={handleSimpanClosing} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Tanggal</label>
+                <input type="date" value={formData.tanggal} readOnly className="w-full px-3 py-2 border rounded-lg bg-slate-50 text-sm font-bold" />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Shift</label>
+                <select value={closingData.shiftClosing} onChange={(e) => setClosingData({ ...closingData, shiftClosing: e.target.value })} className="w-full px-3 py-2 border rounded-lg bg-white text-sm">
+                  {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-2">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-600">Total BBM</span>
+                  <span className="font-semibold text-slate-800">{formatRupiah(totalPendapatanBBM)}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-slate-600">Total NFR</span>
+                  <span className="font-semibold text-slate-800">{formatRupiah(totalPendapatanNFR)}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200">
+                  <span className="text-sm text-slate-600">Total Voucher</span>
+                  <span className="font-semibold text-slate-800">{formatRupiah(totalPendapatanVoucher)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-sm font-bold text-slate-700">Total Sistem</span>
+                  <span className="font-bold text-blue-600 text-lg">{formatRupiah(totalKeseluruhan)}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Uang Fisik Diserahkan (Rp)</label>
+                <input type="number" required value={closingData.uangFisik} onChange={(e) => setClosingData({ ...closingData, uangFisik: e.target.value })} className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg text-sm font-bold text-lg focus:ring-2 focus:ring-blue-500" placeholder="Masukkan uang fisik..." />
+              </div>
+
+              <div className={`p-4 rounded-xl border ${selisih === 0 ? 'bg-green-50 border-green-200' : selisih > 0 ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'}`}>
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm font-bold ${selisih === 0 ? 'text-green-700' : selisih > 0 ? 'text-blue-700' : 'text-red-700'}`}>Selisih</span>
+                  <span className={`font-bold text-xl ${selisih === 0 ? 'text-green-700' : selisih > 0 ? 'text-blue-700' : 'text-red-700'}`}>{formatRupiah(selisih)}</span>
+                </div>
+                <p className={`text-xs mt-1 ${selisih === 0 ? 'text-green-600' : selisih > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  {selisih === 0 ? 'Uang sesuai dengan sistem.' : selisih > 0 ? 'Uang LEBIH dari sistem.' : 'Uang KURANG dari sistem.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Keterangan (Opsional)</label>
+                <textarea
+                  value={closingData.keterangan}
+                  onChange={(e) => setClosingData({ ...closingData, keterangan: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+                  placeholder="Catatan tambahan..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isClosingSaving}
+                className="w-full bg-red-600 text-white font-semibold py-3 rounded-xl hover:bg-red-700 transition-colors shadow-sm mt-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              >
+                {isClosingSaving ? <><Loader2 size={16} className="animate-spin" /> Menyimpan...</> : 'Simpan Tutup Kasir'}
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* ================= KOLOM KANAN: RIWAYAT TRANSAKSI ================= */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden no-print">
+          <div className="p-4 border-b border-slate-100 bg-slate-50">
+            <h2 className="text-sm font-bold text-slate-800">
+              Riwayat Transaksi {activeTab === 'CLOSING' ? 'BBM' : activeTab} — {formData.tanggal}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {activeTab === 'NFR'
+                ? `${transaksiNFR.length} transaksi`
+                : activeTab === 'VOUCHER'
+                  ? `${transaksiVoucher.length} transaksi`
+                  : `${transaksiBBM.length} transaksi`}
+            </p>
+          </div>
+
+          <div className="overflow-x-auto max-h-[600px]">
+            {/* TABEL BBM */}
+            {(activeTab === 'BBM' || activeTab === 'CLOSING') && (
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Dispenser</th>
+                    <th className="px-3 py-2 text-left">Jenis BBM</th>
+                    <th className="px-3 py-2 text-right">Liter</th>
+                    <th className="px-3 py-2 text-left">Operator</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transaksiBBM.length === 0 ? (
+                    <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi BBM hari ini.</td></tr>
+                  ) : transaksiBBM.map((t) => (
+                    <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2">{t.dispenser}</td>
+                      <td className="px-3 py-2 font-medium">{t.jenis_bbm}</td>
+                      <td className="px-3 py-2 text-right">{t.jumlah_liter} L</td>
+                      <td className="px-3 py-2">{t.operator}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-blue-600">{formatRupiah(t.total_harga)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => handleHapusBBM(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {/* TABEL NFR */}
+            {activeTab === 'NFR' && (
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Produk</th>
+                    <th className="px-3 py-2 text-right">Jumlah</th>
+                    <th className="px-3 py-2 text-left">Kasir/Foreman</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transaksiNFR.length === 0 ? (
+                    <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi NFR hari ini.</td></tr>
+                  ) : transaksiNFR.map((t) => (
+                    <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2 font-medium">{t.produk_nfr}</td>
+                      <td className="px-3 py-2 text-right">{t.jumlah}</td>
+                      <td className="px-3 py-2">{t.kasir_foreman}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-orange-600">{formatRupiah(t.total_harga)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => handleHapusNFR(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {/* TABEL VOUCHER */}
+            {activeTab === 'VOUCHER' && (
+              <table className="w-full text-xs">
+                <thead className="bg-slate-100 text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left">No Voucher</th>
+                    <th className="px-3 py-2 text-left">Jenis BBM</th>
+                    <th className="px-3 py-2 text-right">Liter</th>
+                    <th className="px-3 py-2 text-left">Operator</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transaksiVoucher.length === 0 ? (
+                    <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi Voucher hari ini.</td></tr>
+                  ) : transaksiVoucher.map((t) => (
+                    <tr key={t.id} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono font-medium">{t.no_voucher}</td>
+                      <td className="px-3 py-2">{t.jenis_bbm}</td>
+                      <td className="px-3 py-2 text-right">{t.jumlah_liter} L</td>
+                      <td className="px-3 py-2">{t.operator}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-purple-600">{formatRupiah(t.total_harga)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => handleHapusVoucher(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
-        )}
+
+          {/* FOOTER TOTAL */}
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-600">Total {activeTab === 'CLOSING' ? 'BBM' : activeTab}</span>
+            <span className="text-sm font-bold text-blue-600">
+              {formatRupiah(
+                activeTab === 'NFR' ? totalPendapatanNFR
+                  : activeTab === 'VOUCHER' ? totalPendapatanVoucher
+                    : totalPendapatanBBM
+              )}
+            </span>
+          </div>
+        </div>
+
       </div>
     </div>
   );
