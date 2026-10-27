@@ -25,6 +25,7 @@ const InputField = ({ label, name, type = "text", placeholder = "", formData, se
 export default function DatabaseKaryawan() {
   const [karyawanList, setKaryawanList] = useState([]);
   const [listShift, setListShift] = useState([]);
+  const [listJabatan, setListJabatan] = useState([]); // STATE BARU: List Jabatan
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Semua'); 
@@ -83,7 +84,17 @@ export default function DatabaseKaryawan() {
     else setListShift(['Pagi', 'Siang', 'Malam', '-']);
   };
 
-  useEffect(() => { fetchKaryawan(); fetchShift(); }, []);
+  // FUNGSI BARU: Ambil List Jabatan dari Pengaturan
+  const fetchJabatan = async () => {
+    const { data } = await supabase.from('master_jabatan').select('nama_jabatan').order('nama_jabatan');
+    if (data) setListJabatan(data.map(j => j.nama_jabatan));
+  };
+
+  useEffect(() => { 
+    fetchKaryawan(); 
+    fetchShift(); 
+    fetchJabatan(); // Panggil fungsi jabatan
+  }, []);
 
   const hitungMasaKerja = (tanggalMasuk, tanggalKeluar) => {
     if (!tanggalMasuk) return '-';
@@ -136,6 +147,7 @@ export default function DatabaseKaryawan() {
     return `${prefix}-${nextNumber}`;
   };
 
+  // UBAH: Posisi diambil dari Dropdown
   const handlePosisiChange = (e) => {
     const posisiBaru = e.target.value.toUpperCase();
     if (!editingId || !formData.nomor_karyawan) {
@@ -359,7 +371,6 @@ export default function DatabaseKaryawan() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
             
-            {/* Header Modal */}
             <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h2>
               <button onClick={handleTutupModal} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"><X size={20} /></button>
@@ -405,7 +416,20 @@ export default function DatabaseKaryawan() {
               
               {activeTab === 2 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label><input type="text" value={formData.posisi || ''} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 uppercase" placeholder="Cth: KASIR, OPERATOR" /></div>
+                  {/* DROPDOWN JABATAN BARU */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label>
+                    <select 
+                      value={formData.posisi || ''} 
+                      onChange={handlePosisiChange} 
+                      className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="">Pilih Jabatan...</option>
+                      {listJabatan.map((jab, idx) => (
+                        <option key={idx} value={jab}>{jab}</option>
+                      ))}
+                    </select>
+                  </div>
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Shift</label><select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">{listShift.map((shift, idx) => (<option key={idx} value={shift}>{shift}</option>))}<option value="-">-</option></select></div>
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Status</label><select value={formData.status || 'Aktif'} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white"><option value="Aktif">Aktif</option><option value="Cuti">Cuti</option><option value="Tidak Aktif">Tidak Aktif</option></select></div>
