@@ -17,11 +17,9 @@ const formatRupiah = (n) =>
 export default function Kasir() {
   const [activeTab, setActiveTab] = useState('bbm');
   const [shift, setShift] = useState('Pagi');
+  
+  // STATE OPERATOR: Kita buat manual input agar pasti bisa diisi
   const [operator, setOperator] = useState('');
-  
-  // State baru: Untuk jaga-jaga kalau User Manager tidak terbaca
-  const [manualOperator, setManualOperator] = useState('');
-  
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -47,36 +45,27 @@ export default function Kasir() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // ==== DETEKTIF OTOMATIS: CARI USER DARI USER MANAGER ====
+  // ==== DETEKSI AWAL (Hanya mencoba baca localStorage saat pertama buka) ====
   useEffect(() => {
-    const detectOperator = () => {
-      const keys = ['operator_nama', 'user', 'operator', 'karyawan', 'auth', 'currentUser'];
-      for (const key of keys) {
-        const val = localStorage.getItem(key);
-        if (val) {
-          try {
-            const parsed = JSON.parse(val);
-            // Ambil 'nama' atau 'name' atau 'username' dari object JSON
-            if (parsed.nama) return parsed.nama;
-            if (parsed.name) return parsed.name;
-            if (parsed.username) return parsed.username;
-          } catch (e) {
-            // Jika isinya string biasa (bukan JSON)
-            if (val !== 'undefined' && val !== 'null') return val;
-          }
-        }
-      }
-      return ''; // Tidak ketemu
-    };
-
-    const op = detectOperator();
-    setOperator(op);
-    setManualOperator(op);
+    const savedOp = localStorage.getItem('operator_nama');
+    if (savedOp) setOperator(savedOp);
   }, []);
+
+  // ==== SIMPAN NAMA OPERATOR KE LOCALSTORAGE SAAT DIKETIK ====
+  const handleOperatorChange = (e) => {
+    const val = e.target.value;
+    setOperator(val);
+    localStorage.setItem('operator_nama', val);
+  };
 
   // ==== LOAD DATA HARI INI ====
   useEffect(() => {
-    if (!operator) return;
+    if (!operator) {
+      setBbmList([]);
+      setNfrList([]);
+      setVoucherList([]);
+      return;
+    }
     loadBbm();
     loadNfr();
     loadVoucher();
@@ -136,8 +125,7 @@ export default function Kasir() {
   // ==== SUBMIT BBM ====
   const submitBbm = async (e) => {
     e.preventDefault();
-    const finalOperator = operator || manualOperator;
-    if (!finalOperator) return showMsg('error', 'Pilih/Buat Nama Operator terlebih dahulu di Header.');
+    if (!operator) return showMsg('error', 'Silakan isi Nama Operator di bagian atas terlebih dahulu.');
     
     const liter = parseFloat(bbmForm.liter);
     if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus lebih dari 0.');
@@ -154,7 +142,7 @@ export default function Kasir() {
         jumlah_liter: liter,
         harga_per_liter: hargaPerLiter,
         total_harga: total,
-        operator: finalOperator,
+        operator: operator,
       });
       
       if (error) throw error;
@@ -172,8 +160,7 @@ export default function Kasir() {
   // ==== SUBMIT NFR ====
   const submitNfr = async (e) => {
     e.preventDefault();
-    const finalOperator = operator || manualOperator;
-    if (!finalOperator) return showMsg('error', 'Pilih/Buat Nama Operator terlebih dahulu di Header.');
+    if (!operator) return showMsg('error', 'Silakan isi Nama Operator di bagian atas terlebih dahulu.');
 
     const jumlah = parseInt(nfrForm.jumlah);
     const harga = parseFloat(nfrForm.harga);
@@ -192,7 +179,7 @@ export default function Kasir() {
         jumlah,
         harga_satuan: harga,
         total_harga: jumlah * harga,
-        operator: finalOperator,
+        operator: operator,
       });
       
       if (error) throw error;
@@ -210,8 +197,7 @@ export default function Kasir() {
   // ==== SUBMIT VOUCHER ====
   const submitVoucher = async (e) => {
     e.preventDefault();
-    const finalOperator = operator || manualOperator;
-    if (!finalOperator) return showMsg('error', 'Pilih/Buat Nama Operator terlebih dahulu di Header.');
+    if (!operator) return showMsg('error', 'Silakan isi Nama Operator di bagian atas terlebih dahulu.');
 
     const noVoucher = voucherForm.no_voucher.trim().toUpperCase();
     const liter = parseFloat(voucherForm.jumlah_liter);
@@ -233,7 +219,7 @@ export default function Kasir() {
         jenis_bbm: voucherForm.jenis_bbm,
         jumlah_liter: liter,
         total_harga: harga,
-        operator: finalOperator,
+        operator: operator,
       });
       
       if (error) throw error;
@@ -291,39 +277,35 @@ export default function Kasir() {
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-6">
       <div className="max-w-5xl mx-auto">
-        {/* HEADER */}
+        
+        {/* HEADER DENGAN INPUT MANUAL */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-lg mb-4">
-          <div className="flex justify-between items-center flex-wrap gap-2">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
               <h1 className="text-xl md:text-2xl font-bold">Kasir SPBU</h1>
               
-              {/* HEADER OPERATOR DENGAN FITUR FALLBACK */}
-              <div className="text-sm opacity-90 mt-1 flex items-center gap-2">
+              <div className="text-sm opacity-90 mt-2 flex items-center gap-2">
                 <span>Operator:</span>
-                {operator ? (
-                  <span className="font-semibold bg-white/20 px-2 py-0.5 rounded">{operator}</span>
-                ) : (
-                  <input 
-                    type="text" 
-                    placeholder="Ketik Nama Anda..." 
-                    value={manualOperator}
-                    onChange={(e) => setManualOperator(e.target.value)}
-                    className="text-black px-2 py-0.5 rounded text-sm w-40"
-                  />
-                )}
+                <input 
+                  type="text" 
+                  placeholder="Ketik Nama Anda..." 
+                  value={operator}
+                  onChange={handleOperatorChange}
+                  className="text-slate-800 px-3 py-1 rounded font-semibold text-sm w-48 outline-none focus:ring-2 focus:ring-amber-400"
+                />
               </div>
 
             </div>
-            <div className="flex items-center gap-2 mt-2 md:mt-0">
-              <label className="text-sm opacity-90">Shift:</label>
+            <div className="flex items-center gap-2 bg-white/10 p-2 rounded-lg self-start md:self-center">
+              <label className="text-sm font-semibold">Shift:</label>
               <select
                 value={shift}
                 onChange={(e) => setShift(e.target.value)}
-                className="bg-white/20 border border-white/30 rounded-lg px-3 py-1.5 text-sm text-white"
+                className="bg-white text-slate-800 border-none rounded-lg px-3 py-1.5 text-sm font-bold cursor-pointer"
               >
-                <option className="text-black" value="Pagi">Pagi</option>
-                <option className="text-black" value="Siang">Siang</option>
-                <option className="text-black" value="Malam">Malam</option>
+                <option value="Pagi">Pagi</option>
+                <option value="Siang">Siang</option>
+                <option value="Malam">Malam</option>
               </select>
             </div>
           </div>
@@ -639,7 +621,7 @@ export default function Kasir() {
                   <span className="text-xl font-bold">{formatRupiah(tutupData.grandTotal)}</span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  Shift: <b>{shift}</b> • Operator: <b>{operator || manualOperator}</b> • Tanggal: <b>{today}</b>
+                  Shift: <b>{shift}</b> • Operator: <b>{operator}</b> • Tanggal: <b>{today}</b>
                 </p>
               </div>
             )}
