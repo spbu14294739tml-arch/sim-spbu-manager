@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus, Briefcase } from 'lucide-react';
 
 export default function PengaturanSistem() {
   const [activeTab, setActiveTab] = useState('profil'); 
@@ -17,6 +17,10 @@ export default function PengaturanSistem() {
   const [daftarShift, setDaftarShift] = useState([]);
   const [shiftBaru, setShiftBaru] = useState({ nama_shift: '', jam_kerja: '' });
   
+  // State Jabatan (BARU)
+  const [daftarJabatan, setDaftarJabatan] = useState([]);
+  const [jabatanBaru, setJabatanBaru] = useState('');
+
   // State Produk NFR
   const [daftarProduk, setDaftarProduk] = useState([]);
   const [produkBaru, setProdukBaru] = useState({ kategori: 'LPG', nama_produk: '', harga_jual: '' });
@@ -52,6 +56,9 @@ export default function PengaturanSistem() {
 
     const { data: dataShift } = await supabase.from('pengaturan_shift').select('*').order('id');
     if (dataShift) setDaftarShift(dataShift);
+
+    const { data: dataJabatan } = await supabase.from('master_jabatan').select('*').order('nama_jabatan');
+    if (dataJabatan) setDaftarJabatan(dataJabatan);
 
     const { data: dataProduk } = await supabase.from('master_produk_nfr').select('*').order('id', { ascending: false });
     if (dataProduk) setDaftarProduk(dataProduk);
@@ -107,7 +114,7 @@ export default function PengaturanSistem() {
     setSelisihHarga(0);
   };
 
-  // SAAT INPUT HARGA BERUBAH (Hitung Selisih Otomatis)
+  // SAAT INPUT HARGA BERUBAH
   const handleHargaInputChange = (e, hargaLama) => {
     const val = e.target.value;
     setHargaBaruInput(val);
@@ -127,7 +134,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
+  // SIMPAN HARGA & RIWAYAT
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
@@ -191,7 +198,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // Shift & Produk NFR
+  // Shift
   const handleTambahShift = async () => {
     if (!shiftBaru.nama_shift || !shiftBaru.jam_kerja) return alert('Lengkapi data shift!');
     await supabase.from('pengaturan_shift').insert([shiftBaru]);
@@ -205,6 +212,25 @@ export default function PengaturanSistem() {
     setDaftarShift(daftarShift.filter(s => s.id !== id));
   };
 
+  // Jabatan
+  const handleTambahJabatan = async () => {
+    if (!jabatanBaru) return alert('Masukkan nama jabatan!');
+    const { error } = await supabase.from('master_jabatan').insert([{ nama_jabatan: jabatanBaru.toUpperCase() }]);
+    if (error) alert('Gagal tambah jabatan: ' + error.message);
+    else {
+      const { data } = await supabase.from('master_jabatan').select('*').order('nama_jabatan');
+      setDaftarJabatan(data); setJabatanBaru('');
+      setNotif('Jabatan berhasil ditambahkan!'); setTimeout(() => setNotif(''), 3000);
+    }
+  };
+
+  const handleHapusJabatan = async (id) => {
+    if (!window.confirm('Hapus jabatan ini?')) return;
+    await supabase.from('master_jabatan').delete().eq('id', id);
+    setDaftarJabatan(daftarJabatan.filter(j => j.id !== id));
+  };
+
+  // Produk NFR
   const handleHargaProdukChange = (e) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, '');
     setProdukBaru({ ...produkBaru, harga_jual: rawValue });
@@ -255,7 +281,7 @@ export default function PengaturanSistem() {
     <div className="p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Pengaturan Sistem</h1>
-        <p className="text-slate-500 mt-1">Kelola profil SPBU, shift, produk, dan stok tangki.</p>
+        <p className="text-slate-500 mt-1">Kelola profil SPBU, shift, jabatan, produk, dan stok tangki.</p>
       </div>
 
       {notif && <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded shadow-sm">{notif}</div>}
@@ -263,15 +289,16 @@ export default function PengaturanSistem() {
       {/* TAB NAVIGATION MODERN */}
       <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit">
         <button type="button" onClick={() => setActiveTab('profil')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'profil' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Profil SPBU</button>
-        <button type="button" onClick={() => setActiveTab('shift')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'shift' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Shift Operasional</button>
+        <button type="button" onClick={() => setActiveTab('shift')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'shift' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Shift</button>
+        <button type="button" onClick={() => setActiveTab('jabatan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'jabatan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Briefcase size={16}/> Jabatan</button>
         <button type="button" onClick={() => setActiveTab('produk')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'produk' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><ShoppingBag size={16}/> Produk NFR</button>
-        <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Fuel size={16}/> Harga & Logo BBM</button>
+        <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Fuel size={16}/> Harga BBM</button>
         <button type="button" onClick={() => setActiveTab('stok_tangki')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'stok_tangki' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Droplet size={16}/> Stok Tangki</button>
       </div>
 
       {/* TAB PROFIL */}
       {activeTab === 'profil' && (
-        <form onSubmit={handleSimpanProfil} className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+        <form onSubmit={handleSimpanProfil} className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Nama SPBU</label>
@@ -304,7 +331,7 @@ export default function PengaturanSistem() {
 
       {/* TAB SHIFT */}
       {activeTab === 'shift' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-300">
           <div className="space-y-3 mb-6">
             {daftarShift.map((shift) => (
               <div key={shift.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -327,9 +354,30 @@ export default function PengaturanSistem() {
         </div>
       )}
 
+      {/* TAB JABATAN (BARU) */}
+      {activeTab === 'jabatan' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-300">
+          <div className="space-y-3 mb-6">
+            {daftarJabatan.map((jabatan) => (
+              <div key={jabatan.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <span className="font-semibold text-slate-700">{jabatan.nama_jabatan}</span>
+                <button onClick={() => handleHapusJabatan(jabatan.id)} className="text-red-500 hover:bg-red-100 p-2 rounded-lg"><Trash2 size={18} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3 items-end bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">Nama Jabatan Baru</label>
+              <input type="text" value={jabatanBaru} onChange={(e) => setJabatanBaru(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: SUPERVISOR" />
+            </div>
+            <button onClick={handleTambahJabatan} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button>
+          </div>
+        </div>
+      )}
+
       {/* TAB PRODUK NFR */}
       {activeTab === 'produk' && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-300">
           <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Tambah Produk NFR Baru</h2>
             <form onSubmit={handleTambahProduk} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -395,9 +443,9 @@ export default function PengaturanSistem() {
         </div>
       )}
 
-      {/* TAB HARGA BBM (DENGAN FITUR RIWAYAT HARGA) */}
+      {/* TAB HARGA BBM */}
       {activeTab === 'harga_bbm' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
           <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <div>
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Harga BBM per Produk</h2>
@@ -530,7 +578,7 @@ export default function PengaturanSistem() {
 
       {/* TAB STOK TANGKI */}
       {activeTab === 'stok_tangki' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
           <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <div>
               <h2 className="text-lg font-bold text-slate-800">Monitor Stok Tangki Pendam</h2>
