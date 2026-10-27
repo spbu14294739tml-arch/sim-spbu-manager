@@ -57,14 +57,19 @@ export default function Sidebar() {
       {/* Ornamen Latar Belakang Sidebar */}
       <div className="absolute top-0 left-0 w-full h-64 bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
 
-      {/* Header Sidebar */}
-      <div className="p-6 border-b border-slate-800/50 flex items-center gap-3 relative z-10">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/10">
-          <span className="text-white font-bold text-lg">SP</span>
+      {/* Header Sidebar (DENGAN LOGO & BACKGROUND GRADASI) */}
+      <div className="relative p-6 border-b border-slate-800/50 flex flex-col items-center justify-center text-center gap-2 z-10 overflow-hidden">
+        {/* Background Gradasi di Belakang Logo */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-transparent -z-10"></div>
+        
+        {/* Logo TML */}
+        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 ring-2 ring-white/10 p-1 mb-1">
+          <img src="/logo-tml.png" alt="Logo TML" className="w-full h-full object-contain" />
         </div>
+        
         <div>
           <h1 className="text-lg font-bold text-white leading-tight tracking-wide">SIM SPBU</h1>
-          <p className="text-[10px] text-blue-400 font-medium tracking-widest">14.294.739</p>
+          <p className="text-[10px] text-blue-400 font-medium tracking-widest mt-0.5">14.294.739</p>
         </div>
       </div>
 
