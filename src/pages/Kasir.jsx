@@ -26,7 +26,6 @@ export default function Kasir() {
   const [bbmList, setBbmList] = useState([]);
 
   // ==== STATE NFR ====
-  // PERUBAHAN: Menambahkan kategori di state awal
   const [nfrForm, setNfrForm] = useState({ kategori: 'LPG', nama: '', jumlah: '', harga: '' });
   const [nfrList, setNfrList] = useState([]);
 
@@ -48,6 +47,9 @@ export default function Kasir() {
   useEffect(() => {
     const op = localStorage.getItem('operator_nama') || '';
     setOperator(op);
+    if (!op) {
+      showMsg('error', 'Operator belum login. Silakan login ulang.');
+    }
   }, []);
 
   // ==== LOAD DATA HARI INI ====
@@ -60,93 +62,132 @@ export default function Kasir() {
   }, [operator]);
 
   const loadBbm = async () => {
-    const { data, error } = await supabase
-      .from('penjualan_bbm')
-      .select('*')
-      .eq('tanggal', today)
-      .eq('operator', operator)
-      .order('created_at', { ascending: false });
-    if (!error) setBbmList(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('penjualan_bbm')
+        .select('*')
+        .eq('tanggal', today)
+        .eq('operator', operator)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setBbmList(data || []);
+    } catch (err) {
+      console.error('Gagal load BBM:', err);
+    }
   };
 
   const loadNfr = async () => {
-    const { data, error } = await supabase
-      .from('penjualan_nfr')
-      .select('*')
-      .eq('tanggal', today)
-      .eq('operator', operator)
-      .order('created_at', { ascending: false });
-    if (!error) setNfrList(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('penjualan_nfr')
+        .select('*')
+        .eq('tanggal', today)
+        .eq('operator', operator)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setNfrList(data || []);
+    } catch (err) {
+      console.error('Gagal load NFR:', err);
+    }
   };
 
   const loadVoucher = async () => {
-    const { data, error } = await supabase
-      .from('penjualan_voucher')
-      .select('*')
-      .eq('tanggal', today)
-      .eq('operator', operator)
-      .order('created_at', { ascending: false });
-    if (!error) setVoucherList(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('penjualan_voucher')
+        .select('*')
+        .eq('tanggal', today)
+        .eq('operator', operator)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setVoucherList(data || []);
+    } catch (err) {
+      console.error('Gagal load Voucher:', err);
+    }
   };
 
   const showMsg = (type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3500);
+    setTimeout(() => setMessage(null), 5000); // Tampil 5 detik
   };
 
   // ==== SUBMIT BBM ====
   const submitBbm = async (e) => {
     e.preventDefault();
+    if (!operator) return showMsg('error', 'Gagal simpan: Operator tidak ditemukan (Silakan login ulang).');
+    
     const liter = parseFloat(bbmForm.liter);
     if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus lebih dari 0.');
+
     setLoading(true);
-    const hargaPerLiter = HARGA_BBM[bbmForm.jenis] || 0;
-    const total = Math.round(hargaPerLiter * liter);
-    const { error } = await supabase.from('penjualan_bbm').insert({
-      tanggal: today,
-      shift,
-      jenis_bbm: bbmForm.jenis,
-      jumlah_liter: liter,
-      harga_per_liter: hargaPerLiter,
-      total_harga: total,
-      operator,
-    });
-    setLoading(false);
-    if (error) return showMsg('error', 'Gagal simpan BBM: ' + error.message);
-    showMsg('success', `BBM ${bbmForm.jenis} ${liter}L berhasil dicatat.`);
-    setBbmForm({ jenis: 'Pertalite', liter: '' });
-    loadBbm();
+    try {
+      const hargaPerLiter = HARGA_BBM[bbmForm.jenis] || 0;
+      const total = Math.round(hargaPerLiter * liter);
+      
+      const { error } = await supabase.from('penjualan_bbm').insert({
+        tanggal: today,
+        shift,
+        jenis_bbm: bbmForm.jenis,
+        jumlah_liter: liter,
+        harga_per_liter: hargaPerLiter,
+        total_harga: total,
+        operator,
+      });
+      
+      if (error) throw error;
+      
+      showMsg('success', `BBM ${bbmForm.jenis} ${liter}L berhasil dicatat.`);
+      setBbmForm({ jenis: 'Pertalite', liter: '' });
+      loadBbm();
+    } catch (err) {
+      showMsg('error', 'Gagal simpan BBM: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==== SUBMIT NFR ====
   const submitNfr = async (e) => {
     e.preventDefault();
+    if (!operator) return showMsg('error', 'Gagal simpan: Operator tidak ditemukan (Silakan login ulang).');
+
     const jumlah = parseInt(nfrForm.jumlah);
     const harga = parseFloat(nfrForm.harga);
+    
     if (!nfrForm.nama.trim()) return showMsg('error', 'Nama produk wajib diisi.');
     if (!jumlah || jumlah <= 0) return showMsg('error', 'Jumlah harus lebih dari 0.');
     if (!harga || harga <= 0) return showMsg('error', 'Harga harus lebih dari 0.');
+
     setLoading(true);
-    const { error } = await supabase.from('penjualan_nfr').insert({
-      tanggal: today,
-      shift,
-      kategori: nfrForm.kategori, // PERUBAHAN: Simpan kategori
-      nama_produk: nfrForm.nama.trim(),
-      jumlah,
-      harga_satuan: harga,
-      total_harga: jumlah * harga,
-      operator,
-    });
-    setLoading(false);
-    if (error) return showMsg('error', 'Gagal simpan NFR: ' + error.message);
-    showMsg('success', 'NFR berhasil dicatat.');
-    setNfrForm({ kategori: 'LPG', nama: '', jumlah: '', harga: '' }); // PERUBAHAN: Reset form
-    loadNfr();
+    try {
+      const { error } = await supabase.from('penjualan_nfr').insert({
+        tanggal: today,
+        shift,
+        kategori: nfrForm.kategori,
+        nama_produk: nfrForm.nama.trim(),
+        jumlah,
+        harga_satuan: harga,
+        total_harga: jumlah * harga,
+        operator,
+      });
+      
+      if (error) throw error;
+      
+      showMsg('success', `NFR ${nfrForm.nama} berhasil dicatat.`);
+      setNfrForm({ kategori: 'LPG', nama: '', jumlah: '', harga: '' });
+      loadNfr();
+    } catch (err) {
+      showMsg('error', 'Gagal simpan NFR: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==== SUBMIT VOUCHER ====
   const submitVoucher = async (e) => {
     e.preventDefault();
+    if (!operator) return showMsg('error', 'Gagal simpan: Operator tidak ditemukan (Silakan login ulang).');
+
     const noVoucher = voucherForm.no_voucher.trim().toUpperCase();
     const liter = parseFloat(voucherForm.jumlah_liter);
     const harga = parseFloat(voucherForm.total_harga);
@@ -159,31 +200,43 @@ export default function Kasir() {
     if (dup) return showMsg('error', `Voucher ${noVoucher} sudah pernah dicatat hari ini.`);
 
     setLoading(true);
-    const { error } = await supabase.from('penjualan_voucher').insert({
-      tanggal: today,
-      shift,
-      no_voucher: noVoucher,
-      jenis_bbm: voucherForm.jenis_bbm,
-      jumlah_liter: liter,
-      total_harga: harga,
-      operator,
-    });
-    setLoading(false);
-    if (error) return showMsg('error', 'Gagal simpan voucher: ' + error.message);
-    showMsg('success', `Voucher ${noVoucher} berhasil dicatat.`);
-    setVoucherForm({ no_voucher: '', jenis_bbm: 'Pertalite', jumlah_liter: '', total_harga: '' });
-    loadVoucher();
+    try {
+      const { error } = await supabase.from('penjualan_voucher').insert({
+        tanggal: today,
+        shift,
+        no_voucher: noVoucher,
+        jenis_bbm: voucherForm.jenis_bbm,
+        jumlah_liter: liter,
+        total_harga: harga,
+        operator,
+      });
+      
+      if (error) throw error;
+      
+      showMsg('success', `Voucher ${noVoucher} berhasil dicatat.`);
+      setVoucherForm({ no_voucher: '', jenis_bbm: 'Pertalite', jumlah_liter: '', total_harga: '' });
+      loadVoucher();
+    } catch (err) {
+      showMsg('error', 'Gagal simpan Voucher: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==== HAPUS VOUCHER ====
   const hapusVoucher = async (id) => {
     if (!confirm('Yakin hapus voucher ini?')) return;
     setLoading(true);
-    const { error } = await supabase.from('penjualan_voucher').delete().eq('id', id);
-    setLoading(false);
-    if (error) return showMsg('error', 'Gagal hapus: ' + error.message);
-    showMsg('success', 'Voucher dihapus.');
-    loadVoucher();
+    try {
+      const { error } = await supabase.from('penjualan_voucher').delete().eq('id', id);
+      if (error) throw error;
+      showMsg('success', 'Voucher dihapus.');
+      loadVoucher();
+    } catch (err) {
+      showMsg('error', 'Gagal hapus voucher: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==== HITUNG TUTUP KASIR ====
@@ -237,7 +290,7 @@ export default function Kasir() {
           </div>
         </div>
 
-        {/* NOTIFIKASI */}
+        {/* NOTIFIKASI ERROR / SUCCESS */}
         {message && (
           <div
             className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
@@ -340,8 +393,6 @@ export default function Kasir() {
             <div className="bg-white rounded-xl shadow p-5">
               <h2 className="font-bold text-slate-800 mb-4">Input Penjualan NFR</h2>
               <form onSubmit={submitNfr} className="space-y-3">
-                
-                {/* DROPDOWN KATEGORI BARU */}
                 <div>
                   <label className="text-sm font-medium text-slate-600">Kategori NFR</label>
                   <select
@@ -354,7 +405,6 @@ export default function Kasir() {
                     <option value="Lainnya">⚪ Lainnya (Air, Rokok, dll)</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="text-sm font-medium text-slate-600">Nama Produk</label>
                   <input
@@ -397,7 +447,6 @@ export default function Kasir() {
               </form>
             </div>
             
-            {/* RIWAYAT NFR */}
             <div className="bg-white rounded-xl shadow p-5">
               <h2 className="font-bold text-slate-800 mb-3">Riwayat NFR Hari Ini ({nfrList.length})</h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
