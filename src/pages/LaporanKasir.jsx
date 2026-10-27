@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah, exportToCSV } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3, TrendingUp, Wallet } from 'lucide-react';
+import { Loader2, Printer, Calendar, FileText, FileSpreadsheet, BarChart3, TrendingUp, Wallet, Ticket } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanKasir() {
@@ -17,8 +17,10 @@ export default function LaporanKasir() {
 
   const [laporanBBM, setLaporanBBM] = useState([]);
   const [laporanNFR, setLaporanNFR] = useState([]);
+  const [laporanVoucher, setLaporanVoucher] = useState([]);
   const [totalBBM, setTotalBBM] = useState(0);
   const [totalNFR, setTotalNFR] = useState(0);
+  const [totalVoucher, setTotalVoucher] = useState(0);
   
   const [rekapHarianBulan, setRekapHarianBulan] = useState([]);
 
@@ -29,14 +31,23 @@ export default function LaporanKasir() {
 
   const fetchLaporanHarian = async () => {
     setIsLoading(true);
+
+    // BBM
     let queryBBM = supabase.from('penjualan_bbm').select('*').eq('tanggal', selectedDate);
     if (selectedShift !== 'SEMUA') queryBBM = queryBBM.eq('shift', selectedShift);
     const { data: dataBBM } = await queryBBM;
 
+    // NFR
     let queryNFR = supabase.from('penjualan_nfr').select('*').eq('tanggal', selectedDate);
     if (selectedShift !== 'SEMUA') queryNFR = queryNFR.eq('shift', selectedShift);
     const { data: dataNFR } = await queryNFR;
 
+    // VOUCHER
+    let queryVoucher = supabase.from('penjualan_voucher').select('*').eq('tanggal', selectedDate);
+    if (selectedShift !== 'SEMUA') queryVoucher = queryVoucher.eq('shift', selectedShift);
+    const { data: dataVoucher } = await queryVoucher;
+
+    // Rekap BBM
     const rekapBBM = {};
     let sumBBM = 0;
     if (dataBBM) {
@@ -47,7 +58,8 @@ export default function LaporanKasir() {
         sumBBM += item.total_harga;
       });
     }
-    
+
+    // Rekap NFR
     const rekapNFR = {};
     let sumNFR = 0;
     if (dataNFR) {
@@ -59,10 +71,25 @@ export default function LaporanKasir() {
       });
     }
 
+    // Rekap VOUCHER — dikelompokkan per jenis BBM
+    const rekapVoucher = {};
+    let sumVoucher = 0;
+    if (dataVoucher) {
+      dataVoucher.forEach(item => {
+        if (!rekapVoucher[item.jenis_bbm]) rekapVoucher[item.jenis_bbm] = { liter: 0, harga: 0, count: 0 };
+        rekapVoucher[item.jenis_bbm].liter += item.jumlah_liter;
+        rekapVoucher[item.jenis_bbm].harga += item.total_harga;
+        rekapVoucher[item.jenis_bbm].count += 1;
+        sumVoucher += item.total_harga;
+      });
+    }
+
     setLaporanBBM(Object.keys(rekapBBM).map(key => ({ nama: key, ...rekapBBM[key] })));
     setLaporanNFR(Object.keys(rekapNFR).map(key => ({ nama: key, ...rekapNFR[key] })));
+    setLaporanVoucher(Object.keys(rekapVoucher).map(key => ({ nama: key, ...rekapVoucher[key] })));
     setTotalBBM(sumBBM);
     setTotalNFR(sumNFR);
+    setTotalVoucher(sumVoucher);
     setIsLoading(false);
   };
 
@@ -73,15 +100,17 @@ export default function LaporanKasir() {
 
     const { data: dataBBM } = await supabase.from('penjualan_bbm').select('tanggal, total_harga').gte('tanggal', startDate).lte('tanggal', endDate);
     const { data: dataNFR } = await supabase.from('penjualan_nfr').select('tanggal, total_harga').gte('tanggal', startDate).lte('tanggal', endDate);
+    const { data: dataVoucher } = await supabase.from('penjualan_voucher').select('tanggal, total_harga').gte('tanggal', startDate).lte('tanggal', endDate);
 
     const rekapHarian = {};
     let sumBulanBBM = 0;
     let sumBulanNFR = 0;
+    let sumBulanVoucher = 0;
 
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
     for (let i = 1; i <= daysInMonth; i++) {
       const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      rekapHarian[dateStr] = { tanggal: dateStr, bbm: 0, nfr: 0, total: 0 };
+      rekapHarian[dateStr] = { tanggal: dateStr, bbm: 0, nfr: 0, voucher: 0, total: 0 };
     }
 
     if (dataBBM) {
@@ -104,9 +133,20 @@ export default function LaporanKasir() {
       });
     }
 
+    if (dataVoucher) {
+      dataVoucher.forEach(item => {
+        if (rekapHarian[item.tanggal]) {
+          rekapHarian[item.tanggal].voucher += item.total_harga;
+          rekapHarian[item.tanggal].total += item.total_harga;
+          sumBulanVoucher += item.total_harga;
+        }
+      });
+    }
+
     setRekapHarianBulan(Object.values(rekapHarian));
     setTotalBBM(sumBulanBBM);
     setTotalNFR(sumBulanNFR);
+    setTotalVoucher(sumBulanVoucher);
     setIsLoading(false);
   };
 
@@ -117,14 +157,14 @@ export default function LaporanKasir() {
     else fetchLaporanBulanan();
   }, [activeTab, selectedDate, selectedShift, selectedMonth, selectedYear]);
 
-  const totalKeseluruhan = totalBBM + totalNFR;
+  const totalKeseluruhan = totalBBM + totalNFR + totalVoucher;
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Laporan Kasir</h1>
-          <p className="text-slate-500 mt-1">Rekap penjualan BBM dan NFR.</p>
+          <p className="text-slate-500 mt-1">Rekap penjualan BBM, NFR, dan Voucher.</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -132,11 +172,12 @@ export default function LaporanKasir() {
               if (activeTab === 'harian') {
                 const dataEkspor = [
                   ...laporanBBM.map(b => ({ Kategori: 'BBM', 'Nama Produk': b.nama, 'Total Volume': b.liter, 'Total Pendapatan': b.harga })),
-                  ...laporanNFR.map(n => ({ Kategori: 'NFR', 'Nama Produk': n.nama, 'Total Volume': n.jumlah, 'Total Pendapatan': n.harga }))
+                  ...laporanNFR.map(n => ({ Kategori: 'NFR', 'Nama Produk': n.nama, 'Total Volume': n.jumlah, 'Total Pendapatan': n.harga })),
+                  ...laporanVoucher.map(v => ({ Kategori: 'VOUCHER', 'Nama Produk': v.nama, 'Total Volume': v.liter, 'Total Pendapatan': v.harga }))
                 ];
                 exportToCSV(dataEkspor, `Laporan_Harian_${selectedDate}`);
               } else {
-                const dataEkspor = rekapHarianBulan.map(r => ({ Tanggal: r.tanggal, 'Total BBM': r.bbm, 'Total NFR': r.nfr, 'Total Keseluruhan': r.total }));
+                const dataEkspor = rekapHarianBulan.map(r => ({ Tanggal: r.tanggal, 'Total BBM': r.bbm, 'Total NFR': r.nfr, 'Total Voucher': r.voucher, 'Total Keseluruhan': r.total }));
                 exportToCSV(dataEkspor, `Laporan_Bulanan_${selectedMonth}_${selectedYear}`);
               }
             }} 
@@ -150,7 +191,7 @@ export default function LaporanKasir() {
         </div>
       </div>
 
-      {/* TAB NAVIGATION MODERN (Sama seperti Pengaturan) */}
+      {/* TAB NAVIGATION */}
       <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit no-print">
         <button type="button" onClick={() => setActiveTab('harian')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harian' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Calendar size={16}/> Laporan Harian</button>
         <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'bulanan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><BarChart3 size={16}/> Laporan Bulanan</button>
@@ -200,7 +241,7 @@ export default function LaporanKasir() {
           <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
         ) : activeTab === 'harian' ? (
           <div className="p-6 space-y-6">
-            {/* REKAP BBM MODERN */}
+            {/* I. REKAP BBM */}
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
               <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 px-6 py-4 flex items-center gap-3">
                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><TrendingUp size={20} /></div>
@@ -218,22 +259,22 @@ export default function LaporanKasir() {
                   {laporanBBM.length > 0 ? laporanBBM.map((bbm, idx) => (
                     <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-3 px-6 font-medium text-slate-800">{bbm.nama}</td>
-                      <td className="py-3 px-6 text-right text-slate-600">{bbm.liter.toLocaleString('id-ID')} L</td>
-                      <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(bbm.harga)}</td>
+                      <td className="py-3 px-6 text-right text-slate-600 tabular-nums">{bbm.liter.toLocaleString('id-ID')} L</td>
+                      <td className="py-3 px-6 text-right font-semibold text-slate-800 tabular-nums">{formatRupiah(bbm.harga)}</td>
                     </tr>
                   )) : <tr><td colSpan="3" className="py-8 text-center text-slate-500">Tidak ada penjualan BBM.</td></tr>}
                 </tbody>
                 <tfoot>
                   <tr className="bg-blue-50/80 border-t-2 border-blue-100">
                     <td className="py-4 px-6 font-bold text-blue-900">TOTAL BBM</td>
-                    <td className="py-4 px-6 text-right font-bold text-blue-900">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
-                    <td className="py-4 px-6 text-right font-black text-blue-900 text-xl">{formatRupiah(totalBBM)}</td>
+                    <td className="py-4 px-6 text-right font-bold text-blue-900 tabular-nums">{laporanBBM.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
+                    <td className="py-4 px-6 text-right font-black text-blue-900 text-xl tabular-nums">{formatRupiah(totalBBM)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            {/* REKAP NFR MODERN */}
+            {/* II. REKAP NFR */}
             <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
               <div className="bg-gradient-to-r from-orange-50 to-white border-b border-orange-100 px-6 py-4 flex items-center gap-3">
                 <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><Wallet size={20} /></div>
@@ -251,32 +292,67 @@ export default function LaporanKasir() {
                   {laporanNFR.length > 0 ? laporanNFR.map((nfr, idx) => (
                     <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-3 px-6 font-medium text-slate-800">{nfr.nama}</td>
-                      <td className="py-3 px-6 text-right text-slate-600">{nfr.jumlah.toLocaleString('id-ID')}</td>
-                      <td className="py-3 px-6 text-right font-semibold text-slate-800">{formatRupiah(nfr.harga)}</td>
+                      <td className="py-3 px-6 text-right text-slate-600 tabular-nums">{nfr.jumlah.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-6 text-right font-semibold text-slate-800 tabular-nums">{formatRupiah(nfr.harga)}</td>
                     </tr>
                   )) : <tr><td colSpan="3" className="py-8 text-center text-slate-500">Tidak ada penjualan NFR.</td></tr>}
                 </tbody>
                 <tfoot>
                   <tr className="bg-orange-50/80 border-t-2 border-orange-100">
                     <td className="py-4 px-6 font-bold text-orange-900">TOTAL NFR</td>
-                    <td className="py-4 px-6 text-right font-bold text-orange-900">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
-                    <td className="py-4 px-6 text-right font-black text-orange-900 text-xl">{formatRupiah(totalNFR)}</td>
+                    <td className="py-4 px-6 text-right font-bold text-orange-900 tabular-nums">{laporanNFR.reduce((acc, curr) => acc + curr.jumlah, 0).toLocaleString('id-ID')}</td>
+                    <td className="py-4 px-6 text-right font-black text-orange-900 text-xl tabular-nums">{formatRupiah(totalNFR)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            {/* GRAND TOTAL MODERN */}
+            {/* III. REKAP VOUCHER — BARU */}
+            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-gradient-to-r from-purple-50 to-white border-b border-purple-100 px-6 py-4 flex items-center gap-3">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Ticket size={20} /></div>
+                <h2 className="text-lg font-bold text-slate-800">III. REKAP PENJUALAN VOUCHER</h2>
+              </div>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-white border-b border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
+                    <th className="py-4 px-6 font-semibold">Jenis BBM (Voucher)</th>
+                    <th className="py-4 px-6 font-semibold text-right">Jumlah Transaksi</th>
+                    <th className="py-4 px-6 font-semibold text-right">Total Volume (Liter)</th>
+                    <th className="py-4 px-6 font-semibold text-right">Total Amount (Rp)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {laporanVoucher.length > 0 ? laporanVoucher.map((v, idx) => (
+                    <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
+                      <td className="py-3 px-6 font-medium text-slate-800">{v.nama}</td>
+                      <td className="py-3 px-6 text-right text-slate-600 tabular-nums">{v.count}</td>
+                      <td className="py-3 px-6 text-right text-slate-600 tabular-nums">{v.liter.toLocaleString('id-ID')} L</td>
+                      <td className="py-3 px-6 text-right font-semibold text-slate-800 tabular-nums">{formatRupiah(v.harga)}</td>
+                    </tr>
+                  )) : <tr><td colSpan="4" className="py-8 text-center text-slate-500">Tidak ada penjualan Voucher.</td></tr>}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-purple-50/80 border-t-2 border-purple-100">
+                    <td className="py-4 px-6 font-bold text-purple-900" colSpan={2}>TOTAL VOUCHER</td>
+                    <td className="py-4 px-6 text-right font-bold text-purple-900 tabular-nums">{laporanVoucher.reduce((acc, curr) => acc + curr.liter, 0).toLocaleString('id-ID')} L</td>
+                    <td className="py-4 px-6 text-right font-black text-purple-900 text-xl tabular-nums">{formatRupiah(totalVoucher)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* GRAND TOTAL */}
             <div className="bg-slate-900 text-white p-6 rounded-2xl flex justify-between items-center shadow-xl border border-slate-700">
               <div>
                 <p className="text-slate-400 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
-                <p className="text-slate-500 text-xs">(BBM + NFR)</p>
+                <p className="text-slate-500 text-xs">(BBM + NFR + Voucher)</p>
               </div>
-              <h3 className="text-4xl font-black text-green-400 drop-shadow-md">{formatRupiah(totalKeseluruhan)}</h3>
+              <h3 className="text-4xl font-black text-green-400 drop-shadow-md tabular-nums">{formatRupiah(totalKeseluruhan)}</h3>
             </div>
           </div>
         ) : (
-          // TAMPILAN BULANAN (Tabel Rekap Harian - Modern)
+          // TAMPILAN BULANAN
           <div className="p-4">
             <h2 className="text-base font-bold text-slate-800 mb-3 pb-2 border-b-2 border-slate-200">REKAP PENJUALAN HARIAN (BULAN INI)</h2>
             <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -286,6 +362,7 @@ export default function LaporanKasir() {
                     <th className="py-2 px-3 font-semibold">Tanggal</th>
                     <th className="py-2 px-3 font-semibold text-right">Total BBM</th>
                     <th className="py-2 px-3 font-semibold text-right">Total NFR</th>
+                    <th className="py-2 px-3 font-semibold text-right">Total Voucher</th>
                     <th className="py-2 px-3 font-semibold text-right">Total Pendapatan</th>
                   </tr>
                 </thead>
@@ -293,18 +370,20 @@ export default function LaporanKasir() {
                   {rekapHarianBulan.map((hari, idx) => (
                     <tr key={idx} className={`hover:bg-slate-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
                       <td className="py-1.5 px-3 text-[10px] font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.bbm)}</td>
-                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600">{formatRupiah(hari.nfr)}</td>
-                      <td className="py-1.5 px-3 text-[10px] text-right font-bold text-blue-600">{formatRupiah(hari.total)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600 tabular-nums">{formatRupiah(hari.bbm)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600 tabular-nums">{formatRupiah(hari.nfr)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right text-slate-600 tabular-nums">{formatRupiah(hari.voucher)}</td>
+                      <td className="py-1.5 px-3 text-[10px] text-right font-bold text-blue-600 tabular-nums">{formatRupiah(hari.total)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-800 text-white">
                     <td className="py-2 px-3 font-bold text-[10px]">TOTAL BULAN INI</td>
-                    <td className="py-2 px-3 text-right font-bold text-[10px]">{formatRupiah(totalBBM)}</td>
-                    <td className="py-2 px-3 text-right font-bold text-[10px]">{formatRupiah(totalNFR)}</td>
-                    <td className="py-2 px-3 text-right font-bold text-green-400 text-xs">{formatRupiah(totalKeseluruhan)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-[10px] tabular-nums">{formatRupiah(totalBBM)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-[10px] tabular-nums">{formatRupiah(totalNFR)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-[10px] tabular-nums">{formatRupiah(totalVoucher)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-green-400 text-xs tabular-nums">{formatRupiah(totalKeseluruhan)}</td>
                   </tr>
                 </tfoot>
               </table>
