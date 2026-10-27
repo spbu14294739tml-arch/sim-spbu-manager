@@ -11,10 +11,11 @@ export default function Kasir() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // ==== STATE MASTER DATA (DARI PENGATURAN) ====
+  // ==== STATE MASTER DATA ====
   const [masterBbm, setMasterBbm] = useState([]);
   const [masterNfr, setMasterNfr] = useState([]);
   const [masterShift, setMasterShift] = useState([]);
+  const [masterVoucher, setMasterVoucher] = useState([]); // <-- UNTUK VOUCHER AKTIF
 
   // ==== STATE BBM ====
   const [bbmForm, setBbmForm] = useState({ jenis: '', liter: '' });
@@ -24,13 +25,8 @@ export default function Kasir() {
   const [nfrForm, setNfrForm] = useState({ kategori: 'LPG', produk_id: '', nama: '', jumlah: '', harga: '' });
   const [nfrList, setNfrList] = useState([]);
 
-  // ==== STATE VOUCHER ====
-  const [voucherForm, setVoucherForm] = useState({
-    no_voucher: '',
-    jenis_bbm: '',
-    jumlah_liter: '',
-    total_harga: '',
-  });
+  // ==== STATE VOUCHER (CEKLIS) ====
+  const [voucherForm, setVoucherForm] = useState({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
   const [voucherList, setVoucherList] = useState([]);
 
   // ==== STATE TUTUP KASIR ====
@@ -38,27 +34,25 @@ export default function Kasir() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // ==== DETEKSI OPERATOR & LOAD MASTER DATA ====
+  // ==== LOAD MASTER DATA ====
   useEffect(() => {
     const savedOp = localStorage.getItem('operator_nama');
     if (savedOp) setOperator(savedOp);
 
     const fetchMasterData = async () => {
-      // Ambil Master BBM
+      // BBM
       const { data: bbm } = await supabase.from('master_produk_bbm').select('*').order('id');
       if (bbm) {
         setMasterBbm(bbm);
         if (bbm.length > 0 && !bbmForm.jenis) {
           setBbmForm(prev => ({ ...prev, jenis: bbm[0].jenis_bbm }));
-          setVoucherForm(prev => ({ ...prev, jenis_bbm: bbm[0].jenis_bbm }));
         }
       }
-
-      // Ambil Master NFR
+      // NFR
       const { data: nfr } = await supabase.from('master_produk_nfr').select('*').order('nama_produk');
       if (nfr) setMasterNfr(nfr);
-
-      // Ambil Master Shift
+      
+      // Shift
       const { data: shiftData } = await supabase.from('pengaturan_shift').select('*').order('id');
       if (shiftData && shiftData.length > 0) {
         setMasterShift(shiftData);
@@ -68,42 +62,22 @@ export default function Kasir() {
         setShift('Pagi');
       }
     };
-
     fetchMasterData();
   }, []);
 
-  // ==== AUTO-FILL HARGA NFR SAAT PRODUK DIPILIH ====
-  const handlePilihProdukNfr = (e) => {
-    const prodId = e.target.value;
-    const selected = masterNfr.find(p => p.id.toString() === prodId);
-    if (selected) {
-      setNfrForm(prev => ({
-        ...prev,
-        produk_id: selected.id,
-        nama: selected.nama_produk,
-        harga: selected.harga_jual
-      }));
-    } else {
-      setNfrForm(prev => ({ ...prev, produk_id: '', nama: '', harga: '' }));
-    }
+  // ==== LOAD VOUCHER AKTIF ====
+  const loadVoucherAktif = async () => {
+    const { data, error } = await supabase.from('master_voucher').select('*').eq('status', 'AKTIF').order('nomor_urut');
+    if (!error) setMasterVoucher(data || []);
   };
 
-  // ==== FILTER PRODUK NFR BERDASARKAN KATEGORI ====
-  const filteredNfr = masterNfr.filter(p => p.kategori === nfrForm.kategori);
-
-  // ==== SIMPAN OPERATOR KE LOCALSTORAGE ====
-  const handleOperatorChange = (e) => {
-    const val = e.target.value;
-    setOperator(val);
-    localStorage.setItem('operator_nama', val);
-  };
-
-  // ==== LOAD DATA HARI INI ====
+  // ==== LOAD PENJUALAN HARI INI ====
   useEffect(() => {
     if (!operator) return;
     loadBbm();
     loadNfr();
-    loadVoucher();
+    loadVoucherHistory();
+    loadVoucherAktif(); // Panggil voucher aktif
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [operator]);
 
@@ -117,7 +91,7 @@ export default function Kasir() {
     if (!error) setNfrList(data || []);
   };
 
-  const loadVoucher = async () => {
+  const loadVoucherHistory = async () => {
     const { data, error } = await supabase.from('penjualan_voucher').select('*').eq('tanggal', today).eq('operator', operator).order('created_at', { ascending: false });
     if (!error) setVoucherList(data || []);
   };
@@ -127,33 +101,54 @@ export default function Kasir() {
     setTimeout(() => setMessage(null), 4000);
   };
 
+  const handleOperatorChange = (e) => {
+    const val = e.target.value;
+    setOperator(val);
+    localStorage.setItem('operator_nama', val);
+  };
+
+  // ==== AUTO-FILL NFR ====
+  const handlePilihProdukNfr = (e) => {
+    const prodId = e.target.value;
+    const selected = masterNfr.find(p => p.id.toString() === prodId);
+    if (selected) {
+      setNfrForm(prev => ({ ...prev, produk_id: selected.id, nama: selected.nama_produk, harga: selected.harga_jual }));
+    } else {
+      setNfrForm(prev => ({ ...prev, produk_id: '', nama: '', harga: '' }));
+    }
+  };
+  const filteredNfr = masterNfr.filter(p => p.kategori === nfrForm.kategori);
+
+  // ==== AUTO-FILL VOUCHER ====
+  const handlePilihVoucher = (e) => {
+    const vcrId = e.target.value;
+    const selected = masterVoucher.find(v => v.id.toString() === vcrId);
+    if (selected) {
+      setVoucherForm(prev => ({ ...prev, voucher_id: selected.id, jenis_bbm: bbmForm.jenis || 'Pertalite' }));
+    } else {
+      setVoucherForm({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
+    }
+  };
+
   // ==== SUBMIT BBM ====
   const submitBbm = async (e) => {
     e.preventDefault();
-    if (!operator) return showMsg('error', 'Silakan isi Nama Operator di bagian atas.');
-    
+    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
     const liter = parseFloat(bbmForm.liter);
-    if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus > 0.');
+    if (!liter || liter <= 0) return showMsg('error', 'Liter harus > 0.');
 
     const selectedBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis);
     const hargaPerLiter = selectedBbm ? parseFloat(selectedBbm.harga_per_liter) : 0;
-    const total = Math.round(hargaPerLiter * liter);
-
+    
     setLoading(true);
     const { error } = await supabase.from('penjualan_bbm').insert({
-      tanggal: today, 
-      shift, 
-      jenis_bbm: bbmForm.jenis, 
-      jumlah_liter: liter,
-      harga_per_liter: hargaPerLiter, 
-      total_harga: total, 
-      operator,
-      kasir_foreman: operator // <--- ANTISIPASI KOLOM WAJIB
+      tanggal: today, shift, jenis_bbm: bbmForm.jenis, jumlah_liter: liter,
+      harga_per_liter: hargaPerLiter, total_harga: Math.round(hargaPerLiter * liter), 
+      operator, kasir_foreman: operator 
     });
     setLoading(false);
-
-    if (error) return showMsg('error', 'Gagal simpan BBM: ' + error.message);
-    showMsg('success', `BBM ${bbmForm.jenis} berhasil dicatat.`);
+    if (error) return showMsg('error', error.message);
+    showMsg('success', `BBM dicatat.`);
     setBbmForm({ ...bbmForm, liter: '' });
     loadBbm();
   };
@@ -161,72 +156,70 @@ export default function Kasir() {
   // ==== SUBMIT NFR ====
   const submitNfr = async (e) => {
     e.preventDefault();
-    if (!operator) return showMsg('error', 'Silakan isi Nama Operator.');
-    if (!nfrForm.produk_id) return showMsg('error', 'Pilih Produk NFR terlebih dahulu.');
-
+    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
+    if (!nfrForm.produk_id) return showMsg('error', 'Pilih Produk NFR.');
     const jumlah = parseInt(nfrForm.jumlah);
     if (!jumlah || jumlah <= 0) return showMsg('error', 'Jumlah harus > 0.');
 
     setLoading(true);
-    // KITA ISI SEMUA KEMUNGKINAN NAMA KOLOM AGAR TIDAK ERROR
     const { error } = await supabase.from('penjualan_nfr').insert({
-      tanggal: today, 
-      shift, 
-      kategori: nfrForm.kategori, 
-      nama_produk: nfrForm.nama, 
-      produk_nfr: nfrForm.nama, // <--- UNTUK LAPORAN
-      jumlah, 
-      harga_satuan: parseFloat(nfrForm.harga), 
+      tanggal: today, shift, kategori: nfrForm.kategori, 
+      nama_produk: nfrForm.nama, produk_nfr: nfrForm.nama, 
+      jumlah, harga_satuan: parseFloat(nfrForm.harga), 
       total_harga: jumlah * parseFloat(nfrForm.harga), 
-      operator,
-      kasir_foreman: operator // <--- UNTUK DATABASE
+      operator, kasir_foreman: operator 
     });
     setLoading(false);
-
-    if (error) return showMsg('error', 'Gagal simpan NFR: ' + error.message);
-    showMsg('success', `NFR ${nfrForm.nama} berhasil dicatat.`);
-    setNfrForm({ ...nfrForm, produk_id: '', nama: '', jumlah: '', harga: '' }); 
+    if (error) return showMsg('error', error.message);
+    showMsg('success', `NFR dicatat.`);
+    setNfrForm({ ...nfrForm, produk_id: '', nama: '', jumlah: '', harga: '' });
     loadNfr();
   };
 
-  // ==== SUBMIT VOUCHER ====
+  // ==== SUBMIT VOUCHER (CEKLIS) ====
   const submitVoucher = async (e) => {
     e.preventDefault();
-    if (!operator) return showMsg('error', 'Silakan isi Nama Operator.');
-
-    const noVoucher = voucherForm.no_voucher.trim().toUpperCase();
-    const liter = parseFloat(voucherForm.jumlah_liter);
-    const harga = parseFloat(voucherForm.total_harga);
-
-    if (!noVoucher || !liter || !harga) return showMsg('error', 'Lengkapi semua data voucher.');
+    if (!operator) return showMsg('error', 'Isi Nama Operator dulu.');
+    if (!voucherForm.voucher_id) return showMsg('error', 'Pilih Voucher yang akan dicairkan.');
     
-    const dup = voucherList.find((v) => v.no_voucher === noVoucher);
-    if (dup) return showMsg('error', `Voucher ${noVoucher} sudah ada hari ini.`);
+    const liter = parseFloat(voucherForm.jumlah_liter);
+    if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter harus > 0.');
+
+    const selectedVcr = masterVoucher.find(v => v.id.toString() === voucherForm.voucher_id);
+    if (!selectedVcr) return showMsg('error', 'Voucher tidak ditemukan.');
 
     setLoading(true);
-    const { error } = await supabase.from('penjualan_voucher').insert({
-      tanggal: today, 
-      shift, 
-      no_voucher: noVoucher, 
-      jenis_bbm: voucherForm.jenis_bbm,
-      jumlah_liter: liter, 
-      total_harga: harga, 
-      operator,
-      kasir_foreman: operator // <--- ANTISIPASI KOLOM WAJIB
+    
+    // 1. Simpan ke penjualan_voucher
+    const { error: errInsert } = await supabase.from('penjualan_voucher').insert({
+      tanggal: today, shift, no_voucher: selectedVcr.nomor_urut, 
+      jenis_bbm: voucherForm.jenis_bbm, jumlah_liter: liter, 
+      total_harga: selectedVcr.nominal, operator, 
+      nama_pembeli: selectedVcr.nama_pembeli, master_voucher_id: selectedVcr.id 
     });
-    setLoading(false);
 
-    if (error) return showMsg('error', 'Gagal simpan Voucher: ' + error.message);
-    showMsg('success', `Voucher ${noVoucher} berhasil dicatat.`);
-    setVoucherForm({ ...voucherForm, no_voucher: '', jumlah_liter: '', total_harga: '' });
-    loadVoucher();
+    if (errInsert) {
+      setLoading(false);
+      return showMsg('error', 'Gagal cairkan voucher: ' + errInsert.message);
+    }
+
+    // 2. Ubah status master_voucher jadi TERPAKAI
+    const { error: errUpdate } = await supabase.from('master_voucher').update({ status: 'TERPAKAI' }).eq('id', selectedVcr.id);
+    
+    setLoading(false);
+    if (errUpdate) return showMsg('error', 'Gagal update status voucher: ' + errUpdate.message);
+
+    showMsg('success', `Voucher ${selectedVcr.nomor_urut} berhasil dicairkan!`);
+    setVoucherForm({ voucher_id: '', jenis_bbm: '', jumlah_liter: '' });
+    loadVoucherHistory();
+    loadVoucherAktif(); // Refresh list voucher aktif
   };
 
-  // ==== HAPUS VOUCHER ====
+  // ==== HAPUS RIWAYAT VOUCHER (KASIR) ====
   const hapusVoucher = async (id) => {
-    if (!confirm('Hapus voucher ini?')) return;
+    if (!confirm('Hapus riwayat voucher ini?')) return;
     await supabase.from('penjualan_voucher').delete().eq('id', id);
-    loadVoucher();
+    loadVoucherHistory();
   };
 
   // ==== TUTUP KASIR ====
@@ -241,7 +234,6 @@ export default function Kasir() {
       countBbm: bbmList.length, countNfr: nfrList.length, countVoucher: voucherList.length,
     });
   };
-
   useEffect(() => { if (activeTab === 'tutup') hitungTutupKasir(); }, [activeTab, bbmList, nfrList, voucherList]);
 
   const currentHargaBbm = masterBbm.find(b => b.jenis_bbm === bbmForm.jenis)?.harga_per_liter || 0;
@@ -280,7 +272,7 @@ export default function Kasir() {
 
         {/* TABS */}
         <div className="flex gap-1 bg-white rounded-xl p-1 shadow mb-4 overflow-x-auto">
-          {[{ key: 'bbm', label: '⛽ BBM' }, { key: 'nfr', label: '🛒 NFR' }, { key: 'voucher', label: '🎫 Voucher' }, { key: 'tutup', label: '🔒 Tutup Kasir' }].map((t) => (
+          {[{ key: 'bbm', label: '⛽ BBM' }, { key: 'nfr', label: '🛒 NFR' }, { key: 'voucher', label: '🎫 Cairkan Voucher' }, { key: 'tutup', label: '🔒 Tutup Kasir' }].map((t) => (
             <button key={t.key} onClick={() => setActiveTab(t.key)} className={`flex-1 min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-semibold transition ${activeTab === t.key ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'}`}>
               {t.label}
             </button>
@@ -296,9 +288,7 @@ export default function Kasir() {
                 <div>
                   <label className="text-sm font-medium text-slate-600">Jenis BBM</label>
                   <select value={bbmForm.jenis} onChange={(e) => setBbmForm({ ...bbmForm, jenis: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
-                    {masterBbm.map((j) => (
-                      <option key={j.id} value={j.jenis_bbm}>{j.jenis_bbm} — {formatRupiah(j.harga_per_liter)}/L</option>
-                    ))}
+                    {masterBbm.map((j) => <option key={j.id} value={j.jenis_bbm}>{j.jenis_bbm} — {formatRupiah(j.harga_per_liter)}/L</option>)}
                   </select>
                 </div>
                 <div>
@@ -306,9 +296,7 @@ export default function Kasir() {
                   <input type="number" step="0.01" min="0" value={bbmForm.liter} onChange={(e) => setBbmForm({ ...bbmForm, liter: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0.00" />
                 </div>
                 {bbmForm.liter > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
-                    Total: <b>{formatRupiah(currentHargaBbm * parseFloat(bbmForm.liter || 0))}</b>
-                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">Total: <b>{formatRupiah(currentHargaBbm * parseFloat(bbmForm.liter || 0))}</b></div>
                 )}
                 <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
                   {loading ? 'Menyimpan...' : 'Simpan BBM'}
@@ -321,10 +309,7 @@ export default function Kasir() {
                 {bbmList.length === 0 && <p className="text-sm text-slate-400">Belum ada data.</p>}
                 {bbmList.map((b) => (
                   <div key={b.id} className="border rounded-lg p-3 text-sm flex justify-between">
-                    <div>
-                      <p className="font-semibold">{b.jenis_bbm} — {b.jumlah_liter} L</p>
-                      <p className="text-xs text-slate-500">{b.shift} • {b.operator}</p>
-                    </div>
+                    <div><p className="font-semibold">{b.jenis_bbm} — {b.jumlah_liter} L</p><p className="text-xs text-slate-500">{b.shift} • {b.operator}</p></div>
                     <p className="font-bold text-blue-700">{formatRupiah(b.total_harga)}</p>
                   </div>
                 ))}
@@ -346,53 +331,32 @@ export default function Kasir() {
                     <option value="OLI">🟡 Oli / Pelumas</option>
                   </select>
                 </div>
-                
                 <div>
                   <label className="text-sm font-medium text-slate-600">Pilih Produk</label>
                   <select value={nfrForm.produk_id} onChange={handlePilihProdukNfr} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm">
                     <option value="">-- Pilih Produk --</option>
-                    {filteredNfr.map(p => (
-                      <option key={p.id} value={p.id}>{p.nama_produk} — {formatRupiah(p.harga_jual)}</option>
-                    ))}
+                    {filteredNfr.map(p => <option key={p.id} value={p.id}>{p.nama_produk} — {formatRupiah(p.harga_jual)}</option>)}
                   </select>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-slate-600">Jumlah</label>
-                    <input type="number" min="1" value={nfrForm.jumlah} onChange={(e) => setNfrForm({ ...nfrForm, jumlah: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-600">Harga Satuan</label>
-                    <input type="number" value={nfrForm.harga} readOnly className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-slate-100 cursor-not-allowed" placeholder="Otomatis" />
-                  </div>
+                  <div><label className="text-sm font-medium text-slate-600">Jumlah</label><input type="number" min="1" value={nfrForm.jumlah} onChange={(e) => setNfrForm({ ...nfrForm, jumlah: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" /></div>
+                  <div><label className="text-sm font-medium text-slate-600">Harga Satuan</label><input type="number" value={nfrForm.harga} readOnly className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-slate-100 cursor-not-allowed" placeholder="Otomatis" /></div>
                 </div>
-                
                 {nfrForm.jumlah > 0 && nfrForm.harga > 0 && (
-                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
-                    Total: <b>{formatRupiah(parseFloat(nfrForm.harga) * parseInt(nfrForm.jumlah))}</b>
-                  </div>
+                  <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">Total: <b>{formatRupiah(parseFloat(nfrForm.harga) * parseInt(nfrForm.jumlah))}</b></div>
                 )}
-
                 <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
                   {loading ? 'Menyimpan...' : 'Simpan NFR'}
                 </button>
               </form>
             </div>
-            
             <div className="bg-white rounded-xl shadow p-5">
               <h2 className="font-bold text-slate-800 mb-3">Riwayat NFR Hari Ini ({nfrList.length})</h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {nfrList.length === 0 && <p className="text-sm text-slate-400">Belum ada data.</p>}
                 {nfrList.map((n) => (
                   <div key={n.id} className="border rounded-lg p-3 text-sm flex justify-between">
-                    <div>
-                      <p className="font-semibold">
-                        <span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded mr-2">{n.kategori || 'Lainnya'}</span>
-                        {n.nama_produk || n.produk_nfr}
-                      </p>
-                      <p className="text-xs text-slate-500">{n.jumlah} x {formatRupiah(n.harga_satuan)}</p>
-                    </div>
+                    <div><p className="font-semibold"><span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded mr-2">{n.kategori || 'Lainnya'}</span>{n.nama_produk || n.produk_nfr}</p><p className="text-xs text-slate-500">{n.jumlah} x {formatRupiah(n.harga_satuan)}</p></div>
                     <p className="font-bold text-blue-700">{formatRupiah(n.total_harga)}</p>
                   </div>
                 ))}
@@ -401,16 +365,22 @@ export default function Kasir() {
           </div>
         )}
 
-        {/* ============ TAB VOUCHER ============ */}
+        {/* ============ TAB VOUCHER (SISTEM CEKLIS) ============ */}
         {activeTab === 'voucher' && (
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-1">🎫 Input Voucher BBM</h2>
-              <p className="text-xs text-slate-500 mb-4">Catat penjualan BBM menggunakan voucher.</p>
+              <h2 className="font-bold text-slate-800 mb-1">🎫 Cairkan Voucher BBM</h2>
+              <p className="text-xs text-slate-500 mb-4">Pilih voucher aktif dari Accounting untuk dicairkan menjadi BBM.</p>
+              
               <form onSubmit={submitVoucher} className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-slate-600">Nomor Voucher</label>
-                  <input type="text" value={voucherForm.no_voucher} onChange={(e) => setVoucherForm({ ...voucherForm, no_voucher: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-mono uppercase" placeholder="VCR-2024-001" />
+                  <label className="text-sm font-medium text-slate-600">Pilih Voucher (Ceklis)</label>
+                  <select value={voucherForm.voucher_id} onChange={handlePilihVoucher} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-amber-50 font-bold text-amber-900 border-amber-300">
+                    <option value="">-- Pilih Voucher Aktif --</option>
+                    {masterVoucher.map(v => (
+                      <option key={v.id} value={v.id}>{v.nomor_urut} — {v.nama_pembeli} (Rp {v.nominal.toLocaleString('id-ID')})</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-600">Jenis BBM</label>
@@ -418,30 +388,26 @@ export default function Kasir() {
                     {masterBbm.map((j) => <option key={j.id} value={j.jenis_bbm}>{j.jenis_bbm}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-sm font-medium text-slate-600">Jumlah Liter</label>
-                    <input type="number" step="0.01" min="0" value={voucherForm.jumlah_liter} onChange={(e) => setVoucherForm({ ...voucherForm, jumlah_liter: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0.00" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-slate-600">Total Harga</label>
-                    <input type="number" min="0" value={voucherForm.total_harga} onChange={(e) => setVoucherForm({ ...voucherForm, total_harga: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="Rp" />
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-600">Jumlah Liter (Diisi Manual)</label>
+                  <input type="number" step="0.01" min="0" value={voucherForm.jumlah_liter} onChange={(e) => setVoucherForm({ ...voucherForm, jumlah_liter: e.target.value })} className="w-full mt-1 border rounded-lg px-3 py-2 text-sm" placeholder="0.00" />
                 </div>
                 <button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-lg text-sm disabled:opacity-50">
-                  {loading ? 'Menyimpan...' : 'Simpan Voucher'}
+                  {loading ? 'Memproses...' : 'Cairkan Voucher'}
                 </button>
               </form>
             </div>
+            
             <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-bold text-slate-800 mb-3">Riwayat Voucher Hari Ini ({voucherList.length})</h2>
+              <h2 className="font-bold text-slate-800 mb-3">Riwayat Voucher Dicairkan Hari Ini ({voucherList.length})</h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {voucherList.length === 0 && <p className="text-sm text-slate-400">Belum ada voucher.</p>}
+                {voucherList.length === 0 && <p className="text-sm text-slate-400">Belum ada voucher dicairkan.</p>}
                 {voucherList.map((v) => (
                   <div key={v.id} className="border rounded-lg p-3 text-sm">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-mono font-bold text-amber-700">{v.no_voucher}</p>
+                        <p className="text-xs font-semibold text-slate-700">{v.nama_pembeli || 'Pribadi'}</p>
                         <p className="text-xs text-slate-600 mt-0.5">{v.jenis_bbm} • {v.jumlah_liter} L • {v.shift}</p>
                       </div>
                       <div className="text-right">
