@@ -41,7 +41,7 @@ export default function Sidebar() {
   const menuItems = [
     { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting'] },
     { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] },
-    { path: '/absensi', name: 'Absensi Harian', icon: UserCheck, roles: ['manager', 'accounting'] },
+    { path: '/absensi', name: 'Absensi', icon: UserCheck, roles: ['manager', 'accounting'] },
     { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting'] },
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },

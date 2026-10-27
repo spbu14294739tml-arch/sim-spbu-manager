@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Loader2, CheckCircle2, XCircle, Clock, CalendarDays, UserX, BarChart3 } from 'lucide-react';
 
 export default function Absensi() {
-  // State untuk Tab
+  // State untuk Tab Modern
   const [activeTab, setActiveTab] = useState('harian'); // 'harian' atau 'rekap'
   
   const [isLoading, setIsLoading] = useState(true);
@@ -14,12 +14,11 @@ export default function Absensi() {
   const [absensiHariIni, setAbsensiHariIni] = useState([]);
   
   // State untuk Rekap Bulanan
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [rekapData, setRekapData] = useState([]);
   const [isRekapLoading, setIsRekapLoading] = useState(false);
 
-  // Mendapatkan tanggal hari ini
   const getTodayDate = () => {
     const today = new Date();
     const offset = today.getTimezoneOffset();
@@ -28,20 +27,15 @@ export default function Absensi() {
   };
   const hariIni = getTodayDate();
 
-  // 1. Ambil Data Karyawan (Untuk kedua tab)
-  useEffect(() => {
-    const fetchKaryawan = async () => {
-      const { data } = await supabase
-        .from('karyawan')
-        .select('id, nama, posisi, shift, nomor_karyawan')
-        .eq('status', 'Aktif')
-        .order('nama', { ascending: true });
-      if (data) setKaryawanList(data);
-    };
-    fetchKaryawan();
-  }, []);
+  const fetchKaryawan = async () => {
+    const { data } = await supabase
+      .from('karyawan')
+      .select('id, nama, posisi, shift, nomor_karyawan')
+      .eq('status', 'Aktif')
+      .order('nama', { ascending: true });
+    if (data) setKaryawanList(data);
+  };
 
-  // 2. Ambil Data Absensi Harian
   const fetchAbsensiHarian = async () => {
     setIsLoading(true);
     const { data } = await supabase.from('absensi').select('*').eq('tanggal', hariIni);
@@ -49,45 +43,41 @@ export default function Absensi() {
     setIsLoading(false);
   };
 
+  const fetchRekapBulanan = async () => {
+    setIsRekapLoading(true);
+    const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+    const endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('absensi')
+      .select('karyawan_id, status_kehadiran')
+      .gte('tanggal', startDate)
+      .lte('tanggal', endDate);
+
+    if (!error && data) {
+      const rekap = {};
+      data.forEach(item => {
+        if (!rekap[item.karyawan_id]) {
+          rekap[item.karyawan_id] = { Hadir: 0, Izin: 0, Sakit: 0, Alpa: 0 };
+        }
+        if (rekap[item.karyawan_id][item.status_kehadiran] !== undefined) {
+          rekap[item.karyawan_id][item.status_kehadiran] += 1;
+        }
+      });
+      setRekapData(rekap);
+    }
+    setIsRekapLoading(false);
+  };
+
+  useEffect(() => {
+    fetchKaryawan();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'harian') fetchAbsensiHarian();
-  }, [activeTab]);
-
-  // 3. Ambil Data Rekap Bulanan
-  useEffect(() => {
-    const fetchRekap = async () => {
-      if (activeTab !== 'rekap') return;
-      setIsRekapLoading(true);
-      
-      // Buat format tanggal awal dan akhir bulan (YYYY-MM-DD)
-      const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-      const endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0]; // Hari terakhir bulan
-
-      // Tarik semua absensi di bulan tersebut
-      const { data, error } = await supabase
-        .from('absensi')
-        .select('karyawan_id, status_kehadiran')
-        .gte('tanggal', startDate)
-        .lte('tanggal', endDate);
-
-      if (!error && data) {
-        // Olah data menjadi bentuk rekap
-        const rekap = {};
-        data.forEach(item => {
-          if (!rekap[item.karyawan_id]) {
-            rekap[item.karyawan_id] = { Hadir: 0, Izin: 0, Sakit: 0, Alpa: 0 };
-          }
-          rekap[item.karyawan_id][item.status_kehadiran] += 1;
-        });
-        setRekapData(rekap);
-      }
-      setIsRekapLoading(false);
-    };
-
-    fetchRekap();
+    else fetchRekapBulanan();
   }, [activeTab, selectedMonth, selectedYear]);
 
-  // Fungsi Tandai Kehadiran (Harian)
   const handleTandai = async (karyawanId, shift, statusBaru) => {
     const existingAbsensi = absensiHariIni.find(a => a.karyawan_id === karyawanId);
 
@@ -109,7 +99,6 @@ export default function Absensi() {
     return record ? record.status_kehadiran : null;
   };
 
-  // Statistik Harian
   const totalHadir = absensiHariIni.filter(a => a.status_kehadiran === 'Hadir').length;
   const totalIzin = absensiHariIni.filter(a => a.status_kehadiran === 'Izin').length;
   const totalSakit = absensiHariIni.filter(a => a.status_kehadiran === 'Sakit').length;
@@ -117,25 +106,25 @@ export default function Absensi() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Header & Tab Navigation */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Manajemen Absensi</h1>
         <p className="text-slate-500 mt-1">Kelola kehadiran harian dan rekap bulanan karyawan.</p>
-        
-        <div className="flex gap-4 mt-6 border-b border-slate-200">
-          <button 
-            onClick={() => setActiveTab('harian')}
-            className={`pb-3 px-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'harian' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            <CalendarDays size={18} /> Absensi Harian
-          </button>
-          <button 
-            onClick={() => setActiveTab('rekap')}
-            className={`pb-3 px-2 font-medium text-sm flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'rekap' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-          >
-            <BarChart3 size={18} /> Rekap Bulanan
-          </button>
-        </div>
+      </div>
+
+      {/* TAB NAVIGATION MODERN */}
+      <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit">
+        <button 
+          onClick={() => setActiveTab('harian')}
+          className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harian' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
+        >
+          <CalendarDays size={16} /> Absensi Harian
+        </button>
+        <button 
+          onClick={() => setActiveTab('rekap')}
+          className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'rekap' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}
+        >
+          <BarChart3 size={16} /> Rekap Bulanan
+        </button>
       </div>
 
       {/* KONTEN TAB HARIAN */}
@@ -221,7 +210,6 @@ export default function Absensi() {
       {/* KONTEN TAB REKAP BULANAN */}
       {activeTab === 'rekap' && (
         <div className="animate-in fade-in duration-300">
-          {/* Filter Bulan & Tahun */}
           <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
             <span className="text-sm font-medium text-slate-600">Pilih Periode:</span>
             <select 
