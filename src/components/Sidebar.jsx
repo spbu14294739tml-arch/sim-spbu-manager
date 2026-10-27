@@ -52,22 +52,25 @@ export default function Sidebar() {
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
 
   return (
-    <div className="w-64 min-h-screen bg-slate-900/95 backdrop-blur-md text-slate-300 flex flex-col shadow-2xl z-20 border-r border-slate-800">
+    <div className="w-64 min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-black text-slate-300 flex flex-col shadow-2xl z-20 border-r border-slate-800/50 relative overflow-hidden">
       
+      {/* Ornamen Latar Belakang Sidebar */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
+
       {/* Header Sidebar */}
-      <div className="p-6 border-b border-slate-800/50 flex items-center gap-3">
-        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+      <div className="p-6 border-b border-slate-800/50 flex items-center gap-3 relative z-10">
+        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-white/10">
           <span className="text-white font-bold text-lg">SP</span>
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white leading-tight">SIM SPBU</h1>
-          <p className="text-xs text-slate-400 font-medium">14.294.739</p>
+          <h1 className="text-lg font-bold text-white leading-tight tracking-wide">SIM SPBU</h1>
+          <p className="text-[10px] text-blue-400 font-medium tracking-widest">14.294.739</p>
         </div>
       </div>
 
       {/* Menu Items */}
-      <div className="flex-1 py-6 overflow-y-auto px-4 space-y-1">
-        <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Menu Utama</p>
+      <div className="flex-1 py-6 overflow-y-auto px-3 space-y-1 relative z-10 scrollbar-thin scrollbar-thumb-slate-700">
+        <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Menu Utama</p>
         {filteredMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
@@ -75,28 +78,37 @@ export default function Sidebar() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group relative ${
                 isActive 
-                  ? 'bg-blue-600 text-white font-medium shadow-md shadow-blue-900/50' 
-                  : 'hover:bg-slate-800/50 hover:text-white'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white font-semibold shadow-lg shadow-blue-900/40 translate-x-1' 
+                  : 'hover:bg-slate-800/60 hover:text-white hover:translate-x-1'
               }`}
             >
-              <Icon size={20} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400 transition-colors'} />
-              <span className="text-sm">{item.name}</span>
+              {/* Garis Indikator Kiri (Jika Aktif) */}
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
+              )}
+              <Icon 
+                size={18} 
+                className={`transition-colors duration-300 ${
+                  isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400'
+                }`} 
+              />
+              <span className="text-sm tracking-wide">{item.name}</span>
             </Link>
           );
         })}
       </div>
 
       {/* Footer Sidebar (Profil & Logout) */}
-      <div className="p-4 border-t border-slate-800/50 bg-slate-900/50">
-        <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/40 rounded-xl border border-slate-700/50">
-          <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center">
-            <UserCircle size={24} className="text-blue-400" />
+      <div className="p-4 border-t border-slate-800/50 bg-black/20 backdrop-blur-sm relative z-10">
+        <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/40 rounded-xl border border-slate-700/50 shadow-inner">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center ring-1 ring-slate-500/50">
+            <UserCircle size={24} className="text-cyan-400" />
           </div>
           <div className="overflow-hidden">
-            <p className="text-[10px] text-slate-400 capitalize">Masuk sebagai: <span className="text-blue-400 font-semibold">{userRole}</span></p>
-            <p className="text-xs font-medium text-white truncate" title={userEmail}>
+            <p className="text-[10px] text-slate-400 capitalize">Login sebagai: <span className="text-cyan-400 font-semibold">{userRole}</span></p>
+            <p className="text-xs font-medium text-slate-200 truncate" title={userEmail}>
               {userEmail || 'Memuat...'}
             </p>
           </div>
@@ -104,9 +116,9 @@ export default function Sidebar() {
 
         <button 
           onClick={handleLogout}
-          className="flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full px-3 py-3 rounded-xl font-medium"
+          className="flex items-center gap-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors w-full px-3 py-3 rounded-xl font-medium group"
         >
-          <LogOut size={20} />
+          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
           <span className="text-sm">Keluar</span>
         </button>
       </div>
