@@ -26,7 +26,8 @@ export default function Kasir() {
   const [bbmList, setBbmList] = useState([]);
 
   // ==== STATE NFR ====
-  const [nfrForm, setNfrForm] = useState({ nama: '', jumlah: '', harga: '' });
+  // PERUBAHAN: Menambahkan kategori di state awal
+  const [nfrForm, setNfrForm] = useState({ kategori: 'LPG', nama: '', jumlah: '', harga: '' });
   const [nfrList, setNfrList] = useState([]);
 
   // ==== STATE VOUCHER ====
@@ -129,6 +130,7 @@ export default function Kasir() {
     const { error } = await supabase.from('penjualan_nfr').insert({
       tanggal: today,
       shift,
+      kategori: nfrForm.kategori, // PERUBAHAN: Simpan kategori
       nama_produk: nfrForm.nama.trim(),
       jumlah,
       harga_satuan: harga,
@@ -138,7 +140,7 @@ export default function Kasir() {
     setLoading(false);
     if (error) return showMsg('error', 'Gagal simpan NFR: ' + error.message);
     showMsg('success', 'NFR berhasil dicatat.');
-    setNfrForm({ nama: '', jumlah: '', harga: '' });
+    setNfrForm({ kategori: 'LPG', nama: '', jumlah: '', harga: '' }); // PERUBAHAN: Reset form
     loadNfr();
   };
 
@@ -153,7 +155,6 @@ export default function Kasir() {
     if (!liter || liter <= 0) return showMsg('error', 'Jumlah liter voucher harus > 0.');
     if (!harga || harga <= 0) return showMsg('error', 'Total harga voucher harus > 0.');
 
-    // Cek duplikat no voucher di hari & operator yang sama
     const dup = voucherList.find((v) => v.no_voucher === noVoucher);
     if (dup) return showMsg('error', `Voucher ${noVoucher} sudah pernah dicatat hari ini.`);
 
@@ -339,6 +340,21 @@ export default function Kasir() {
             <div className="bg-white rounded-xl shadow p-5">
               <h2 className="font-bold text-slate-800 mb-4">Input Penjualan NFR</h2>
               <form onSubmit={submitNfr} className="space-y-3">
+                
+                {/* DROPDOWN KATEGORI BARU */}
+                <div>
+                  <label className="text-sm font-medium text-slate-600">Kategori NFR</label>
+                  <select
+                    value={nfrForm.kategori}
+                    onChange={(e) => setNfrForm({ ...nfrForm, kategori: e.target.value })}
+                    className="w-full mt-1 border rounded-lg px-3 py-2 text-sm bg-blue-50 font-semibold text-blue-800"
+                  >
+                    <option value="LPG">🔵 LPG (Gas)</option>
+                    <option value="Oli">🟡 Oli / Pelumas</option>
+                    <option value="Lainnya">⚪ Lainnya (Air, Rokok, dll)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="text-sm font-medium text-slate-600">Nama Produk</label>
                   <input
@@ -346,7 +362,7 @@ export default function Kasir() {
                     value={nfrForm.nama}
                     onChange={(e) => setNfrForm({ ...nfrForm, nama: e.target.value })}
                     className="w-full mt-1 border rounded-lg px-3 py-2 text-sm"
-                    placeholder="Contoh: Aqua 600ml"
+                    placeholder={nfrForm.kategori === 'LPG' ? "Contoh: LPG 3kg" : nfrForm.kategori === 'Oli' ? "Contoh: Mesran 1L" : "Contoh: Aqua 600ml"}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -380,6 +396,8 @@ export default function Kasir() {
                 </button>
               </form>
             </div>
+            
+            {/* RIWAYAT NFR */}
             <div className="bg-white rounded-xl shadow p-5">
               <h2 className="font-bold text-slate-800 mb-3">Riwayat NFR Hari Ini ({nfrList.length})</h2>
               <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -387,7 +405,10 @@ export default function Kasir() {
                 {nfrList.map((n) => (
                   <div key={n.id} className="border rounded-lg p-3 text-sm flex justify-between">
                     <div>
-                      <p className="font-semibold">{n.nama_produk}</p>
+                      <p className="font-semibold">
+                        <span className="text-xs bg-slate-200 px-1.5 py-0.5 rounded mr-2">{n.kategori || 'Lainnya'}</span>
+                        {n.nama_produk}
+                      </p>
                       <p className="text-xs text-slate-500">{n.jumlah} x {formatRupiah(n.harga_satuan)}</p>
                     </div>
                     <p className="font-bold text-blue-700">{formatRupiah(n.total_harga)}</p>
