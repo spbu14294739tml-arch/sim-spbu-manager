@@ -127,7 +127,7 @@ export default function PengaturanSistem() {
     }
   };
 
-  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT (PERBAIKAN TOTAL)
+  // SIMPAN PERUBAHAN HARGA & CATAT RIWAYAT
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
@@ -135,7 +135,6 @@ export default function PengaturanSistem() {
     setIsSaving(true);
 
     try {
-      // 1. Update harga utama & data riwayat terakhir di master_produk_bbm
       const { error: errUpdate } = await supabase.from('master_produk_bbm').update({ 
         harga_per_liter: baru,
         tanggal_efektif: tanggalEfektif,
@@ -145,7 +144,6 @@ export default function PengaturanSistem() {
       
       if (errUpdate) throw new Error('Gagal update harga: ' + errUpdate.message);
 
-      // 2. Catat ke tabel riwayat (HANYA jika harga berubah)
       if (baru !== bbm.harga_per_liter) {
         const { error: errRiwayat } = await supabase.from('riwayat_harga_bbm').insert([{
           jenis_bbm: bbm.jenis_bbm,
@@ -160,11 +158,10 @@ export default function PengaturanSistem() {
         if (errRiwayat) throw new Error('Gagal simpan riwayat: ' + errRiwayat.message);
       }
 
-      // Jika semua sukses
       setEditingHargaId(null);
       setNotif(`Harga ${bbm.jenis_bbm} berhasil diupdate!`);
       setTimeout(() => setNotif(''), 3000);
-      fetchData(); // Tarik ulang data
+      fetchData();
       
     } catch (error) {
       alert(error.message);
@@ -263,12 +260,13 @@ export default function PengaturanSistem() {
 
       {notif && <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded shadow-sm">{notif}</div>}
 
-      <div className="flex flex-wrap border-b mb-6 border-slate-200">
-        <button type="button" onClick={() => setActiveTab('profil')} className={`py-3 px-6 font-medium text-sm border-b-2 ${activeTab === 'profil' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Profil SPBU</button>
-        <button type="button" onClick={() => setActiveTab('shift')} className={`py-3 px-6 font-medium text-sm border-b-2 ${activeTab === 'shift' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Shift Operasional</button>
-        <button type="button" onClick={() => setActiveTab('produk')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'produk' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><ShoppingBag size={18}/> Produk NFR</button>
-        <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Fuel size={18}/> Harga & Logo BBM</button>
-        <button type="button" onClick={() => setActiveTab('stok_tangki')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'stok_tangki' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Droplet size={18}/> Stok Tangki</button>
+      {/* TAB NAVIGATION MODERN */}
+      <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit">
+        <button type="button" onClick={() => setActiveTab('profil')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'profil' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Profil SPBU</button>
+        <button type="button" onClick={() => setActiveTab('shift')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'shift' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Shift Operasional</button>
+        <button type="button" onClick={() => setActiveTab('produk')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'produk' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><ShoppingBag size={16}/> Produk NFR</button>
+        <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Fuel size={16}/> Harga & Logo BBM</button>
+        <button type="button" onClick={() => setActiveTab('stok_tangki')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'stok_tangki' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Droplet size={16}/> Stok Tangki</button>
       </div>
 
       {/* TAB PROFIL */}
