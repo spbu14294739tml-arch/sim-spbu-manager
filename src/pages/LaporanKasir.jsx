@@ -150,9 +150,10 @@ export default function LaporanKasir() {
         </div>
       </div>
 
-      <div className="flex border-b mb-6 border-slate-200 no-print">
-        <button type="button" onClick={() => setActiveTab('harian')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'harian' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><Calendar size={18}/> Laporan Harian</button>
-        <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-3 px-6 font-medium text-sm border-b-2 flex items-center gap-2 ${activeTab === 'bulanan' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}><BarChart3 size={18}/> Laporan Bulanan</button>
+      {/* TAB NAVIGATION MODERN (Sama seperti Pengaturan) */}
+      <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit no-print">
+        <button type="button" onClick={() => setActiveTab('harian')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harian' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Calendar size={16}/> Laporan Harian</button>
+        <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'bulanan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><BarChart3 size={16}/> Laporan Bulanan</button>
       </div>
 
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
@@ -265,7 +266,7 @@ export default function LaporanKasir() {
               </table>
             </div>
 
-            {/* GRAND TOTAL MODERN (Dikecilkan & Diperjelas) */}
+            {/* GRAND TOTAL MODERN */}
             <div className="bg-slate-900 text-white p-6 rounded-2xl flex justify-between items-center shadow-xl border border-slate-700">
               <div>
                 <p className="text-slate-400 font-semibold tracking-widest uppercase text-sm mb-1">Total Pendapatan Keseluruhan</p>
