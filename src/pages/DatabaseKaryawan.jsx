@@ -16,7 +16,7 @@ const InputField = ({ label, name, type = "text", placeholder = "", formData, se
         const nilaiBaru = isEmailOrLink ? e.target.value : e.target.value.toUpperCase();
         setFormData({...formData, [name]: nilaiBaru});
       }}
-      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
       placeholder={placeholder}
     />
   </div>
@@ -265,7 +265,6 @@ export default function DatabaseKaryawan() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto relative">
-      {/* HEADER & TOMBOL (Disembunyikan saat dicetak) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold text-slate-800">Database Karyawan</h1>
@@ -292,7 +291,6 @@ export default function DatabaseKaryawan() {
         </div>
       </div>
 
-      {/* FILTER PENCARIAN (Disembunyikan saat dicetak) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center no-print">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search size={18} className="text-slate-400" /></div>
@@ -306,10 +304,8 @@ export default function DatabaseKaryawan() {
         </select>
       </div>
 
-      {/* KOP SURAT (Hanya muncul saat dicetak) */}
       <KopSurat judul="Data Karyawan" periode={`Tahun ${new Date().getFullYear()}`} />
 
-      {/* TABEL DATA */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -358,22 +354,29 @@ export default function DatabaseKaryawan() {
         </div>
       </div>
 
-      {/* MODAL 3 TAB (Sama seperti sebelumnya) */}
+      {/* MODAL 3 TAB (DENGAN DESAIN PIL MODERN) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 border-b bg-slate-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+            
+            {/* Header Modal */}
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50">
               <h2 className="text-xl font-bold text-slate-800">{editingId ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h2>
-              <button onClick={handleTutupModal}><X size={20} /></button>
+              <button onClick={handleTutupModal} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"><X size={20} /></button>
             </div>
-            <div className="flex border-b px-5 bg-white">
-              <button type="button" onClick={() => setActiveTab(1)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 1 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Data Pribadi</button>
-              <button type="button" onClick={() => setActiveTab(2)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 2 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Kepegawaian</button>
-              <button type="button" onClick={() => setActiveTab(3)} className={`py-3 px-4 text-sm font-medium border-b-2 ${activeTab === 3 ? 'border-blue-600 text-blue-600' : 'text-slate-500'}`}>Berkas</button>
+
+            {/* TAB NAVIGATION MODERN (Pill Shape) */}
+            <div className="p-4 bg-white border-b border-slate-100">
+              <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
+                <button type="button" onClick={() => setActiveTab(1)} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 1 ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Data Pribadi</button>
+                <button type="button" onClick={() => setActiveTab(2)} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 2 ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Kepegawaian</button>
+                <button type="button" onClick={() => setActiveTab(3)} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 3 ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Berkas</button>
+              </div>
             </div>
+
             <form onSubmit={handleSimpan} className="flex-1 overflow-y-auto p-6 space-y-4">
               {activeTab === 1 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="md:col-span-2 flex items-center gap-6 p-4 bg-slate-50 rounded-xl border border-slate-200 mb-2">
                     <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm shrink-0">
                       {previewFoto ? <img src={previewFoto} alt="Preview" className="w-full h-full object-cover" /> : <User className="text-slate-400" size={40} />}
@@ -399,8 +402,9 @@ export default function DatabaseKaryawan() {
                   <InputField label="Kode Pos" name="kode_pos" placeholder="Otomatis / Ketik manual" formData={formData} setFormData={setFormData} />
                 </div>
               )}
+              
               {activeTab === 2 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Posisi / Jabatan *</label><input type="text" value={formData.posisi || ''} onChange={handlePosisiChange} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 uppercase" placeholder="Cth: KASIR, OPERATOR" /></div>
                   <InputField label="Nomor Karyawan" name="nomor_karyawan" placeholder="Terisi otomatis" formData={formData} setFormData={setFormData} />
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Shift</label><select value={formData.shift || ''} onChange={(e) => setFormData({...formData, shift: e.target.value})} className="w-full px-4 py-2 border rounded-xl bg-white">{listShift.map((shift, idx) => (<option key={idx} value={shift}>{shift}</option>))}<option value="-">-</option></select></div>
@@ -415,8 +419,9 @@ export default function DatabaseKaryawan() {
                   <InputField label="Nomor Rekening" name="nomor_rekening" formData={formData} setFormData={setFormData} />
                 </div>
               )}
+              
               {activeTab === 3 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <InputField label="Link e-KTP" name="link_e_ktp" placeholder="https://..." formData={formData} setFormData={setFormData} />
                   <InputField label="Link Kartu Keluarga" name="link_kk" placeholder="https://..." formData={formData} setFormData={setFormData} />
                   <InputField label="Link Kontrak Kerja" name="link_kontrak" placeholder="https://..." formData={formData} setFormData={setFormData} />
@@ -426,12 +431,14 @@ export default function DatabaseKaryawan() {
                 </div>
               )}
             </form>
-            <div className="p-5 border-t bg-slate-50 flex justify-end gap-3">
-              <button type="button" onClick={handleTutupModal} className="px-5 py-2.5 border rounded-xl font-medium">Batal</button>
-              <button type="button" onClick={handleSimpan} disabled={isUploading} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-sm flex items-center gap-2 disabled:opacity-50">
+
+            <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+              <button type="button" onClick={handleTutupModal} className="px-5 py-2.5 border border-slate-300 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition-colors">Batal</button>
+              <button type="button" onClick={handleSimpan} disabled={isUploading} className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium shadow-sm flex items-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-colors">
                 {isUploading ? <><Loader2 className="animate-spin" size={18} /> Menyimpan...</> : (editingId ? 'Update Data' : 'Simpan Data')}
               </button>
             </div>
+
           </div>
         </div>
       )}
