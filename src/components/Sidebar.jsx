@@ -12,7 +12,7 @@ import {
   UserCheck,
   ShoppingCart,
   FileText,
-  FileCheck // <-- Icon baru untuk Laporan Setoran
+  FileCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -27,7 +27,8 @@ export default function Sidebar() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email);
-        setUserRole(user.user_metadata?.role || 'accounting');
+        // Default ke 'kasir' jika tidak ada role, atau sesuaikan
+        setUserRole(user.user_metadata?.role || 'kasir'); 
       }
     };
     getUser();
@@ -40,14 +41,14 @@ export default function Sidebar() {
   };
 
   const menuItems = [
-    { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting'] },
+    { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] },
     { path: '/absensi', name: 'Absensi', icon: UserCheck, roles: ['manager', 'accounting'] },
-    { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting'] },
+    { path: '/kasir', name: 'Kasir & Penjualan', icon: ShoppingCart, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
-    { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting'] }, // <-- MENU BARU
+    { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];
 
@@ -56,15 +57,11 @@ export default function Sidebar() {
   return (
     <div className="w-64 min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-black text-slate-300 flex flex-col shadow-2xl z-20 border-r border-slate-800/50 relative overflow-hidden">
       
-      {/* Ornamen Latar Belakang Sidebar */}
       <div className="absolute top-0 left-0 w-full h-64 bg-blue-600/10 rounded-full blur-3xl -z-10"></div>
 
-      {/* Header Sidebar (DENGAN LOGO & BACKGROUND GRADASI) */}
       <div className="relative p-6 border-b border-slate-800/50 flex flex-col items-center justify-center text-center gap-2 z-10 overflow-hidden">
-        {/* Background Gradasi di Belakang Logo */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-transparent -z-10"></div>
         
-        {/* Logo TML */}
         <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 ring-2 ring-white/10 p-1 mb-1">
           <img src="/logo-tml.png" alt="Logo TML" className="w-full h-full object-contain" />
         </div>
@@ -75,7 +72,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Menu Items */}
       <div className="flex-1 py-6 overflow-y-auto px-3 space-y-1 relative z-10 scrollbar-thin scrollbar-thumb-slate-700">
         <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Menu Utama</p>
         {filteredMenuItems.map((item) => {
@@ -91,7 +87,6 @@ export default function Sidebar() {
                   : 'hover:bg-slate-800/60 hover:text-white hover:translate-x-1'
               }`}
             >
-              {/* Garis Indikator Kiri (Jika Aktif) */}
               {isActive && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
               )}
@@ -107,7 +102,6 @@ export default function Sidebar() {
         })}
       </div>
 
-      {/* Footer Sidebar (Profil & Logout) */}
       <div className="p-4 border-t border-slate-800/50 bg-black/20 backdrop-blur-sm relative z-10">
         <div className="flex items-center gap-3 px-3 py-3 mb-2 bg-slate-800/40 rounded-xl border border-slate-700/50 shadow-inner">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-600 flex items-center justify-center ring-1 ring-slate-500/50">
