@@ -41,3 +41,15 @@ export default function KopSurat({ judul, periode }) {
     </div>
   );
 }
+      {/* Tambahkan blok style ini di akhir sebelum tag penutup div terluar KopSurat */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          /* Paksa semua teks, gambar, dan elemen di KopSurat untuk muncul */
+          * { 
+            color: black !important; 
+            visibility: visible !important; 
+            opacity: 1 !important;
+          }
+          img { display: block !important; max-width: 100% !important; }
+        }
+      `}} />

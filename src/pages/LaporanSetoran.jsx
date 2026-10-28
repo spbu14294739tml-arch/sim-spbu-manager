@@ -25,7 +25,7 @@ export default function LaporanSetoran() {
     shift: ''
   });
 
-  const [penjualan, setPenjualan] = useState({ bbm: 0, nfr: 0, total: 0 });
+  const [penjualan, setPenjualan] = useState({ bbm: 0, oli: 0, lpg: 0, total: 0 });
   
   const [pengurangan, setPengurangan] = useState([]);
   const [rekapUang, setRekapUang] = useState(
@@ -44,7 +44,7 @@ export default function LaporanSetoran() {
     }
 
     let qBBM = supabase.from('penjualan_bbm').select('total_harga').eq('tanggal', formData.tanggal);
-    let qNFR = supabase.from('penjualan_nfr').select('total_harga').eq('tanggal', formData.tanggal);
+    let qNFR = supabase.from('penjualan_nfr').select('total_harga, produk_nfr').eq('tanggal', formData.tanggal);
     
     if (formData.shift) {
       qBBM = qBBM.eq('shift', formData.shift);
@@ -53,11 +53,34 @@ export default function LaporanSetoran() {
 
     const { data: dataBBM } = await qBBM;
     const { data: dataNFR } = await qNFR;
+    
+    // Ambil master produk untuk tahu mana OLI mana LPG
+    const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
-    const sumNFR = dataNFR?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
+    let sumOli = 0;
+    let sumLpg = 0;
+
+    if (dataNFR) {
+      dataNFR.forEach(item => {
+        const master = masterNFR?.find(m => m.nama_produk === item.produk_nfr);
+        const kategori = master ? master.kategori?.toUpperCase() : '';
+        
+        // Jika kategori OLI/PELUMAS, masuk ke sumOli. Jika LPG, masuk ke sumLpg.
+        if (kategori === 'OLI' || kategori === 'PELUMAS') {
+          sumOli += item.total_harga;
+        } else if (kategori === 'LPG') {
+          sumLpg += item.total_harga;
+        } else {
+          // Jaga-jaga jika kategori kosong/tidak dikenali, masukkan ke OLI agar tetap terhitung
+          sumOli += item.total_harga; 
+        }
+      });
+    }
+
+    const grandTotal = sumBBM + sumOli + sumLpg;
     
-    setPenjualan({ bbm: sumBBM, nfr: sumNFR, total: sumBBM + sumNFR });
+    setPenjualan({ bbm: sumBBM, oli: sumOli, lpg: sumLpg, total: grandTotal });
 
     const defaultList = DEFAULT_PENGURANGAN.map(nama => ({ nama, nominal: 0 }));
     setPengurangan(defaultList);
@@ -114,7 +137,7 @@ export default function LaporanSetoran() {
       tanggal: formData.tanggal,
       shift: formData.shift,
       total_bbm: penjualan.bbm,
-      total_nfr: penjualan.nfr,
+      total_nfr: penjualan.oli + penjualan.lpg, // Tetap simpan total NFR gabungan untuk database
       total_penjualan: penjualan.total,
       data_pengurangan: pengurangan.filter(p => p.nominal > 0),
       total_pengurangan: totalPengurangan,
@@ -196,9 +219,15 @@ export default function LaporanSetoran() {
               </tr>
               <tr>
                 <td className="px-4 py-3 text-slate-600 text-center">2</td>
-                <td className="px-4 py-3 font-semibold text-slate-800">PENJUALAN OLI / LPG (NFR)</td>
+                <td className="px-4 py-3 font-semibold text-slate-800">PENJUALAN OLI / PELUMAS</td>
                 <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.nfr).replace('Rp', '')}</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.oli).replace('Rp', '')}</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 text-slate-600 text-center">3</td>
+                <td className="px-4 py-3 font-semibold text-slate-800">PENJUALAN LPG</td>
+                <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.lpg).replace('Rp', '')}</td>
               </tr>
               <tr className="bg-slate-50">
                 <td colSpan={2} className="px-4 py-4 text-right font-black text-slate-800 uppercase tracking-wider">Total Penjualan</td>
@@ -226,7 +255,6 @@ export default function LaporanSetoran() {
                 <tr key={idx} className="group hover:bg-slate-50/50">
                   <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
                   <td className="px-4 py-2 font-medium text-slate-700">
-                    {/* Input Nama (Semua baris sekarang bisa diedit) */}
                     <input 
                       type="text" 
                       value={p.nama} 
@@ -247,7 +275,6 @@ export default function LaporanSetoran() {
                     />
                     <span className="hidden print:inline font-mono">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '') : '-'}</span>
                     
-                    {/* Tombol Hapus (Sekarang muncul di semua baris) */}
                     <button onClick={() => handleRemovePengurangan(idx)} className="text-red-400 hover:text-red-600 hidden group-hover:block no-print p-1" title="Hapus Baris">
                       <Trash2 size={16}/>
                     </button>
