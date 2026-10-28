@@ -1,8 +1,9 @@
 // src/pages/DashboardManager.jsx
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, AlertTriangle, ArrowRight, ShieldCheck, Clock, Loader2, TrendingUp } from 'lucide-react';
+import { Users, UserCheck, AlertTriangle, ArrowRight, ShieldCheck, Clock, Loader2, TrendingUp, ArrowUp, ArrowDown, Tag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { formatRupiah } from '../lib/formatHelper';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export default function DashboardManager() {
@@ -11,6 +12,9 @@ export default function DashboardManager() {
   const [waktu, setWaktu] = useState(new Date());
   const [chartKehadiran, setChartKehadiran] = useState([]);
   const [chartLaporan, setChartLaporan] = useState([]);
+  
+  // State untuk Log Perubahan Harga
+  const [logHarga, setLogHarga] = useState([]);
   
   // State untuk deteksi Online/Offline
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -25,13 +29,14 @@ export default function DashboardManager() {
   const fetchData = async () => {
     setIsLoading(true);
     
+    // 1. Ambil Stats
     const { count: total } = await supabase.from('karyawan').select('*', { count: 'exact', head: true });
     const { count: hadir } = await supabase.from('absensi').select('*', { count: 'exact', head: true }).eq('tanggal', getTodayDate()).eq('status_kehadiran', 'Hadir');
     const { count: pending } = await supabase.from('laporan_kerusakan').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
 
     setStats({ totalKaryawan: total || 0, hadirHariIni: hadir || 0, laporanPending: pending || 0 });
 
-    // Grafik Kehadiran
+    // 2. Grafik Kehadiran (7 Hari)
     const tujuhHariLalu = new Date();
     tujuhHariLalu.setDate(tujuhHariLalu.getDate() - 6);
     const { data: absensi7Hari } = await supabase.from('absensi').select('tanggal').gte('tanggal', tujuhHariLalu.toISOString().split('T')[0]).eq('status_kehadiran', 'Hadir');
@@ -45,7 +50,7 @@ export default function DashboardManager() {
       setChartKehadiran(Object.keys(rekapHarian).sort().map(date => ({ tanggal: new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), hadir: rekapHarian[date] })));
     }
 
-    // Grafik Laporan
+    // 3. Grafik Laporan
     const { data: semuaLaporan } = await supabase.from('laporan_kerusakan').select('status');
     if (semuaLaporan) {
       const rekapStatus = { Pending: 0, Disetujui: 0, Ditolak: 0 };
@@ -56,6 +61,15 @@ export default function DashboardManager() {
         { name: 'Ditolak', value: rekapStatus.Ditolak, color: '#ef4444' },
       ]);
     }
+
+    // 4. LOG PERUBAHAN HARGA (Ambil 5 data terbaru)
+    const { data: dataRiwayatHarga } = await supabase
+      .from('riwayat_harga_bbm')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (dataRiwayatHarga) setLogHarga(dataRiwayatHarga);
+
     setIsLoading(false);
   };
 
@@ -63,7 +77,6 @@ export default function DashboardManager() {
     fetchData();
     const timer = setInterval(() => setWaktu(new Date()), 1000);
 
-    // Logika Deteksi Online/Offline
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
@@ -155,7 +168,7 @@ export default function DashboardManager() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <h2 className="text-xl font-bold text-slate-800 mb-5">Aksi Cepat</h2>
           <div className="space-y-3">
@@ -174,22 +187,61 @@ export default function DashboardManager() {
           </div>
         </div>
         
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><ShieldCheck size={180} /></div>
-          <h2 className="text-2xl font-bold mb-3 relative z-10">Sistem Berjalan Normal</h2>
-          <p className="text-slate-300 text-base mb-8 relative z-10 leading-relaxed">Semua modul terhubung dengan baik ke Server Cloud Supabase. Data tersimpan secara aman dan terpusat.</p>
+        {/* LOG PERUBAHAN HARGA */}
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col">
+          <div className="flex justify-between items-center mb-5">
+            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <Tag size={20} className="text-blue-600"/> Log Perubahan Harga
+            </h2>
+            <Link to="/pengaturan" className="text-xs font-semibold text-blue-600 hover:underline">Lihat Semua</Link>
+          </div>
           
-          {/* INDIKATOR STATUS DINAMIS */}
-          <div className={`flex items-center gap-3 text-base font-medium px-5 py-2.5 rounded-2xl relative z-10 backdrop-blur-md border transition-colors duration-300 ${
-            isOnline 
-              ? 'bg-blue-500/30 text-blue-100 border-blue-400/30' 
-              : 'bg-red-500/30 text-red-100 border-red-400/30'
-          }`}>
-            <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isOnline ? 'bg-blue-400' : 'bg-red-400'}`}></div>
-            Status: {isOnline ? 'Online' : 'Offline'}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {isLoading ? (
+              <div className="h-full flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>
+            ) : logHarga.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm italic">Belum ada riwayat perubahan harga.</div>
+            ) : (
+              logHarga.map((log) => (
+                <div key={log.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">{log.jenis_bbm}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Efektif: {new Date(log.tanggal_efektif).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center justify-end gap-1 text-sm font-semibold">
+                      <span className="text-slate-400 line-through text-xs">{formatRupiah(log.harga_lama)}</span>
+                      <ArrowRight size={12} className="text-slate-400 mx-1"/>
+                      <span className="text-blue-700">{formatRupiah(log.harga_baru)}</span>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                      log.status === 'NAIK' ? 'bg-red-100 text-red-600' : 
+                      log.status === 'TURUN' ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {log.status === 'NAIK' ? <ArrowUp size={10} /> : log.status === 'TURUN' ? <ArrowDown size={10} /> : '-'}
+                      {formatRupiah(log.selisih)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
+
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10"><ShieldCheck size={180} /></div>
+        <h2 className="text-2xl font-bold mb-3 relative z-10">Sistem Berjalan Normal</h2>
+        <p className="text-slate-300 text-base mb-8 relative z-10 leading-relaxed">Semua modul terhubung dengan baik ke Server Cloud Supabase. Data tersimpan secara aman dan terpusat.</p>
+        
+        <div className={`flex items-center gap-3 text-base font-medium px-5 py-2.5 rounded-2xl relative z-10 backdrop-blur-md border transition-colors duration-300 w-fit ${
+          isOnline ? 'bg-blue-500/30 text-blue-100 border-blue-400/30' : 'bg-red-500/30 text-red-100 border-red-400/30'
+        }`}>
+          <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${isOnline ? 'bg-blue-400' : 'bg-red-400'}`}></div>
+          Status: {isOnline ? 'Online' : 'Offline'}
+        </div>
+      </div>
+
     </div>
   );
 }
