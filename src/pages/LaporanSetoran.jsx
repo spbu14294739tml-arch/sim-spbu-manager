@@ -54,7 +54,6 @@ export default function LaporanSetoran() {
     const { data: dataBBM } = await qBBM;
     const { data: dataNFR } = await qNFR;
     
-    // Ambil master produk untuk tahu mana OLI mana LPG
     const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
@@ -66,13 +65,11 @@ export default function LaporanSetoran() {
         const master = masterNFR?.find(m => m.nama_produk === item.produk_nfr);
         const kategori = master ? master.kategori?.toUpperCase() : '';
         
-        // Jika kategori OLI/PELUMAS, masuk ke sumOli. Jika LPG, masuk ke sumLpg.
         if (kategori === 'OLI' || kategori === 'PELUMAS') {
           sumOli += item.total_harga;
         } else if (kategori === 'LPG') {
           sumLpg += item.total_harga;
         } else {
-          // Jaga-jaga jika kategori kosong/tidak dikenali, masukkan ke OLI agar tetap terhitung
           sumOli += item.total_harga; 
         }
       });
@@ -137,7 +134,7 @@ export default function LaporanSetoran() {
       tanggal: formData.tanggal,
       shift: formData.shift,
       total_bbm: penjualan.bbm,
-      total_nfr: penjualan.oli + penjualan.lpg, // Tetap simpan total NFR gabungan untuk database
+      total_nfr: penjualan.oli + penjualan.lpg,
       total_penjualan: penjualan.total,
       data_pengurangan: pengurangan.filter(p => p.nominal > 0),
       total_pengurangan: totalPengurangan,
@@ -213,26 +210,26 @@ export default function LaporanSetoran() {
             <tbody className="divide-y divide-slate-100">
               <tr>
                 <td className="px-4 py-3 text-slate-600 w-12 text-center">1</td>
-                <td className="px-4 py-3 font-semibold text-slate-800">TOTAL PENJUALAN BBM</td>
-                <td className="px-4 py-3 text-slate-500 w-8 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.bbm).replace('Rp', '')}</td>
+                <td className="px-4 py-3 font-semibold text-slate-800 w-full">TOTAL PENJUALAN BBM</td>
+                <td className="px-4 py-3 text-slate-500 w-8 text-right whitespace-nowrap">Rp.</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tabular-nums w-40">{formatRupiah(penjualan.bbm).replace('Rp', '').trim()}</td>
               </tr>
               <tr>
                 <td className="px-4 py-3 text-slate-600 text-center">2</td>
-                <td className="px-4 py-3 font-semibold text-slate-800">PENJUALAN OLI / PELUMAS</td>
-                <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.oli).replace('Rp', '')}</td>
+                <td className="px-4 py-3 font-semibold text-slate-800 w-full">PENJUALAN OLI / PELUMAS</td>
+                <td className="px-4 py-3 text-slate-500 text-right whitespace-nowrap">Rp.</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tabular-nums">{formatRupiah(penjualan.oli).replace('Rp', '').trim()}</td>
               </tr>
               <tr>
                 <td className="px-4 py-3 text-slate-600 text-center">3</td>
-                <td className="px-4 py-3 font-semibold text-slate-800">PENJUALAN LPG</td>
-                <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tracking-wide">{formatRupiah(penjualan.lpg).replace('Rp', '')}</td>
+                <td className="px-4 py-3 font-semibold text-slate-800 w-full">PENJUALAN LPG</td>
+                <td className="px-4 py-3 text-slate-500 text-right whitespace-nowrap">Rp.</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tabular-nums">{formatRupiah(penjualan.lpg).replace('Rp', '').trim()}</td>
               </tr>
               <tr className="bg-slate-50">
                 <td colSpan={2} className="px-4 py-4 text-right font-black text-slate-800 uppercase tracking-wider">Total Penjualan</td>
-                <td className="px-4 py-4 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-4 text-right font-black text-green-600 font-mono text-base tracking-wide bg-green-50/50">{formatRupiah(penjualan.total).replace('Rp', '')}</td>
+                <td className="px-4 py-4 text-slate-500 text-right">Rp.</td>
+                <td className="px-4 py-4 text-right font-black text-green-600 font-mono text-base tracking-wide bg-green-50/50 tabular-nums">{formatRupiah(penjualan.total).replace('Rp', '').trim()}</td>
               </tr>
             </tbody>
           </table>
@@ -254,7 +251,7 @@ export default function LaporanSetoran() {
               {pengurangan.map((p, idx) => (
                 <tr key={idx} className="group hover:bg-slate-50/50">
                   <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
-                  <td className="px-4 py-2 font-medium text-slate-700">
+                  <td className="px-4 py-2 font-medium text-slate-700 w-full">
                     <input 
                       type="text" 
                       value={p.nama} 
@@ -264,16 +261,16 @@ export default function LaporanSetoran() {
                     />
                     <span className="hidden print:inline">{p.nama || '-'}</span>
                   </td>
-                  <td className="px-4 py-2 text-slate-400 w-8 text-center">Rp.</td>
-                  <td className="px-4 py-2 w-40 text-right flex items-center justify-end gap-2">
+                  <td className="px-4 py-2 text-slate-400 w-8 text-right whitespace-nowrap">Rp.</td>
+                  <td className="px-4 py-2 w-48 text-right flex items-center justify-end gap-2">
                     <input 
                       type="number" 
                       value={p.nominal || ''} 
                       onChange={(e) => handleNominalPenguranganChange(idx, e.target.value)}
-                      className="w-full bg-transparent text-right font-mono font-semibold outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-300"
+                      className="w-full bg-transparent text-right font-mono font-semibold outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-300 tabular-nums"
                       placeholder="0"
                     />
-                    <span className="hidden print:inline font-mono">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '') : '-'}</span>
+                    <span className="hidden print:inline font-mono tabular-nums">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '').trim() : '-'}</span>
                     
                     <button onClick={() => handleRemovePengurangan(idx)} className="text-red-400 hover:text-red-600 hidden group-hover:block no-print p-1" title="Hapus Baris">
                       <Trash2 size={16}/>
@@ -284,13 +281,13 @@ export default function LaporanSetoran() {
               
               <tr className="bg-slate-50">
                 <td colSpan={2} className="px-4 py-3 text-right font-bold text-slate-700">TOTAL PENGURANGAN</td>
-                <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono">{formatRupiah(totalPengurangan).replace('Rp', '')}</td>
+                <td className="px-4 py-3 text-slate-500 text-right">Rp.</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tabular-nums">{formatRupiah(totalPengurangan).replace('Rp', '').trim()}</td>
               </tr>
               <tr className="bg-yellow-100">
                 <td colSpan={2} className="px-4 py-4 text-right font-black text-yellow-900 text-sm uppercase tracking-wide">Total Yang Disetor</td>
-                <td className="px-4 py-4 text-yellow-700 text-center font-bold">Rp.</td>
-                <td className="px-4 py-4 text-right font-black text-yellow-900 font-mono text-lg tracking-wide">{formatRupiah(totalYangDisetor).replace('Rp', '')}</td>
+                <td className="px-4 py-4 text-yellow-700 text-right font-bold">Rp.</td>
+                <td className="px-4 py-4 text-right font-black text-yellow-900 font-mono text-lg tracking-wide tabular-nums">{formatRupiah(totalYangDisetor).replace('Rp', '').trim()}</td>
               </tr>
             </tbody>
           </table>
@@ -320,13 +317,13 @@ export default function LaporanSetoran() {
                     <span className="hidden print:inline font-mono">{r.lembar > 0 ? r.lembar : '-'}</span>
                   </td>
                   <td className="px-4 py-2 text-slate-500 w-16 text-center text-xs">Lembar</td>
-                  <td className="px-4 py-2 text-slate-400 w-8 text-center">Rp.</td>
-                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-700">{r.total > 0 ? formatRupiah(r.total).replace('Rp', '') : '-'}</td>
+                  <td className="px-4 py-2 text-slate-400 w-8 text-right whitespace-nowrap">Rp.</td>
+                  <td className="px-4 py-2 text-right font-mono font-medium text-slate-700 tabular-nums">{r.total > 0 ? formatRupiah(r.total).replace('Rp', '').trim() : '-'}</td>
                 </tr>
               ))}
               <tr>
                 <td colSpan={5} className="px-4 py-2 text-right font-bold text-slate-700">UANG KOIN</td>
-                <td className="px-4 py-2 text-slate-400 text-center">Rp.</td>
+                <td className="px-4 py-2 text-slate-400 text-right">Rp.</td>
                 <td className="px-4 py-2 text-right font-mono font-medium text-slate-700">
                   <input 
                     type="number" 
@@ -335,13 +332,13 @@ export default function LaporanSetoran() {
                     className="w-full bg-transparent text-right font-bold text-slate-800 outline-none border-b border-transparent focus:border-emerald-400 no-print placeholder-slate-300"
                     placeholder="0"
                   />
-                  <span className="hidden print:inline">{uangKoin > 0 ? formatRupiah(uangKoin).replace('Rp', '') : '-'}</span>
+                  <span className="hidden print:inline tabular-nums">{uangKoin > 0 ? formatRupiah(uangKoin).replace('Rp', '').trim() : '-'}</span>
                 </td>
               </tr>
               <tr className="bg-slate-50">
                 <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-800">TOTAL REKAP UANG</td>
-                <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
-                <td className="px-4 py-3 text-right font-black text-slate-800 font-mono text-base">{formatRupiah(totalUangFisik).replace('Rp', '')}</td>
+                <td className="px-4 py-3 text-slate-500 text-right">Rp.</td>
+                <td className="px-4 py-3 text-right font-black text-slate-800 font-mono text-base tabular-nums">{formatRupiah(totalUangFisik).replace('Rp', '').trim()}</td>
               </tr>
             </tbody>
           </table>
@@ -353,9 +350,9 @@ export default function LaporanSetoran() {
             <tbody>
               <tr className={plusMinus < 0 ? 'bg-red-500' : plusMinus > 0 ? 'bg-blue-600' : 'bg-green-600'}>
                 <td colSpan={2} className="px-6 py-5 text-right font-black text-white text-lg uppercase tracking-widest w-1/2">PLUS / MINUS</td>
-                <td className="px-2 py-5 text-white/80 text-center font-bold w-8">Rp.</td>
-                <td className="px-6 py-5 text-right font-black text-white font-mono text-2xl tracking-wider">
-                  {formatRupiah(plusMinus).replace('Rp', '')}
+                <td className="px-2 py-5 text-white/80 text-right font-bold w-8">Rp.</td>
+                <td className="px-6 py-5 text-right font-black text-white font-mono text-2xl tracking-wider tabular-nums">
+                  {formatRupiah(plusMinus).replace('Rp', '').trim()}
                 </td>
               </tr>
             </tbody>
@@ -364,6 +361,22 @@ export default function LaporanSetoran() {
 
         <div className="mt-4 text-xs text-slate-500 text-center no-print">
           {plusMinus === 0 ? '✅ Uang fisik SESUAI dengan sistem (BALANCE).' : plusMinus > 0 ? 'ℹ️ Uang fisik LEBIH dari sistem.' : '⚠️ Uang fisik KURANG dari sistem.'}
+        </div>
+
+        {/* TANDA TANGAN (HANYA MUNCUL SAAT PRINT) */}
+        <div className="hidden print:flex justify-between mt-12 px-8 text-sm font-semibold text-black">
+          <div className="text-center flex flex-col justify-between h-28">
+            <p>Kasir</p>
+            <p className="mt-16">(...................................)</p>
+          </div>
+          <div className="text-center flex flex-col justify-between h-28">
+            <p>Diperiksa Oleh,<br/>Accounting</p>
+            <p className="mt-12">(...................................)</p>
+          </div>
+          <div className="text-center flex flex-col justify-between h-28">
+            <p>Disetujui Oleh,<br/>Manager Operasional</p>
+            <p className="mt-12">(...................................)</p>
+          </div>
         </div>
 
       </div>
@@ -385,11 +398,11 @@ export default function LaporanSetoran() {
           .text-green-600, .text-yellow-900, .text-white { color: black !important; }
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
-          h1, p { display: none !important; }
           
-          /* Memaksa komponen KopSurat muncul sempurna */
+          /* PERBAIKAN KOP SURAT: Hanya sembunyikan header aplikasi, JANGAN sembunyikan tag p/h1 di Kop Surat */
+          .no-print h1, .no-print p { display: none !important; }
+          
           .hidden.print\\:block { display: block !important; }
-          * { color: black !important; } 
         }
       `}} />
     </div>
