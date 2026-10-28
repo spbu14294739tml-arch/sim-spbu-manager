@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus, Briefcase } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus, Briefcase, X, Printer } from 'lucide-react';
+import KopSurat from '../components/KopSurat';
 
 export default function PengaturanSistem() {
   const [activeTab, setActiveTab] = useState('profil'); 
@@ -17,7 +18,7 @@ export default function PengaturanSistem() {
   const [daftarShift, setDaftarShift] = useState([]);
   const [shiftBaru, setShiftBaru] = useState({ nama_shift: '', jam_kerja: '' });
   
-  // State Jabatan (BARU)
+  // State Jabatan
   const [daftarJabatan, setDaftarJabatan] = useState([]);
   const [jabatanBaru, setJabatanBaru] = useState('');
 
@@ -34,12 +35,19 @@ export default function PengaturanSistem() {
   const [daftarHargaBBM, setDaftarHargaBBM] = useState([]);
   const [uploadingLogoId, setUploadingLogoId] = useState(null);
   
-  // State untuk Edit Harga Inline
+  // State Edit Harga Inline
   const [editingHargaId, setEditingHargaId] = useState(null);
   const [hargaBaruInput, setHargaBaruInput] = useState('');
   const [tanggalEfektif, setTanggalEfektif] = useState(new Date().toISOString().split('T')[0]);
   const [statusHarga, setStatusHarga] = useState('TETAP');
   const [selisihHarga, setSelisihHarga] = useState(0);
+
+  // State MODAL RIWAYAT HARGA (BARU)
+  const [showRiwayatModal, setShowRiwayatModal] = useState(false);
+  const [riwayatBulan, setRiwayatBulan] = useState(new Date().getMonth() + 1);
+  const [riwayatTahun, setRiwayatTahun] = useState(new Date().getFullYear());
+  const [dataRiwayat, setDataRiwayat] = useState([]);
+  const [isFetchingRiwayat, setIsFetchingRiwayat] = useState(false);
 
   // State Stok Tangki
   const [daftarTangki, setDaftarTangki] = useState([]);
@@ -73,6 +81,28 @@ export default function PengaturanSistem() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  // FETCH RIWAYAT HARGA (Saat modal dibuka atau filter diubah)
+  const fetchRiwayatHarga = async () => {
+    setIsFetchingRiwayat(true);
+    const startDate = `${riwayatTahun}-${String(riwayatBulan).padStart(2, '0')}-01`;
+    const endDate = new Date(riwayatTahun, riwayatBulan, 0).toISOString().split('T')[0];
+
+    const { data } = await supabase
+      .from('riwayat_harga_bbm')
+      .select('*')
+      .gte('tanggal_efektif', startDate)
+      .lte('tanggal_efektif', endDate)
+      .order('created_at', { ascending: false });
+
+    if (data) setDataRiwayat(data);
+    setIsFetchingRiwayat(false);
+  };
+
+  useEffect(() => {
+    if (showRiwayatModal) fetchRiwayatHarga();
+  }, [showRiwayatModal, riwayatBulan, riwayatTahun]);
+
 
   // Simpan Profil
   const handleSimpanProfil = async (e) => {
@@ -279,6 +309,98 @@ export default function PengaturanSistem() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      {/* MODAL RIWAYAT HARGA */}
+      {showRiwayatModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm no-print">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-5 border-b bg-slate-50">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><History className="text-blue-600"/> Daftar List Perubahan Harga</h2>
+                <p className="text-sm text-slate-500 mt-1">Riwayat perubahan harga BBM berdasarkan bulan efektif.</p>
+              </div>
+              <button onClick={() => setShowRiwayatModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} className="text-slate-500" /></button>
+            </div>
+
+            {/* Modal Filter */}
+            <div className="p-4 border-b flex gap-4 items-center bg-white">
+              <select value={riwayatBulan} onChange={(e) => setRiwayatBulan(Number(e.target.value))} className="px-4 py-2 border border-slate-300 rounded-lg font-medium outline-none focus:ring-2 focus:ring-blue-500">
+                {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
+                  <option key={i+1} value={i+1}>{m}</option>
+                ))}
+              </select>
+              <select value={riwayatTahun} onChange={(e) => setRiwayatTahun(Number(e.target.value))} className="px-4 py-2 border border-slate-300 rounded-lg font-medium outline-none focus:ring-2 focus:ring-blue-500">
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+              </select>
+              <button onClick={() => window.print()} className="ml-auto bg-slate-800 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-slate-700 transition-colors">
+                <Printer size={18}/> Cetak List
+              </button>
+            </div>
+
+            {/* Modal Body (Tabel) */}
+            <div className="flex-1 overflow-auto p-6 bg-white print:overflow-visible">
+              
+              {/* Header Print (Hanya muncul saat dicetak) */}
+              <div className="hidden print:block mb-6">
+                <KopSurat 
+                  judul="DAFTAR PERUBAHAN HARGA BBM" 
+                  periode={`Bulan: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][riwayatBulan-1]} ${riwayatTahun}`} 
+                />
+              </div>
+
+              {/* Info Print (No Print) */}
+              <div className="no-print mb-4">
+                <h3 className="font-bold text-slate-800">Daftar List Perubahan Harga untuk Bulan {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][riwayatBulan-1]} {riwayatTahun}</h3>
+              </div>
+
+              {isFetchingRiwayat ? (
+                <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
+              ) : dataRiwayat.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed">Belum ada perubahan harga di bulan ini.</div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 print:bg-transparent border-b-2 border-slate-800 print:border-black text-slate-700 print:text-black text-sm uppercase">
+                      <th className="py-3 px-4 border print:border-black text-center w-12">No</th>
+                      <th className="py-3 px-4 border print:border-black">Tanggal Efektif</th>
+                      <th className="py-3 px-4 border print:border-black">Jenis BBM</th>
+                      <th className="py-3 px-4 border print:border-black text-right">Harga Lama</th>
+                      <th className="py-3 px-4 border print:border-black text-right">Harga Baru</th>
+                      <th className="py-3 px-4 border print:border-black text-center">Status</th>
+                      <th className="py-3 px-4 border print:border-black text-right">Selisih (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 print:divide-black">
+                    {dataRiwayat.map((item, idx) => (
+                      <tr key={item.id} className="hover:bg-slate-50 text-sm print:hover:bg-transparent">
+                        <td className="py-3 px-4 border print:border-black text-center">{idx + 1}</td>
+                        <td className="py-3 px-4 border print:border-black font-medium">{new Date(item.tanggal_efektif).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td className="py-3 px-4 border print:border-black font-semibold text-slate-800 print:text-black">{item.jenis_bbm}</td>
+                        <td className="py-3 px-4 border print:border-black text-right font-mono">{formatRupiah(item.harga_lama)}</td>
+                        <td className="py-3 px-4 border print:border-black text-right font-mono font-bold text-blue-700 print:text-black">{formatRupiah(item.harga_baru)}</td>
+                        <td className="py-3 px-4 border print:border-black text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            item.status === 'NAIK' ? 'bg-red-100 text-red-600 print:bg-transparent print:text-black' : 
+                            item.status === 'TURUN' ? 'bg-green-100 text-green-600 print:bg-transparent print:text-black' : 'bg-slate-200 text-slate-600 print:bg-transparent print:text-black'
+                          }`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-4 border print:border-black text-right font-mono font-medium ${item.selisih > 0 ? 'text-red-600' : 'text-green-600'} print:text-black`}>
+                          {item.selisih === 0 ? '-' : formatRupiah(Math.abs(item.selisih))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-800">Pengaturan Sistem</h1>
         <p className="text-slate-500 mt-1">Kelola profil SPBU, shift, jabatan, produk, dan stok tangki.</p>
@@ -354,7 +476,7 @@ export default function PengaturanSistem() {
         </div>
       )}
 
-      {/* TAB JABATAN (BARU) */}
+      {/* TAB JABATAN */}
       {activeTab === 'jabatan' && (
         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-300">
           <div className="space-y-3 mb-6">
@@ -451,7 +573,9 @@ export default function PengaturanSistem() {
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Harga BBM per Produk</h2>
               <p className="text-sm text-slate-500 mt-1">Update harga BBM + tanggal efektif. History otomatis tercatat.</p>
             </div>
-            <button className="bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 cursor-not-allowed"><History size={16}/> Lihat Riwayat</button>
+            <button onClick={() => setShowRiwayatModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-sm">
+              <History size={16}/> Lihat Riwayat
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
