@@ -67,8 +67,14 @@ export default function LaporanSetoran() {
 
   useEffect(() => { fetchData(); }, [formData.tanggal, formData.shift]);
 
-  // ================= HANDLER =================
-  const handlePenguranganChange = (index, val) => {
+  // ================= HANDLER PENGURANGAN (CRUD) =================
+  const handleNamaPenguranganChange = (index, val) => {
+    const newArr = [...pengurangan];
+    newArr[index].nama = val;
+    setPengurangan(newArr);
+  };
+
+  const handleNominalPenguranganChange = (index, val) => {
     const newArr = [...pengurangan];
     newArr[index].nominal = parseFloat(val) || 0;
     setPengurangan(newArr);
@@ -83,6 +89,7 @@ export default function LaporanSetoran() {
     setPengurangan(newArr);
   };
 
+  // ================= HANDLER REKAP UANG =================
   const handleLembarChange = (index, val) => {
     const newArr = [...rekapUang];
     const lembar = parseFloat(val) || 0;
@@ -109,6 +116,7 @@ export default function LaporanSetoran() {
       total_bbm: penjualan.bbm,
       total_nfr: penjualan.nfr,
       total_penjualan: penjualan.total,
+      // Hanya simpan pengurangan yang ada nominalnya
       data_pengurangan: pengurangan.filter(p => p.nominal > 0),
       total_pengurangan: totalPengurangan,
       total_disetor: totalYangDisetor,
@@ -128,7 +136,7 @@ export default function LaporanSetoran() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       
-      {/* ================= HEADER & KONTROL (NO PRINT) ================= */}
+      {/* HEADER & KONTROL (NO PRINT) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Setoran Kasir</h1>
@@ -144,7 +152,7 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
-      {/* ================= FILTER (NO PRINT) ================= */}
+      {/* FILTER (NO PRINT) */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
         <div className="flex items-center gap-2 w-full md:w-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Tanggal</label>
@@ -173,7 +181,7 @@ export default function LaporanSetoran() {
           </div>
         </div>
 
-        {/* 1. TABEL PENJUALAN (Modern UI) */}
+        {/* 1. TABEL PENJUALAN */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-blue-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
             <Wallet size={16} className="text-blue-600" />
@@ -202,14 +210,13 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* 2. TABEL PENGURANGAN */}
+        {/* 2. TABEL PENGURANGAN (CRUD) */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-orange-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ArrowRight size={16} className="text-orange-600" />
               <span className="font-bold text-orange-900 text-sm">II. PENGURANGAN (SETORAN)</span>
             </div>
-            {/* Tombol Tambah Khusus Desktop UI */}
             <button onClick={handleAddPengurangan} className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1 rounded-lg flex items-center gap-1 transition-colors no-print">
               <Plus size={14}/> Tambah Baris
             </button>
@@ -219,25 +226,36 @@ export default function LaporanSetoran() {
               {pengurangan.map((p, idx) => (
                 <tr key={idx} className="group hover:bg-slate-50/50">
                   <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
-                  <td className="px-4 py-2 font-medium text-slate-700 relative">
-                    {p.nama}
-                    {idx >= DEFAULT_PENGURANGAN.length && (
-                      <button onClick={() => handleRemovePengurangan(idx)} className="absolute right-2 top-1/2 -translate-y-1/2 text-red-400 hover:text-red-600 hidden group-hover:block no-print" title="Hapus"><Trash2 size={14}/></button>
-                    )}
+                  <td className="px-4 py-2 font-medium text-slate-700">
+                    {/* Input Nama (Bisa diedit di layar, jadi teks biasa saat dicetak) */}
+                    <input 
+                      type="text" 
+                      value={p.nama} 
+                      onChange={(e) => handleNamaPenguranganChange(idx, e.target.value)}
+                      placeholder="Nama Instansi / Bank..."
+                      className="w-full bg-transparent outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-400"
+                    />
+                    <span className="hidden print:inline">{p.nama || '-'}</span>
                   </td>
                   <td className="px-4 py-2 text-slate-400 w-8 text-center">Rp.</td>
-                  <td className="px-4 py-2 w-48 text-right">
+                  <td className="px-4 py-2 w-40 text-right flex items-center justify-end gap-2">
                     <input 
                       type="number" 
                       value={p.nominal || ''} 
-                      onChange={(e) => handlePenguranganChange(idx, e.target.value)}
-                      className="w-full bg-transparent text-right font-mono font-semibold outline-none border-b border-transparent focus:border-blue-400 no-print placeholder-slate-300"
+                      onChange={(e) => handleNominalPenguranganChange(idx, e.target.value)}
+                      className="w-full bg-transparent text-right font-mono font-semibold outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-300"
                       placeholder="0"
                     />
                     <span className="hidden print:inline font-mono">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '') : '-'}</span>
+                    
+                    {/* Tombol Hapus Baris */}
+                    <button onClick={() => handleRemovePengurangan(idx)} className="text-red-400 hover:text-red-600 hidden group-hover:block no-print p-1" title="Hapus Baris">
+                      <Trash2 size={16}/>
+                    </button>
                   </td>
                 </tr>
               ))}
+              
               <tr className="bg-slate-50">
                 <td colSpan={2} className="px-4 py-3 text-right font-bold text-slate-700">TOTAL PENGURANGAN</td>
                 <td className="px-4 py-3 text-slate-500 text-center">Rp.</td>
@@ -270,7 +288,7 @@ export default function LaporanSetoran() {
                       type="number" 
                       value={r.lembar || ''} 
                       onChange={(e) => handleLembarChange(idx, e.target.value)}
-                      className="w-full bg-transparent text-center font-bold text-slate-800 outline-none border-b border-transparent focus:border-blue-400 no-print placeholder-slate-300"
+                      className="w-full bg-transparent text-center font-bold text-slate-800 outline-none border-b border-transparent focus:border-emerald-400 no-print placeholder-slate-300"
                       placeholder="0"
                     />
                     <span className="hidden print:inline font-mono">{r.lembar > 0 ? r.lembar : '-'}</span>
@@ -288,7 +306,7 @@ export default function LaporanSetoran() {
                     type="number" 
                     value={uangKoin || ''} 
                     onChange={(e) => setUangKoin(e.target.value)}
-                    className="w-full bg-transparent text-right font-bold text-slate-800 outline-none border-b border-transparent focus:border-blue-400 no-print placeholder-slate-300"
+                    className="w-full bg-transparent text-right font-bold text-slate-800 outline-none border-b border-transparent focus:border-emerald-400 no-print placeholder-slate-300"
                     placeholder="0"
                   />
                   <span className="hidden print:inline">{uangKoin > 0 ? formatRupiah(uangKoin).replace('Rp', '') : '-'}</span>
@@ -318,14 +336,13 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* Keterangan Warna Plus Minus (No Print) */}
         <div className="mt-4 text-xs text-slate-500 text-center no-print">
           {plusMinus === 0 ? '✅ Uang fisik SESUAI dengan sistem (BALANCE).' : plusMinus > 0 ? 'ℹ️ Uang fisik LEBIH dari sistem.' : '⚠️ Uang fisik KURANG dari sistem.'}
         </div>
 
       </div>
 
-      {/* ================= GAYA KHUSUS UNTUK CETAK (PRINTER) ================= */}
+      {/* GAYA KHUSUS UNTUK CETAK */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { background: white; }
