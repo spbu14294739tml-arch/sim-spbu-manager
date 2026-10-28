@@ -116,7 +116,6 @@ export default function LaporanSetoran() {
       total_bbm: penjualan.bbm,
       total_nfr: penjualan.nfr,
       total_penjualan: penjualan.total,
-      // Hanya simpan pengurangan yang ada nominalnya
       data_pengurangan: pengurangan.filter(p => p.nominal > 0),
       total_pengurangan: totalPengurangan,
       total_disetor: totalYangDisetor,
@@ -227,7 +226,7 @@ export default function LaporanSetoran() {
                 <tr key={idx} className="group hover:bg-slate-50/50">
                   <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
                   <td className="px-4 py-2 font-medium text-slate-700">
-                    {/* Input Nama (Bisa diedit di layar, jadi teks biasa saat dicetak) */}
+                    {/* Input Nama (Semua baris sekarang bisa diedit) */}
                     <input 
                       type="text" 
                       value={p.nama} 
@@ -248,7 +247,7 @@ export default function LaporanSetoran() {
                     />
                     <span className="hidden print:inline font-mono">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '') : '-'}</span>
                     
-                    {/* Tombol Hapus Baris */}
+                    {/* Tombol Hapus (Sekarang muncul di semua baris) */}
                     <button onClick={() => handleRemovePengurangan(idx)} className="text-red-400 hover:text-red-600 hidden group-hover:block no-print p-1" title="Hapus Baris">
                       <Trash2 size={16}/>
                     </button>
@@ -342,20 +341,28 @@ export default function LaporanSetoran() {
 
       </div>
 
-      {/* GAYA KHUSUS UNTUK CETAK */}
+      {/* GAYA KHUSUS UNTUK CETAK (MEMAKSA TEKS & WARNA MUNCUL) */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          body { background: white; }
+          body { 
+            background: white; 
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+          }
           .no-print { display: none !important; }
           .print-area { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
           table { border-collapse: collapse !important; width: 100% !important; }
           th, td { border: 1px solid black !important; padding: 4px 8px !important; color: black !important; }
-          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; }
-          .bg-yellow-100, .bg-green-600, .bg-red-500, .bg-blue-600 { background-color: #fef08a !important; color: black !important; -webkit-print-color-adjust: exact; }
+          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact !important; }
+          .bg-yellow-100, .bg-green-600, .bg-red-500, .bg-blue-600 { background-color: #fef08a !important; color: black !important; -webkit-print-color-adjust: exact !important; }
           .text-green-600, .text-yellow-900, .text-white { color: black !important; }
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
           h1, p { display: none !important; }
+          
+          /* Memaksa komponen KopSurat muncul sempurna */
+          .hidden.print\\:block { display: block !important; }
+          * { color: black !important; } 
         }
       `}} />
     </div>
