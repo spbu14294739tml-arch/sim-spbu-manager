@@ -384,6 +384,8 @@ export default function LaporanSetoran() {
       {/* GAYA KHUSUS UNTUK CETAK (MEMAKSA TEKS & WARNA MUNCUL) */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
+          /* Sembunyikan scrollbar browser yang ikut tercetak */
+          ::-webkit-scrollbar { display: none !important; }
           body { 
             background: white; 
             -webkit-print-color-adjust: exact !important; 
@@ -399,7 +401,6 @@ export default function LaporanSetoran() {
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
           
-          /* PERBAIKAN KOP SURAT: Hanya sembunyikan header aplikasi, JANGAN sembunyikan tag p/h1 di Kop Surat */
           .no-print h1, .no-print p { display: none !important; }
           
           .hidden.print\\:block { display: block !important; }
