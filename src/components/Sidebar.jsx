@@ -11,7 +11,8 @@ import {
   UserCircle,
   UserCheck,
   ShoppingCart,
-  FileText
+  FileText,
+  FileCheck // <-- Icon baru untuk Laporan Setoran
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -46,6 +47,7 @@ export default function Sidebar() {
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
+    { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting'] }, // <-- MENU BARU
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];
 

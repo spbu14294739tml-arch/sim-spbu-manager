@@ -15,6 +15,7 @@ import MasterTugas from './pages/MasterTugas';
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher'; // <-- IMPORT BARU
+import LaporanSetoran from './pages/LaporanSetoran';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -95,7 +96,7 @@ function App() {
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-
+            <Route path="/laporan-setoran" element={<LaporanSetoran />} />    
             {/* RUTE ACCOUNTING (Dilindungi Satpam Accounting) */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
