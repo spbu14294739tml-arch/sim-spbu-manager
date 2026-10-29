@@ -107,7 +107,7 @@ export default function JurnalTransaksiKasir() {
     const awal = parseInt(voucherData.no_awal);
     const akhir = parseInt(voucherData.no_akhir);
     if (!isNaN(awal) && !isNaN(akhir) && akhir >= awal) {
-      return (akhir - awal) + 1; // +1 karena nomor awal dan akhir ikut dihitung
+      return (akhir - awal) + 1;
     }
     return 0;
   };
@@ -126,31 +126,36 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(true);
     const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
 
+    // Kita isi jenis_bbm dan jumlah_liter dengan string kosong/0 agar tidak error NOT NULL
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
       shift: formData.shift,
       no_voucher: formatNo,
       nama_customer: voucherData.customer.toUpperCase(),
       nominal: parseFloat(voucherData.nominal),
-      total_harga: totalNominalVoucher, // Simpan total harga (selisih * nominal)
+      total_harga: totalNominalVoucher,
       status_voucher: 'PENDING',
-      operator: 'KASIR'
+      operator: 'KASIR',
+      
+      // PROTEKSI ERROR NOT NULL
+      jenis_bbm: '-', 
+      jumlah_liter: 0
     }]);
 
-    if (error) alert('Gagal simpan voucher: ' + error.message);
-    else {
+    if (error) {
+      alert('Gagal simpan voucher: ' + error.message);
+    } else {
       setVoucherData({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
       fetchData();
     }
     setIsSaving(false);
   };
 
-  // === CHECKLIST VOUCHER MASUK (Set 6 Bulan Kedaluwarsa) ===
+  // === CHECKLIST VOUCHER MASUK ===
   const handleVoucherMasuk = async (voucher) => {
     if (!window.confirm(`Konfirmasi fisik Voucher No. ${voucher.no_voucher} sudah DITERIMA?`)) return;
     setIsSaving(true);
 
-    // Hitung tanggal kedaluwarsa (6 bulan dari hari ini)
     const today = new Date();
     today.setMonth(today.getMonth() + 6);
     const tglKedaluwarsa = today.toISOString().split('T')[0];
@@ -169,7 +174,7 @@ export default function JurnalTransaksiKasir() {
       dari_ke: `VOUCHER - ${voucher.nama_customer}`,
       uraian_kegiatan: `Penerimaan Voucher No: ${voucher.no_voucher}`,
       reff: 'VOUCHER',
-      debet: voucher.total_harga, // Uang masuk sebesar total nominal voucher
+      debet: voucher.total_harga,
       kredit: 0,
       saldo: saldoBaru,
       created_by: 'Kasir'
@@ -396,7 +401,6 @@ export default function JurnalTransaksiKasir() {
                     {daftarVoucherHariIni.length === 0 ? (
                       <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
                     ) : daftarVoucherHariIni.map((v, idx) => {
-                      // Cek Masa Berlaku (jika MASUK, cek tanggal_kedaluwarsa)
                       const isExpired = v.status_voucher === 'MASUK' && v.tanggal_kedaluwarsa && new Date(v.tanggal_kedaluwarsa) < new Date();
                       
                       return (
@@ -468,7 +472,6 @@ export default function JurnalTransaksiKasir() {
         </div>
       </div>
 
-      {/* ================= AREA CETAK JURNAL ================= */}
       <div className="hidden print:block print-area w-full">
         <KopSurat judul="JURNAL TRANSAKSI HARIAN KASIR" periode={`Tanggal: ${new Date(formData.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${formData.shift}`} />
         
