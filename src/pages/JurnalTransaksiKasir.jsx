@@ -6,7 +6,9 @@ import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, I
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
-  const [activeTab, setActiveTab] = useState('BBM');
+  // Tab Input: 'BBM', 'VOUCHER', 'LPG', 'OLI'
+  // Tab Kanan: 'JURNAL'
+  const [activeTab, setActiveTab] = useState('BBM'); 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [listShift, setListShift] = useState([]);
@@ -17,14 +19,7 @@ export default function JurnalTransaksiKasir() {
   // State Voucher
   const [daftarVoucherHariIni, setDaftarVoucherHariIni] = useState([]);
   const [daftarCustomer, setDaftarCustomer] = useState([]);
-  
-  // State Form Voucher
-  const [voucherData, setVoucherData] = useState({ 
-    no_awal: '', 
-    no_akhir: '', 
-    customer: '', 
-    nominal: '' 
-  });
+  const [checklistSementara, setChecklistSementara] = useState({}); // Menyimpan centang sementara { voucher_id: [no_lembar, ...] }
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -33,6 +28,9 @@ export default function JurnalTransaksiKasir() {
 
   // State Form BBM
   const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
+  
+  // State Form Voucher
+  const [voucherData, setVoucherData] = useState({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
 
   // State Form LPG & Oli
   const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '' });
@@ -59,7 +57,6 @@ export default function JurnalTransaksiKasir() {
     const { data: dataJurnal } = await qJurnal;
     if (dataJurnal) setJurnalHariIni(dataJurnal);
 
-    // Ambil Voucher Beserta Lembar yang sudah masuk
     let qVoucher = supabase.from('penjualan_voucher').select(`
       *,
       voucher_masuk (id, no_voucher_lembar, nominal, tanggal_masuk)
@@ -128,6 +125,7 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(true);
     const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
 
+    // SIMPAN DENGAN REFF OTOMATIS SP-2100
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
       shift: formData.shift,
@@ -146,46 +144,68 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(false);
   };
 
-  // === CHECKLIST VOUCHER MASUK (PER LEMBAR) ===
-  const handleVoucherMasuk = async (bundel, noLembar) => {
-    const nominalLembar = bundel.nominal;
-    
-    if (!window.confirm(`Konfirmasi fisik Voucher No. ${noLembar} (${formatRupiah(nominalLembar)}) sudah DITERIMA?`)) return;
-    setIsSaving(true);
+  // === CENTANG CHECKLIST SEMENTARA ===
+  const toggleChecklist = (voucherId, noLembar) => {
+    setChecklistSementara(prev => {
+      const currentList = prev[voucherId] || [];
+      if (currentList.includes(noLembar)) {
+        return { ...prev, [voucherId]: currentList.filter(n => n !== noLembar) };
+      } else {
+        return { ...prev, [voucherId]: [...currentList, noLembar] };
+      }
+    });
+  };
 
+  // === SIMPAN CHECKLIST MASSAL (TOMbol AKSI) ===
+  const handleSimpanChecklist = async (bundel) => {
+    const selectedLembar = checklistSementara[bundel.id] || [];
+    if (selectedLembar.length === 0) return alert('Pilih minimal satu nomor voucher yang akan di-checklist!');
+
+    if (!window.confirm(`Apakah Anda Yakin Sudah Selesai Checklist ${selectedLembar.length} Lembar untuk Voucher ${bundel.no_voucher}?`)) return;
+
+    setIsSaving(true);
     const today = new Date();
     today.setMonth(today.getMonth() + 6);
     const tglKedaluwarsa = today.toISOString().split('T')[0];
 
-    // 1. Simpan ke tabel voucher_masuk
-    await supabase.from('voucher_masuk').insert([{
-      voucher_bundel_id: bundel.id,
-      no_voucher_lembar: noLembar,
-      nominal: nominalLembar,
-      tanggal_masuk: today.toISOString().split('T')[0]
-    }]);
+    let saldoBerjalan = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
 
-    // 2. Update status bundel menjadi MASUK dan set tanggal kedaluwarsa (jika baru pertama kali masuk)
+    for (const noLembar of selectedLembar) {
+      // 1. Simpan ke voucher_masuk
+      await supabase.from('voucher_masuk').insert([{
+        voucher_bundel_id: bundel.id,
+        no_voucher_lembar: noLembar,
+        nominal: bundel.nominal,
+        tanggal_masuk: today.toISOString().split('T')[0]
+      }]);
+
+      // 2. Masukkan ke Jurnal Kasir (Debet) - REFF OTOMATIS SP-2100
+      saldoBerjalan += bundel.nominal;
+      await supabase.from('jurnal_kasir').insert([{
+        tanggal: bundel.tanggal,
+        shift: bundel.shift,
+        dari_ke: `VOUCHER - ${bundel.nama_customer}`,
+        uraian_kegiatan: `Penerimaan Voucher Lembar No: ${noLembar}`,
+        reff: 'SP-2100', // Otomatis SP-2100
+        debet: bundel.nominal,
+        kredit: 0,
+        saldo: saldoBerjalan,
+        created_by: 'Kasir'
+      }]);
+    }
+
+    // 3. Update status bundel jika belum pernah masuk
     await supabase.from('penjualan_voucher').update({ 
       status_voucher: 'MASUK',
       tanggal_kedaluwarsa: bundel.tanggal_kedaluwarsa || tglKedaluwarsa
     }).eq('id', bundel.id);
 
-    // 3. Masukkan ke Jurnal Kasir (Debet)
-    const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
-    const saldoBaru = saldoSebelumnya + nominalLembar;
-
-    await supabase.from('jurnal_kasir').insert([{
-      tanggal: bundel.tanggal,
-      shift: bundel.shift,
-      dari_ke: `VOUCHER - ${bundel.nama_customer}`,
-      uraian_kegiatan: `Penerimaan Voucher Lembar No: ${noLembar}`,
-      reff: 'VOUCHER',
-      debet: nominalLembar,
-      kredit: 0,
-      saldo: saldoBaru,
-      created_by: 'Kasir'
-    }]);
+    // Bersihkan state checklist untuk bundel ini
+    setChecklistSementara(prev => {
+      const newState = { ...prev };
+      delete newState[bundel.id];
+      return newState;
+    });
 
     fetchData();
     setIsSaving(false);
@@ -236,7 +256,6 @@ export default function JurnalTransaksiKasir() {
     const nomorLembar = [];
     if (!isNaN(awal) && !isNaN(akhir)) {
       for (let i = awal; i <= akhir; i++) {
-        // Format jadi 4 digit (0001)
         const noStr = i.toString().padStart(4, '0');
         const sudahMasuk = bundel.voucher_masuk?.some(v => v.no_voucher_lembar === noStr);
         nomorLembar.push({ no: noStr, sudahMasuk });
@@ -401,28 +420,37 @@ export default function JurnalTransaksiKasir() {
         </div>
 
         <div className="lg:col-span-2 flex flex-col gap-6 no-print">
+          
+          {/* TAB KHUSUS JURNAL HARIAN */}
+          <div className="flex bg-slate-200 p-1 rounded-xl w-fit mb-2">
+            <button onClick={() => setActiveTab('BBM')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${['BBM','VOUCHER','LPG','OLI'].includes(activeTab) ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Input Transaksi</button>
+            <button onClick={() => setActiveTab('JURNAL')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'JURNAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}><BookOpen size={14}/> Jurnal Harian Kasir</button>
+          </div>
+
           {activeTab === 'VOUCHER' && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in">
               <div className="p-4 border-b border-slate-100 bg-purple-50 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2"><Ticket size={16} className="text-purple-600"/> Daftar Bundel Voucher</h2>
-                <p className="text-xs text-purple-600 font-medium">Klik nomor lembar untuk check-in</p>
+                <p className="text-xs text-purple-600 font-medium">Centang nomor lembar, lalu klik Aksi</p>
               </div>
               <div className="overflow-x-auto max-h-[300px]">
                 <table className="w-full text-xs">
                   <thead className="bg-white text-slate-500 sticky top-0 z-10 border-b">
                     <tr>
-                      <th className="px-3 py-3 text-left">No Voucher (Bundel)</th>
+                      <th className="px-3 py-3 text-left">No Voucher</th>
                       <th className="px-3 py-3 text-left">Customer</th>
                       <th className="px-3 py-3 text-right">Nominal/Lembar</th>
-                      <th className="px-3 py-3 text-center">Lembar Checklist Masuk</th>
+                      <th className="px-3 py-3 text-center">Checklist Masuk</th>
+                      <th className="px-3 py-3 text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {daftarVoucherHariIni.length === 0 ? (
-                      <tr><td colSpan={4} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
-                    ) : daftarVoucherHariIni.map((v, idx) => {
+                      <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
+                    ) : daftarVoucherHariIni.map((v) => {
                       const lembaran = generateNomorLembar(v);
                       const isExpired = v.tanggal_kedaluwarsa && new Date(v.tanggal_kedaluwarsa) < new Date();
+                      const checkedList = checklistSementara[v.id] || [];
                       
                       return (
                         <tr key={v.id} className="hover:bg-slate-50">
@@ -434,23 +462,46 @@ export default function JurnalTransaksiKasir() {
                           <td className="px-3 py-3 text-right font-mono font-semibold text-purple-700">{formatRupiah(v.nominal)}</td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-1 justify-center">
-                              {lembaran.map((l, i) => (
-                                <button
-                                  key={i}
-                                  disabled={l.sudahMasuk || isExpired || isSaving}
-                                  onClick={() => handleVoucherMasuk(v, l.no)}
-                                  className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${
-                                    l.sudahMasuk 
-                                      ? 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed' 
-                                      : isExpired 
-                                        ? 'bg-red-50 text-red-400 border-red-200 cursor-not-allowed'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:bg-purple-100 hover:text-purple-700 hover:border-purple-300'
-                                  }`}
-                                >
-                                  {l.no} {l.sudahMasuk && '✓'}
-                                </button>
-                              ))}
+                              {lembaran.map((l, i) => {
+                                const isChecked = checkedList.includes(l.no);
+                                return (
+                                  <label
+                                    key={i}
+                                    className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors cursor-pointer flex items-center gap-1 ${
+                                      l.sudahMasuk 
+                                        ? 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed' 
+                                        : isExpired 
+                                          ? 'bg-red-50 text-red-400 border-red-200 cursor-not-allowed'
+                                          : isChecked
+                                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <input 
+                                      type="checkbox" 
+                                      className="hidden"
+                                      disabled={l.sudahMasuk || isExpired}
+                                      checked={l.sudahMasuk || isChecked}
+                                      onChange={() => toggleChecklist(v.id, l.no)}
+                                    />
+                                    {l.no} {l.sudahMasuk && '✓'}
+                                  </label>
+                                )
+                              })}
                             </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <button 
+                              onClick={() => handleSimpanChecklist(v)}
+                              disabled={checkedList.length === 0 || isSaving}
+                              className={`px-3 py-1.5 rounded-lg font-semibold text-[10px] shadow-sm transition-colors ${
+                                checkedList.length > 0 
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                              }`}
+                            >
+                              Proses Checklist ({checkedList.length})
+                            </button>
                           </td>
                         </tr>
                       )
@@ -461,41 +512,43 @@ export default function JurnalTransaksiKasir() {
             </div>
           )}
 
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex-1">
-            <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
-              <p className="text-xs text-slate-500">{jurnalHariIni.length} transaksi</p>
-            </div>
+          {(activeTab === 'JURNAL' || ['BBM','LPG','OLI'].includes(activeTab)) && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex-1">
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
+                <p className="text-xs text-slate-500">{jurnalHariIni.length} transaksi</p>
+              </div>
 
-            <div className="overflow-x-auto max-h-[400px]">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
-                  <tr>
-                    <th className="px-3 py-3 text-left">Dari / Ke</th>
-                    <th className="px-3 py-3 text-left">Uraian</th>
-                    <th className="px-3 py-3 text-center">Reff</th>
-                    <th className="px-3 py-3 text-right">Debet (Rp)</th>
-                    <th className="px-3 py-3 text-right">Kredit (Rp)</th>
-                    <th className="px-3 py-3 text-right">Saldo (Rp)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {jurnalHariIni.length === 0 ? (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
-                  ) : jurnalHariIni.map((item, idx) => (
-                    <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                      <td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
-                      <td className="px-3 py-2 text-slate-600">{item.uraian_kegiatan}</td>
-                      <td className="px-3 py-2 text-center text-slate-400">{item.reff || '-'}</td>
-                      <td className="px-3 py-2 text-right font-medium text-green-600">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
-                      <td className="px-3 py-2 text-right font-medium text-red-600">{item.kredit > 0 ? formatRupiah(item.kredit) : '-'}</td>
-                      <td className="px-3 py-2 text-right font-bold text-slate-800 bg-slate-50/50">{formatRupiah(item.saldo)}</td>
+              <div className="overflow-x-auto max-h-[400px]">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-3 py-3 text-left">Dari / Ke</th>
+                      <th className="px-3 py-3 text-left">Uraian</th>
+                      <th className="px-3 py-3 text-center">Reff</th>
+                      <th className="px-3 py-3 text-right">Debet (Rp)</th>
+                      <th className="px-3 py-3 text-right">Kredit (Rp)</th>
+                      <th className="px-3 py-3 text-right">Saldo (Rp)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {jurnalHariIni.length === 0 ? (
+                      <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
+                    ) : jurnalHariIni.map((item, idx) => (
+                      <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                        <td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
+                        <td className="px-3 py-2 text-slate-600">{item.uraian_kegiatan}</td>
+                        <td className="px-3 py-2 text-center text-slate-400">{item.reff || '-'}</td>
+                        <td className="px-3 py-2 text-right font-medium text-green-600">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
+                        <td className="px-3 py-2 text-right font-medium text-red-600">{item.kredit > 0 ? formatRupiah(item.kredit) : '-'}</td>
+                        <td className="px-3 py-2 text-right font-bold text-slate-800 bg-slate-50/50">{formatRupiah(item.saldo)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>
