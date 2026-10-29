@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle, Hash } from 'lucide-react';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle, FileText } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
-  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'VOUCHER', 'LPG', 'OLI', 'JURNAL'
+  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'VOUCHER', 'LPG', 'OLI', 'LAINNYA', 'JURNAL'
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [listShift, setListShift] = useState([]);
@@ -27,13 +27,16 @@ export default function JurnalTransaksiKasir() {
   });
 
   // State Form BBM
-  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
+  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: '' });
   
   // State Form Voucher
   const [voucherData, setVoucherData] = useState({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
 
   // State Form LPG & Oli
   const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '', reff: '' });
+
+  // State Form Transaksi Lainnya
+  const [lainnyaData, setLainnyaData] = useState({ dari_ke: '', uraian_kegiatan: '', reff: '', debet: '', kredit: '' });
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
 
@@ -213,7 +216,7 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(false);
   };
 
-  // === SIMPAN BBM, LPG, OLI KE JURNAL ===
+  // === SIMPAN BBM, LPG, OLI, LAINNYA KE JURNAL ===
   const handleSimpanTransaksi = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -230,6 +233,21 @@ export default function JurnalTransaksiKasir() {
       payloadJurnal = { dari_ke: `PENJUALAN ${activeTab}`, uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`, reff: nfrData.reff, debet: nfrData.total_harga, kredit: 0 };
       await supabase.from('penjualan_nfr').insert([{ tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk, jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR' }]);
       setNfrData({ produk: null, jumlah: '', total_harga: '', reff: '' });
+
+    } else if (activeTab === 'LAINNYA') {
+      if (!lainnyaData.dari_ke || !lainnyaData.uraian_kegiatan) { alert('Lengkapi Dari/Ke dan Uraian!'); setIsSaving(false); return; }
+      if (!lainnyaData.debet && !lainnyaData.kredit) { alert('Isi salah satu: Debet atau Kredit!'); setIsSaving(false); return; }
+      
+      const debetNum = parseFloat(lainnyaData.debet) || 0;
+      const kreditNum = parseFloat(lainnyaData.kredit) || 0;
+      
+      payloadJurnal = { 
+        dari_ke: lainnyaData.dari_ke.toUpperCase(), 
+        uraian_kegiatan: lainnyaData.uraian_kegiatan.toUpperCase(), 
+        reff: lainnyaData.reff.toUpperCase(), 
+        debet: debetNum, 
+        kredit: kreditNum 
+      };
     }
 
     const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
@@ -240,7 +258,10 @@ export default function JurnalTransaksiKasir() {
     }]);
 
     if (error) alert('Gagal simpan ke jurnal: ' + error.message);
-    else fetchData();
+    else {
+      if (activeTab === 'LAINNYA') setLainnyaData({ dari_ke: '', uraian_kegiatan: '', reff: '', debet: '', kredit: '' });
+      fetchData();
+    }
     setIsSaving(false);
   };
 
@@ -297,7 +318,7 @@ export default function JurnalTransaksiKasir() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* KOLOM KIRI: FORM INPUT (Hanya muncul jika bukan tab JURNAL) */}
+        {/* KOLOM KIRI: FORM INPUT */}
         {activeTab !== 'JURNAL' && (
           <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit no-print animate-in fade-in slide-in-from-left-4">
             <div className="flex flex-wrap gap-1 mb-4 p-1 bg-slate-100 rounded-xl">
@@ -305,6 +326,7 @@ export default function JurnalTransaksiKasir() {
               <button type="button" onClick={() => setActiveTab('VOUCHER')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'VOUCHER' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}><Ticket size={12} className="inline mr-1"/> Voucher</button>
               <button type="button" onClick={() => setActiveTab('LPG')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'LPG' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500'}`}><Droplet size={12} className="inline mr-1"/> LPG</button>
               <button type="button" onClick={() => setActiveTab('OLI')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'OLI' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}><ShoppingBag size={12} className="inline mr-1"/> Oli</button>
+              <button type="button" onClick={() => setActiveTab('LAINNYA')} className={`w-full mt-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all flex justify-center items-center ${activeTab === 'LAINNYA' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}><FileText size={12} className="inline mr-1"/> Lainnya</button>
             </div>
 
             <form onSubmit={activeTab === 'VOUCHER' ? handleSimpanVoucher : handleSimpanTransaksi} className="space-y-3">
@@ -435,6 +457,49 @@ export default function JurnalTransaksiKasir() {
                 </>
               )}
 
+              {activeTab === 'LAINNYA' && (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Dari / Ke</label>
+                    <select value={lainnyaData.dari_ke} onChange={(e) => setLainnyaData({...lainnyaData, dari_ke: e.target.value})} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                      <option value="">-- Pilih --</option>
+                      <option value="KASIR">KASIR</option>
+                      <option value="MANAGER">MANAGER</option>
+                      <option value="ACCOUNTING">ACCOUNTING</option>
+                      <option value="BANK BJB">BANK BJB</option>
+                      <option value="BANK BRI">BANK BRI</option>
+                      <option value="TMB (TATA MURTAYA BERSAMA)">TMB (TATA MURTAYA BERSAMA)</option>
+                      <option value="OPERASIONAL">OPERASIONAL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Uraian Kegiatan</label>
+                    <input type="text" required value={lainnyaData.uraian_kegiatan} onChange={(e) => setLainnyaData({...lainnyaData, uraian_kegiatan: e.target.value.toUpperCase()})} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Cth: Beli Air Minum" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Kode Akun / Reff</label>
+                    <select value={lainnyaData.reff} onChange={(e) => setLainnyaData({...lainnyaData, reff: e.target.value})} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                      <option value="">-- Pilih Kode Akun --</option>
+                      {masterKodeAkun.map((k, i) => <option key={i} value={k.kode_reff}>{k.kode_reff} - {k.nama_transaksi}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-green-700 mb-1">Debet (Masuk)</label>
+                      <input type="number" value={lainnyaData.debet} onChange={(e) => setLainnyaData({...lainnyaData, debet: e.target.value, kredit: ''})} className="w-full px-2 py-1.5 border-2 border-green-200 rounded-lg text-xs font-bold text-green-700 focus:ring-2 focus:ring-green-500" placeholder="Rp" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-red-700 mb-1">Kredit (Keluar)</label>
+                      <input type="number" value={lainnyaData.kredit} onChange={(e) => setLainnyaData({...lainnyaData, kredit: e.target.value, debet: ''})} className="w-full px-2 py-1.5 border-2 border-red-200 rounded-lg text-xs font-bold text-red-700 focus:ring-2 focus:ring-red-500" placeholder="Rp" />
+                    </div>
+                  </div>
+                  <div className="bg-slate-100 p-2 rounded-lg border border-slate-200 mt-2">
+                    <p className="text-[10px] text-slate-600 font-bold mb-0.5">Total:</p>
+                    <p className="text-lg font-black text-slate-800">{formatRupiah(lainnyaData.debet ? lainnyaData.debet : lainnyaData.kredit ? -lainnyaData.kredit : 0)}</p>
+                  </div>
+                </>
+              )}
+
               <button type="submit" disabled={isSaving} className="w-full bg-slate-800 text-white font-semibold py-2.5 rounded-xl hover:bg-slate-900 transition-colors shadow-sm text-xs mt-2 disabled:opacity-50">
                 {isSaving ? 'Menyimpan...' : activeTab === 'VOUCHER' ? 'Simpan Data Voucher (Pending)' : 'Simpan & Masukkan ke Jurnal'}
               </button>
@@ -445,7 +510,7 @@ export default function JurnalTransaksiKasir() {
         <div className={`${activeTab === 'JURNAL' ? 'lg:col-span-3' : 'lg:col-span-2'} flex flex-col gap-6 no-print`}>
           
           <div className="flex bg-slate-200 p-1 rounded-xl w-fit mb-2">
-            <button onClick={() => setActiveTab('BBM')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${['BBM','VOUCHER','LPG','OLI'].includes(activeTab) ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Input Transaksi</button>
+            <button onClick={() => setActiveTab('BBM')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${['BBM','VOUCHER','LPG','OLI','LAINNYA'].includes(activeTab) ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Input Transaksi</button>
             <button onClick={() => setActiveTab('JURNAL')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'JURNAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}><BookOpen size={14}/> Jurnal Harian Kasir</button>
           </div>
 
@@ -534,7 +599,7 @@ export default function JurnalTransaksiKasir() {
             </div>
           )}
 
-          {(activeTab === 'JURNAL' || ['BBM','LPG','OLI'].includes(activeTab)) && (
+          {(activeTab === 'JURNAL' || ['BBM','LPG','OLI','LAINNYA'].includes(activeTab)) && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex-1">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
@@ -575,7 +640,6 @@ export default function JurnalTransaksiKasir() {
         </div>
       </div>
 
-      {/* ================= AREA CETAK JURNAL ================= */}
       <div className="hidden print:block print-area w-full">
         <KopSurat judul="JURNAL TRANSAKSI HARIAN KASIR" periode={`Tanggal: ${new Date(formData.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${formData.shift}`} />
         
