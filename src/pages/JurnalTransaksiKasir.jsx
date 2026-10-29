@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer } from 'lucide-react';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
@@ -20,7 +20,7 @@ export default function JurnalTransaksiKasir() {
   });
 
   // State Form BBM
-  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '' });
+  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
   
   // State Form Voucher
   const [voucherData, setVoucherData] = useState({ no_voucher: '', customer: '', jenis_bbm: '', jumlah_liter: '', total_harga: '' });
@@ -110,23 +110,24 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(true);
 
     let payloadJurnal = {};
-    let tableTarget = '';
 
     if (activeTab === 'BBM') {
       if (!bbmData.jenis_bbm || !bbmData.jumlah_liter) { alert('Lengkapi data BBM!'); setIsSaving(false); return; }
+      
       payloadJurnal = {
-        dari_ke: 'PENJUALAN BBM',
-        uraian_kegiatan: `${bbmData.dispenser} - ${bbmData.operator || 'OPERATOR'}`,
-        reff: bbmData.jenis_bbm,
+        dari_ke: 'SPBU 14.294.739', // Otomatis sesuai permintaan
+        uraian_kegiatan: `PENJUALAN BBM ${bbmData.jenis_bbm}`, // Otomatis sesuai BBM
+        reff: bbmData.reff || 'SP-4100', // Otomatis terisi SP-4100
         debet: bbmData.total_harga,
         kredit: 0
       };
-      tableTarget = 'penjualan_bbm';
+      
       await supabase.from('penjualan_bbm').insert([{
         tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser,
         jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter),
         total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase() || 'OPERATOR'
       }]);
+      setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '', jenis_bbm: '' });
 
     } else if (activeTab === 'VOUCHER') {
       if (!voucherData.no_voucher || !voucherData.customer || !voucherData.jenis_bbm || !voucherData.jumlah_liter) { alert('Lengkapi data Voucher!'); setIsSaving(false); return; }
@@ -137,7 +138,6 @@ export default function JurnalTransaksiKasir() {
         debet: voucherData.total_harga,
         kredit: 0
       };
-      tableTarget = 'penjualan_voucher';
       await supabase.from('penjualan_voucher').insert([{
         tanggal: formData.tanggal, shift: formData.shift, no_voucher: voucherData.no_voucher.toUpperCase(),
         jenis_bbm: voucherData.jenis_bbm, jumlah_liter: parseFloat(voucherData.jumlah_liter),
@@ -154,7 +154,6 @@ export default function JurnalTransaksiKasir() {
         debet: nfrData.total_harga,
         kredit: 0
       };
-      tableTarget = 'penjualan_nfr';
       await supabase.from('penjualan_nfr').insert([{
         tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk,
         jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR'
@@ -181,7 +180,6 @@ export default function JurnalTransaksiKasir() {
 
     if (error) alert('Gagal simpan ke jurnal: ' + error.message);
     else {
-      if (activeTab === 'BBM') setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '' });
       fetchData(); // Refresh jurnal
     }
     
@@ -189,7 +187,7 @@ export default function JurnalTransaksiKasir() {
   };
 
   // Hitung Total Kategori dari Jurnal untuk Info
-  const totalDebetBBM = jurnalHariIni.filter(j => j.dari_ke.includes('BBM')).reduce((a, b) => a + b.debet, 0);
+  const totalDebetBBM = jurnalHariIni.filter(j => j.dari_ke.includes('SPBU') && j.uraian_kegiatan.includes('BBM')).reduce((a, b) => a + b.debet, 0);
   const totalDebetNFR = jurnalHariIni.filter(j => j.dari_ke.includes('LPG') || j.dari_ke.includes('OLI')).reduce((a, b) => a + b.debet, 0);
   const totalDebetVoucher = jurnalHariIni.filter(j => j.dari_ke.includes('VOUCHER')).reduce((a, b) => a + b.debet, 0);
   const totalKeseluruhan = totalDebetBBM + totalDebetNFR + totalDebetVoucher;
@@ -202,7 +200,7 @@ export default function JurnalTransaksiKasir() {
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
       
-      {/* HEADER & KONTROL (NO PRINT) */}
+      {/* HEADER & KONTROL */}
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Jurnal Transaksi Harian Kasir</h1>
@@ -213,7 +211,7 @@ export default function JurnalTransaksiKasir() {
         </button>
       </div>
 
-      {/* MINI DASHBOARD (NO PRINT) */}
+      {/* MINI DASHBOARD */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 no-print">
         <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm"><p className="text-[10px] text-slate-500 font-bold uppercase">Total BBM</p><p className="text-sm font-bold text-blue-600">{formatRupiah(totalDebetBBM)}</p></div>
         <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm"><p className="text-[10px] text-slate-500 font-bold uppercase">Total NFR (LPG/Oli)</p><p className="text-sm font-bold text-orange-600">{formatRupiah(totalDebetNFR)}</p></div>
@@ -223,10 +221,9 @@ export default function JurnalTransaksiKasir() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* KOLOM KIRI: FORM INPUT (NO PRINT) */}
+        {/* KOLOM KIRI: FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit no-print">
           
-          {/* TAB MENU */}
           <div className="flex flex-wrap gap-1 mb-4 p-1 bg-slate-100 rounded-xl">
             <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'BBM' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}><Fuel size={12} className="inline mr-1"/> BBM</button>
             <button type="button" onClick={() => setActiveTab('VOUCHER')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'VOUCHER' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}><Ticket size={12} className="inline mr-1"/> Voucher</button>
@@ -248,7 +245,7 @@ export default function JurnalTransaksiKasir() {
               </div>
             </div>
 
-            {/* --- FORM BBM --- */}
+            {/* --- FORM BBM (REVISI LOGO & REFF) --- */}
             {activeTab === 'BBM' && (
               <>
                 <div>
@@ -259,11 +256,16 @@ export default function JurnalTransaksiKasir() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Pilih Jenis BBM</label>
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-2 gap-2">
                     {masterProdukBBM.map((bbm) => (
-                      <div key={bbm.id} onClick={() => handleBBMSelect(bbm.jenis_bbm)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-white'}`}>
-                        <span className="text-[10px] font-bold text-center">{bbm.jenis_bbm}</span>
-                        <span className="text-[9px] text-slate-500">{formatRupiah(bbm.harga_per_liter)}/L</span>
+                      <div key={bbm.id} onClick={() => handleBBMSelect(bbm.jenis_bbm)} className={`cursor-pointer border rounded-xl p-2 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50 border-blue-200' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
+                        {bbm.logo_url ? (
+                          <img src={bbm.logo_url} alt={bbm.jenis_bbm} className="h-8 object-contain mb-1" />
+                        ) : (
+                          <Fuel size={20} className="mb-1 text-slate-400" />
+                        )}
+                        <span className="text-[10px] font-bold text-center leading-tight">{bbm.jenis_bbm}</span>
+                        <span className="text-[10px] font-bold mt-1 text-slate-600">{formatRupiah(bbm.harga_per_liter)}/L</span>
                       </div>
                     ))}
                   </div>
@@ -277,6 +279,10 @@ export default function JurnalTransaksiKasir() {
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">Operator</label>
                     <input type="text" required value={bbmData.operator} onChange={(e) => setBbmData({ ...bbmData, operator: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Nama..." />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Reff (No. Bukti)</label>
+                  <input type="text" value={bbmData.reff} onChange={(e) => setBbmData({ ...bbmData, reff: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold text-slate-600 bg-slate-50" placeholder="SP-4100" />
                 </div>
                 <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
                   <p className="text-[10px] text-blue-600 font-bold mb-0.5">Total Harga:</p>
@@ -322,6 +328,11 @@ export default function JurnalTransaksiKasir() {
                   <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
                     {(activeTab === 'LPG' ? produkLPG : produkOLI).map(p => (
                       <div key={p.id} onClick={() => handleNFRProdukClick(p)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-200'}`}>
+                        {p.foto_url ? (
+                          <img src={p.foto_url} alt={p.nama_produk} className="w-8 h-8 object-cover rounded-md mb-1" />
+                        ) : (
+                          <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={14} className="text-slate-400" /></div>
+                        )}
                         <span className="text-[10px] font-semibold text-center leading-tight mb-1">{p.nama_produk}</span>
                         <span className="text-[9px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
                       </div>
@@ -345,7 +356,7 @@ export default function JurnalTransaksiKasir() {
           </form>
         </div>
 
-        {/* KOLOM KANAN: TABEL JURNAL HARIAN (NO PRINT) */}
+        {/* KOLOM KANAN: TABEL JURNAL HARIAN */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden no-print">
           <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
@@ -383,7 +394,7 @@ export default function JurnalTransaksiKasir() {
         </div>
       </div>
 
-      {/* ================= AREA CETAK JURNAL (HANYA MUNCUL SAAT PRINT) ================= */}
+      {/* ================= AREA CETAK JURNAL ================= */}
       <div className="hidden print:block print-area w-full">
         <KopSurat 
           judul="JURNAL TRANSAKSI HARIAN KASIR" 
@@ -433,7 +444,6 @@ export default function JurnalTransaksiKasir() {
         </div>
       </div>
 
-      {/* GAYA PRINT */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
