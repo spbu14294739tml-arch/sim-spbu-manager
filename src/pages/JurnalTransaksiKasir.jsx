@@ -17,6 +17,14 @@ export default function JurnalTransaksiKasir() {
   // State Voucher
   const [daftarVoucherHariIni, setDaftarVoucherHariIni] = useState([]);
   const [daftarCustomer, setDaftarCustomer] = useState([]);
+  
+  // State Form Voucher
+  const [voucherData, setVoucherData] = useState({ 
+    no_awal: '', 
+    no_akhir: '', 
+    customer: '', 
+    nominal: '' 
+  });
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -25,14 +33,6 @@ export default function JurnalTransaksiKasir() {
 
   // State Form BBM
   const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
-  
-  // State Form Voucher (Revisi: Awal, Akhir, Nominal)
-  const [voucherData, setVoucherData] = useState({ 
-    no_awal: '', 
-    no_akhir: '', 
-    customer: '', 
-    nominal: '' 
-  });
 
   // State Form LPG & Oli
   const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '' });
@@ -59,8 +59,14 @@ export default function JurnalTransaksiKasir() {
     const { data: dataJurnal } = await qJurnal;
     if (dataJurnal) setJurnalHariIni(dataJurnal);
 
-    let qVoucher = supabase.from('penjualan_voucher').select('*').eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
+    // Ambil Voucher Beserta Lembar yang sudah masuk
+    let qVoucher = supabase.from('penjualan_voucher').select(`
+      *,
+      voucher_masuk (id, no_voucher_lembar, nominal, tanggal_masuk)
+    `).eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
+    
     if (formData.shift) qVoucher = qVoucher.eq('shift', formData.shift);
+    
     const { data: dataVoucher } = await qVoucher;
     if (dataVoucher) {
       setDaftarVoucherHariIni(dataVoucher);
@@ -102,13 +108,11 @@ export default function JurnalTransaksiKasir() {
     setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
   };
 
-  // === HITUNG SELISIH VOUCHER OTOMATIS ===
+  // === HITUNG SELISIH VOUCHER ===
   const hitungTotalLembar = () => {
     const awal = parseInt(voucherData.no_awal);
     const akhir = parseInt(voucherData.no_akhir);
-    if (!isNaN(awal) && !isNaN(akhir) && akhir >= awal) {
-      return (akhir - awal) + 1;
-    }
+    if (!isNaN(awal) && !isNaN(akhir) && akhir >= awal) return (akhir - awal) + 1;
     return 0;
   };
 
@@ -118,15 +122,12 @@ export default function JurnalTransaksiKasir() {
   // === SIMPAN VOUCHER BARU (PENDING) ===
   const handleSimpanVoucher = async (e) => {
     e.preventDefault();
-    if (!voucherData.no_awal || !voucherData.no_akhir || !voucherData.customer || !voucherData.nominal) {
-      return alert('Lengkapi semua data voucher!');
-    }
+    if (!voucherData.no_awal || !voucherData.no_akhir || !voucherData.customer || !voucherData.nominal) return alert('Lengkapi semua data voucher!');
     if (totalLembar <= 0) return alert('Nomor Akhir harus lebih besar atau sama dengan Nomor Awal!');
 
     setIsSaving(true);
     const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
 
-    // Kita isi jenis_bbm dan jumlah_liter dengan string kosong/0 agar tidak error NOT NULL
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
       shift: formData.shift,
@@ -136,45 +137,51 @@ export default function JurnalTransaksiKasir() {
       total_harga: totalNominalVoucher,
       status_voucher: 'PENDING',
       operator: 'KASIR',
-      
-      // PROTEKSI ERROR NOT NULL
       jenis_bbm: '-', 
       jumlah_liter: 0
     }]);
 
-    if (error) {
-      alert('Gagal simpan voucher: ' + error.message);
-    } else {
-      setVoucherData({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
-      fetchData();
-    }
+    if (error) alert('Gagal simpan voucher: ' + error.message);
+    else { setVoucherData({ no_awal: '', no_akhir: '', customer: '', nominal: '' }); fetchData(); }
     setIsSaving(false);
   };
 
-  // === CHECKLIST VOUCHER MASUK ===
-  const handleVoucherMasuk = async (voucher) => {
-    if (!window.confirm(`Konfirmasi fisik Voucher No. ${voucher.no_voucher} sudah DITERIMA?`)) return;
+  // === CHECKLIST VOUCHER MASUK (PER LEMBAR) ===
+  const handleVoucherMasuk = async (bundel, noLembar) => {
+    const nominalLembar = bundel.nominal;
+    
+    if (!window.confirm(`Konfirmasi fisik Voucher No. ${noLembar} (${formatRupiah(nominalLembar)}) sudah DITERIMA?`)) return;
     setIsSaving(true);
 
     const today = new Date();
     today.setMonth(today.getMonth() + 6);
     const tglKedaluwarsa = today.toISOString().split('T')[0];
 
+    // 1. Simpan ke tabel voucher_masuk
+    await supabase.from('voucher_masuk').insert([{
+      voucher_bundel_id: bundel.id,
+      no_voucher_lembar: noLembar,
+      nominal: nominalLembar,
+      tanggal_masuk: today.toISOString().split('T')[0]
+    }]);
+
+    // 2. Update status bundel menjadi MASUK dan set tanggal kedaluwarsa (jika baru pertama kali masuk)
     await supabase.from('penjualan_voucher').update({ 
       status_voucher: 'MASUK',
-      tanggal_kedaluwarsa: tglKedaluwarsa
-    }).eq('id', voucher.id);
+      tanggal_kedaluwarsa: bundel.tanggal_kedaluwarsa || tglKedaluwarsa
+    }).eq('id', bundel.id);
 
+    // 3. Masukkan ke Jurnal Kasir (Debet)
     const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
-    const saldoBaru = saldoSebelumnya + voucher.total_harga;
+    const saldoBaru = saldoSebelumnya + nominalLembar;
 
     await supabase.from('jurnal_kasir').insert([{
-      tanggal: voucher.tanggal,
-      shift: voucher.shift,
-      dari_ke: `VOUCHER - ${voucher.nama_customer}`,
-      uraian_kegiatan: `Penerimaan Voucher No: ${voucher.no_voucher}`,
+      tanggal: bundel.tanggal,
+      shift: bundel.shift,
+      dari_ke: `VOUCHER - ${bundel.nama_customer}`,
+      uraian_kegiatan: `Penerimaan Voucher Lembar No: ${noLembar}`,
       reff: 'VOUCHER',
-      debet: voucher.total_harga,
+      debet: nominalLembar,
       kredit: 0,
       saldo: saldoBaru,
       created_by: 'Kasir'
@@ -212,7 +219,6 @@ export default function JurnalTransaksiKasir() {
 
     if (error) alert('Gagal simpan ke jurnal: ' + error.message);
     else fetchData();
-    
     setIsSaving(false);
   };
 
@@ -223,6 +229,21 @@ export default function JurnalTransaksiKasir() {
 
   const produkLPG = masterProdukNFR.filter(p => p.kategori === 'LPG');
   const produkOLI = masterProdukNFR.filter(p => p.kategori === 'OLI');
+
+  // Helper untuk generate nomor voucher per lembar
+  const generateNomorLembar = (bundel) => {
+    const [awal, akhir] = bundel.no_voucher.split('-').map(s => parseInt(s.trim()));
+    const nomorLembar = [];
+    if (!isNaN(awal) && !isNaN(akhir)) {
+      for (let i = awal; i <= akhir; i++) {
+        // Format jadi 4 digit (0001)
+        const noStr = i.toString().padStart(4, '0');
+        const sudahMasuk = bundel.voucher_masuk?.some(v => v.no_voucher_lembar === noStr);
+        nomorLembar.push({ no: noStr, sudahMasuk });
+      }
+    }
+    return nomorLembar;
+  };
 
   if (isLoading) return <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>;
 
@@ -344,7 +365,7 @@ export default function JurnalTransaksiKasir() {
                     <p className="text-lg font-black text-purple-700">{formatRupiah(totalNominalVoucher)}</p>
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-500 italic mt-1">*Status PENDING. Masa berlaku 6 bulan setelah fisik voucher diterima (Checklist).</p>
+                <p className="text-[10px] text-slate-500 italic mt-1">*Status PENDING. Ceklis per lembar jika fisik voucher diterima.</p>
               </>
             )}
 
@@ -383,46 +404,53 @@ export default function JurnalTransaksiKasir() {
           {activeTab === 'VOUCHER' && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in">
               <div className="p-4 border-b border-slate-100 bg-purple-50 flex justify-between items-center">
-                <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2"><Ticket size={16} className="text-purple-600"/> Daftar Voucher</h2>
-                <p className="text-xs text-purple-600 font-medium">Ceklis jika fisik sudah masuk</p>
+                <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2"><Ticket size={16} className="text-purple-600"/> Daftar Bundel Voucher</h2>
+                <p className="text-xs text-purple-600 font-medium">Klik nomor lembar untuk check-in</p>
               </div>
               <div className="overflow-x-auto max-h-[300px]">
                 <table className="w-full text-xs">
                   <thead className="bg-white text-slate-500 sticky top-0 z-10 border-b">
                     <tr>
-                      <th className="px-3 py-3 text-left">No Voucher</th>
+                      <th className="px-3 py-3 text-left">No Voucher (Bundel)</th>
                       <th className="px-3 py-3 text-left">Customer</th>
-                      <th className="px-3 py-3 text-right">Total Nilai</th>
-                      <th className="px-3 py-3 text-center">Status</th>
-                      <th className="px-3 py-3 text-center">Aksi</th>
+                      <th className="px-3 py-3 text-right">Nominal/Lembar</th>
+                      <th className="px-3 py-3 text-center">Lembar Checklist Masuk</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {daftarVoucherHariIni.length === 0 ? (
-                      <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
+                      <tr><td colSpan={4} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
                     ) : daftarVoucherHariIni.map((v, idx) => {
-                      const isExpired = v.status_voucher === 'MASUK' && v.tanggal_kedaluwarsa && new Date(v.tanggal_kedaluwarsa) < new Date();
+                      const lembaran = generateNomorLembar(v);
+                      const isExpired = v.tanggal_kedaluwarsa && new Date(v.tanggal_kedaluwarsa) < new Date();
                       
                       return (
                         <tr key={v.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-2 font-bold text-slate-700">{v.no_voucher}</td>
-                          <td className="px-3 py-2 text-slate-600">{v.nama_customer}</td>
-                          <td className="px-3 py-2 text-right font-mono font-semibold text-purple-700">{formatRupiah(v.total_harga)}</td>
-                          <td className="px-3 py-2 text-center">
-                            {v.status_voucher === 'MASUK' ? 
-                              (isExpired ? 
-                                <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-1 rounded"><AlertTriangle size={12}/> HANGUS</span> :
-                                <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded"><CheckCircle2 size={12}/> MASUK<br/>{new Date(v.tanggal_kedaluwarsa).toLocaleDateString('id-ID')}</span>
-                              ) :
-                              <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded"><Clock size={12}/> PENDING</span>
-                            }
+                          <td className="px-3 py-3 font-bold text-slate-700">
+                            {v.no_voucher}
+                            {isExpired && <span className="block text-[9px] text-red-500 mt-1"><AlertTriangle size={10} className="inline"/> HANGUS</span>}
                           </td>
-                          <td className="px-3 py-2 text-center">
-                            {v.status_voucher === 'PENDING' && (
-                              <button onClick={() => handleVoucherMasuk(v)} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm text-[10px]">
-                                Checklist Masuk
-                              </button>
-                            )}
+                          <td className="px-3 py-3 text-slate-600">{v.nama_customer}</td>
+                          <td className="px-3 py-3 text-right font-mono font-semibold text-purple-700">{formatRupiah(v.nominal)}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              {lembaran.map((l, i) => (
+                                <button
+                                  key={i}
+                                  disabled={l.sudahMasuk || isExpired || isSaving}
+                                  onClick={() => handleVoucherMasuk(v, l.no)}
+                                  className={`px-2 py-1 rounded text-[10px] font-bold border transition-colors ${
+                                    l.sudahMasuk 
+                                      ? 'bg-green-100 text-green-700 border-green-300 cursor-not-allowed' 
+                                      : isExpired 
+                                        ? 'bg-red-50 text-red-400 border-red-200 cursor-not-allowed'
+                                        : 'bg-white text-slate-600 border-slate-300 hover:bg-purple-100 hover:text-purple-700 hover:border-purple-300'
+                                  }`}
+                                >
+                                  {l.no} {l.sudahMasuk && '✓'}
+                                </button>
+                              ))}
+                            </div>
                           </td>
                         </tr>
                       )
