@@ -19,6 +19,7 @@ export default function JurnalTransaksiKasir() {
   const [daftarVoucherHariIni, setDaftarVoucherHariIni] = useState([]);
   const [daftarCustomer, setDaftarCustomer] = useState([]);
   const [checklistSementara, setChecklistSementara] = useState({});
+  const [lastVoucherNumber, setLastVoucherNumber] = useState(0); // State Auto-Lanjut Voucher
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -74,6 +75,26 @@ export default function JurnalTransaksiKasir() {
       setDaftarCustomer(uniqueCustomers);
     }
 
+    // AMBIL NOMOR VOUCHER TERAKHIR DARI SELURUH RIWAYAT (Auto-Lanjut)
+    const { data: lastVoucher } = await supabase
+      .from('penjualan_voucher')
+      .select('no_voucher')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (lastVoucher && lastVoucher.length > 0) {
+      const parts = lastVoucher[0].no_voucher.split('-');
+      const lastAkhir = parseInt(parts[1] || parts[0]);
+      if (!isNaN(lastAkhir)) {
+        setLastVoucherNumber(lastAkhir);
+        // Otomatis isi form no_awal dengan angka berikutnya
+        setVoucherData(prev => ({ ...prev, no_awal: (lastAkhir + 1).toString() }));
+      }
+    } else {
+      setLastVoucherNumber(0);
+      setVoucherData(prev => ({ ...prev, no_awal: '1' }));
+    }
+
     setIsLoading(false);
   };
 
@@ -98,7 +119,6 @@ export default function JurnalTransaksiKasir() {
 
   // === HANDLERS NFR (LPG/OLI) ===
   const handleNFRProdukClick = (produk, tabAktif) => {
-    // Tentukan Reff default berdasarkan tab
     let defaultReff = '';
     if (tabAktif === 'LPG') defaultReff = 'SP 4121';
     if (tabAktif === 'OLI') defaultReff = 'SP 4122';
@@ -127,11 +147,23 @@ export default function JurnalTransaksiKasir() {
   // === SIMPAN VOUCHER BARU (PENDING) ===
   const handleSimpanVoucher = async (e) => {
     e.preventDefault();
-    if (!voucherData.no_awal || !voucherData.no_akhir || !voucherData.customer || !voucherData.nominal) return alert('Lengkapi semua data voucher!');
-    if (totalLembar <= 0) return alert('Nomor Akhir harus lebih besar atau sama dengan Nomor Awal!');
+    
+    const noAwal = parseInt(voucherData.no_awal);
+    const noAkhir = parseInt(voucherData.no_akhir);
+
+    // VALIDASI NOMOR GANDA & URUTAN
+    if (noAwal <= lastVoucherNumber) {
+      return alert(`Nomor Awal harus lebih besar dari nomor terakhir (${lastVoucherNumber}). Tidak boleh ada nomor ganda!`);
+    }
+    if (noAkhir < noAwal) {
+      return alert('Nomor Akhir harus lebih besar atau sama dengan Nomor Awal!');
+    }
+    if (!voucherData.customer || !voucherData.nominal) {
+      return alert('Lengkapi Nama Customer dan Nominal Voucher!');
+    }
 
     setIsSaving(true);
-    const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
+    const formatNo = `${noAwal} - ${noAkhir}`;
 
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
@@ -194,7 +226,7 @@ export default function JurnalTransaksiKasir() {
       tanggal: bundel.tanggal,
       shift: bundel.shift,
       dari_ke: `VOUCHER - ${bundel.nama_customer}`,
-      uraian_kegiatan: `Penerimaan Voucher BBM ${selectedLembar.length} Lembar`, // JADI 1 BARIS
+      uraian_kegiatan: `Penerimaan Voucher BBM ${selectedLembar.length} Lembar`,
       reff: 'SP-2100',
       debet: totalNominalMasuk,
       kredit: 0,
@@ -257,7 +289,15 @@ export default function JurnalTransaksiKasir() {
   const produkLPG = masterProdukNFR.filter(p => p.kategori === 'LPG');
   const produkOLI = masterProdukNFR.filter(p => p.kategori === 'OLI');
 
-  // Helper untuk generate nomor voucher per lembar
+  // FILTER KODE AKUN BERDASARKAN TAB
+  const getFilteredKodeAkun = () => {
+    if (activeTab === 'LPG') return masterKodeAkun.filter(k => k.nama_transaksi.toLowerCase().includes('lpg'));
+    if (activeTab === 'OLI') return masterKodeAkun.filter(k => k.nama_transaksi.toLowerCase().includes('oli'));
+    if (activeTab === 'BBM') return masterKodeAkun.filter(k => k.nama_transaksi.toLowerCase().includes('bbm'));
+    return masterKodeAkun;
+  };
+
+  // Helper generate nomor voucher per lembar
   const generateNomorLembar = (bundel) => {
     const [awal, akhir] = bundel.no_voucher.split('-').map(s => parseInt(s.trim()));
     const nomorLembar = [];
@@ -348,8 +388,11 @@ export default function JurnalTransaksiKasir() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Reff (No. Bukti)</label>
-                  <input type="text" value={bbmData.reff} onChange={(e) => setBbmData({ ...bbmData, reff: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold text-slate-600 bg-slate-50" placeholder="SP-4100" />
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Kode Akun / Reff</label>
+                  <select value={bbmData.reff} onChange={(e) => setBbmData({ ...bbmData, reff: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                    <option value="">-- Pilih Kode Akun --</option>
+                    {getFilteredKodeAkun().map((k, i) => <option key={i} value={k.kode_reff}>{k.kode_reff} - {k.nama_transaksi}</option>)}
+                  </select>
                 </div>
                 <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
                   <p className="text-[10px] text-blue-600 font-bold mb-0.5">Total Harga:</p>
@@ -370,6 +413,7 @@ export default function JurnalTransaksiKasir() {
                     <input type="number" required value={voucherData.no_akhir} onChange={(e) => setVoucherData({ ...voucherData, no_akhir: e.target.value })} className="w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg text-xs font-bold text-purple-700" placeholder="Cth: 10" />
                   </div>
                 </div>
+                <p className="text-[10px] text-slate-500 italic mt-1">*Nomor awal terisi otomatis melanjutkan nomor terakhir.</p>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Nama Customer / Instansi</label>
                   <input type="text" list="customer-list" required value={voucherData.customer} onChange={(e) => setVoucherData({ ...voucherData, customer: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Ketik atau Pilih..." />
@@ -417,7 +461,7 @@ export default function JurnalTransaksiKasir() {
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Kode Akun / Reff</label>
                   <select value={nfrData.reff} onChange={(e) => setNfrData({ ...nfrData, reff: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
                     <option value="">-- Pilih Kode Akun --</option>
-                    {masterKodeAkun.map((k, i) => <option key={i} value={k.kode_reff}>{k.kode_reff} - {k.nama_transaksi}</option>)}
+                    {getFilteredKodeAkun().map((k, i) => <option key={i} value={k.kode_reff}>{k.kode_reff} - {k.nama_transaksi}</option>)}
                   </select>
                 </div>
                 <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
