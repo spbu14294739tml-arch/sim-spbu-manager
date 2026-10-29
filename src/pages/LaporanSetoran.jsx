@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Save, Plus, Trash2, ArrowRight, Wallet, Calculator } from 'lucide-react';
+import { Loader2, Printer, Save, Plus, Trash2, ArrowRight, Wallet, Calculator, Ticket } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 const DEFAULT_PENGURANGAN = [
@@ -27,13 +27,14 @@ export default function LaporanSetoran() {
 
   const [penjualan, setPenjualan] = useState({ bbm: 0, oli: 0, lpg: 0, total: 0 });
   const [jurnalKas, setJurnalKas] = useState({ debet: 0, kredit: 0 });
-  const [detailJurnal, setDetailJurnal] = useState([]); // Menyimpan rincian Jurnal
+  const [detailJurnal, setDetailJurnal] = useState([]); 
   
   const [pengurangan, setPengurangan] = useState([]);
   const [rekapUang, setRekapUang] = useState(
     PECAHAN_UANG.map(p => ({ nominal: p, lembar: 0, total: 0 }))
   );
   const [uangKoin, setUangKoin] = useState(0);
+  const [totalVoucher, setTotalVoucher] = useState(0); // State baru untuk total voucher
 
   // ================= FETCH DATA =================
   const fetchData = async () => {
@@ -48,20 +49,22 @@ export default function LaporanSetoran() {
     let qBBM = supabase.from('penjualan_bbm').select('total_harga').eq('tanggal', formData.tanggal);
     let qNFR = supabase.from('penjualan_nfr').select('total_harga, produk_nfr').eq('tanggal', formData.tanggal);
     let qJurnal = supabase.from('jurnal_kasir').select('*').eq('tanggal', formData.tanggal);
+    let qVoucher = supabase.from('penjualan_voucher').select('total_harga').eq('tanggal', formData.tanggal).eq('status_voucher', 'MASUK');
     
     if (formData.shift) {
       qBBM = qBBM.eq('shift', formData.shift);
       qNFR = qNFR.eq('shift', formData.shift);
       qJurnal = qJurnal.eq('shift', formData.shift);
+      qVoucher = qVoucher.eq('shift', formData.shift);
     }
 
     const { data: dataBBM } = await qBBM;
     const { data: dataNFR } = await qNFR;
     const { data: dataJurnal } = await qJurnal;
-    
+    const { data: dataVoucher } = await qVoucher;
     const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
-    // Hitung Penjualan (Untuk Info)
+    // Hitung Penjualan
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
     let sumOli = 0;
     let sumLpg = 0;
@@ -84,11 +87,14 @@ export default function LaporanSetoran() {
     const grandTotal = sumBBM + sumOli + sumLpg;
     setPenjualan({ bbm: sumBBM, oli: sumOli, lpg: sumLpg, total: grandTotal });
 
-    // Hitung Jurnal Kas (Debet & Kredit) + Simpan Detailnya
+    // Hitung Jurnal Kas & Voucher
     const sumDebet = dataJurnal?.reduce((acc, curr) => acc + (curr.debet || 0), 0) || 0;
     const sumKredit = dataJurnal?.reduce((acc, curr) => acc + (curr.kredit || 0), 0) || 0;
     setJurnalKas({ debet: sumDebet, kredit: sumKredit });
     setDetailJurnal(dataJurnal || []);
+
+    const sumVoucher = dataVoucher?.reduce((acc, curr) => acc + (curr.total_harga || 0), 0) || 0;
+    setTotalVoucher(sumVoucher);
 
     const defaultList = DEFAULT_PENGURANGAN.map(nama => ({ nama, nominal: 0 }));
     setPengurangan(defaultList);
@@ -130,12 +136,15 @@ export default function LaporanSetoran() {
   };
 
   // ================= KALKULASI =================
-  const totalPengurangan = pengurangan.reduce((acc, curr) => acc + curr.nominal, 0);
+  // Total pengurangan gabungan (Manual + Voucher)
+  const totalPenguranganManual = pengurangan.reduce((acc, curr) => acc + curr.nominal, 0);
+  const totalPengurangan = totalPenguranganManual + totalVoucher;
+
   const totalYangDisetor = penjualan.total - totalPengurangan;
   
   const totalRekapLembar = rekapUang.reduce((acc, curr) => acc + curr.total, 0);
   
-  // UANG FISIK = (Uang Lembaran + Uang Koin) + Debet Jurnal - Kredit Jurnal
+  // UANG FISIK = (Uang Lembaran + Uang Koin) + Debet Jurnal - Kredit Jurnal - (Voucher sudah masuk ke pengurangan)
   const totalUangFisik = totalRekapLembar + (parseFloat(uangKoin) || 0) + jurnalKas.debet - jurnalKas.kredit;
   
   const plusMinus = totalUangFisik - totalYangDisetor;
@@ -168,7 +177,6 @@ export default function LaporanSetoran() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       
-      {/* HEADER & KONTROL */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Setoran Kasir</h1>
@@ -184,7 +192,6 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
-      {/* FILTER */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
         <div className="flex items-center gap-2 w-full md:w-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Tanggal</label>
@@ -198,11 +205,9 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
-      {/* ================= AREA CETAK & TAMPILAN MODERN ================= */}
       <div className="print-area bg-white md:shadow-sm md:border md:border-slate-200 md:rounded-2xl p-6">
         <div className="hidden print:block mb-6"><KopSurat /></div>
         
-        {/* Header Info */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 px-2 pb-4 border-b-2 border-slate-800 gap-4">
           <div className="text-sm font-bold bg-slate-100 md:bg-transparent px-4 py-2 md:p-0 rounded-lg w-full md:w-auto text-center md:text-left">
             TANGGAL : {new Date(formData.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase()}
@@ -213,7 +218,6 @@ export default function LaporanSetoran() {
           </div>
         </div>
 
-        {/* 1. TABEL PENJUALAN */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-blue-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
             <Wallet size={16} className="text-blue-600" />
@@ -248,7 +252,6 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* 2. TABEL PENGURANGAN (CRUD) */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-orange-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -261,6 +264,16 @@ export default function LaporanSetoran() {
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-100">
+              {/* BARIS VOUCHER OTOMATIS */}
+              {totalVoucher > 0 && (
+                <tr className="bg-purple-50/50">
+                  <td className="px-4 py-3 text-purple-600 w-12 text-center"><Ticket size={16}/></td>
+                  <td className="px-4 py-3 font-bold text-purple-900 w-full">PENGGUNAAN / PENERBITAN VOUCHER</td>
+                  <td className="px-4 py-3 text-purple-500 w-8 text-right whitespace-nowrap">Rp.</td>
+                  <td className="px-4 py-3 w-48 text-right font-bold text-purple-900 font-mono tabular-nums">{formatRupiah(totalVoucher).replace('Rp', '').trim()}</td>
+                </tr>
+              )}
+
               {pengurangan.map((p, idx) => (
                 <tr key={idx} className="group hover:bg-slate-50/50">
                   <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
@@ -306,7 +319,6 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* 3. TABEL REKAP UANG & RINCIAN JURNAL */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -351,7 +363,7 @@ export default function LaporanSetoran() {
                 </td>
               </tr>
 
-              {/* RINCIAN JURNAL KASIR MUNCUL DI SINI */}
+              {/* RINCIAN JURNAL KASIR MUNCUL DI SINI (HANYA JIKA ADA) */}
               {detailJurnal.length > 0 && (
                 <>
                   <tr className="bg-slate-100 print:bg-gray-200">
@@ -384,7 +396,6 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* 4. PLUS / MINUS */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <table className="w-full text-sm">
             <tbody>
@@ -403,7 +414,6 @@ export default function LaporanSetoran() {
           {plusMinus === 0 ? '✅ Uang fisik SESUAI dengan sistem (BALANCE).' : plusMinus > 0 ? 'ℹ️ Uang fisik LEBIH dari sistem.' : '⚠️ Uang fisik KURANG dari sistem.'}
         </div>
 
-        {/* TANDA TANGAN */}
         <div className="hidden print:flex justify-between mt-12 px-8 text-sm font-semibold text-black">
           <div className="text-center flex flex-col justify-between h-28">
             <p>Kasir</p>
@@ -420,7 +430,6 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
-      {/* GAYA CETAK */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -428,9 +437,9 @@ export default function LaporanSetoran() {
           .print-area { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
           table { border-collapse: collapse !important; width: 100% !important; }
           th, td { border: 1px solid black !important; padding: 4px 8px !important; color: black !important; }
-          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact !important; }
+          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50, .bg-purple-50\\/50 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact !important; }
           .bg-yellow-100, .bg-green-600, .bg-red-500, .bg-blue-600 { background-color: #fef08a !important; color: black !important; -webkit-print-color-adjust: exact !important; }
-          .text-green-600, .text-yellow-900, .text-white { color: black !important; }
+          .text-green-600, .text-yellow-900, .text-white, .text-purple-900, .text-purple-600 { color: black !important; }
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
           .no-print h1, .no-print p { display: none !important; }
