@@ -13,7 +13,7 @@ import {
   ShoppingCart,
   FileText,
   FileCheck,
-  PieChart
+  PieChart // <-- Icon untuk Laporan Rekap
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -44,14 +44,17 @@ export default function Sidebar() {
     { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] },
     { path: '/absensi', name: 'Absensi', icon: UserCheck, roles: ['manager', 'accounting'] },
-    { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting'] },
-
+    
     // MENU GABUNGAN KASIR & JURNAL
     { path: '/jurnal-transaksi', name: 'Jurnal Transaksi Kasir', icon: ShoppingCart, roles: ['kasir', 'manager'] },
     
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
+    
+    // MENU BARU LAPORAN REKAP
+    { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting'] },
+    
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];

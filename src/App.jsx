@@ -16,9 +16,10 @@ import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
-import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir'; // <-- IMPORT BARU
-import LaporanRekapHarian from './pages/LaporanRekapHarian'; // Tambahkan import
+import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 
+// IMPORT HALAMAN BARU
+import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -96,16 +97,19 @@ function App() {
             <Route path="absensi" element={<Absensi />} />
             
             {/* RUTE KASIR & MANAJEMEN */}
-            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} /> {/* <-- RUTE BARU */}
+            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
+            
+            {/* RUTE LAPORAN REKAP (BARU) */}
+            <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
+
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
             
             {/* RUTE ACCOUNTING */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
-              <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
             </Route>
 
             {/* RUTE MANAGER */}
@@ -116,7 +120,7 @@ function App() {
           </Route>
         </Route>
         
-        {/* Redirect jika rute tidak ditemukan (mencegah blank putih) */}
+        {/* Redirect jika rute tidak ditemukan */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
