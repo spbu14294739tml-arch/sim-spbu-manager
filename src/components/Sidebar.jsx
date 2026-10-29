@@ -12,7 +12,8 @@ import {
   UserCheck,
   ShoppingCart,
   FileText,
-  FileCheck
+  FileCheck,
+  BookOpen
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -50,6 +51,7 @@ export default function Sidebar() {
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
+    { path: '/jurnal-kasir', name: 'Jurnal Kas Harian', icon: BookOpen, roles: ['kasir', 'manager', 'accounting'] },
   ];
 
   const filteredMenuItems = menuItems.filter(item => item.roles.includes(userRole));
