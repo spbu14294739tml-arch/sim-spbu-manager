@@ -13,7 +13,7 @@ import {
   ShoppingCart,
   FileText,
   FileCheck,
-  PieChart // <-- Icon untuk Laporan Rekap
+  PieChart // <-- Icon Laporan Rekap
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -52,7 +52,7 @@ export default function Sidebar() {
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
     
-    // MENU BARU LAPORAN REKAP
+    // MENU LAPORAN REKAP BARU
     { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting'] },
     
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
