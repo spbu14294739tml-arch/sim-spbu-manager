@@ -27,6 +27,7 @@ export default function LaporanSetoran() {
 
   const [penjualan, setPenjualan] = useState({ bbm: 0, oli: 0, lpg: 0, total: 0 });
   const [jurnalKas, setJurnalKas] = useState({ debet: 0, kredit: 0 });
+  const [detailJurnal, setDetailJurnal] = useState([]); // Menyimpan rincian Jurnal
   
   const [pengurangan, setPengurangan] = useState([]);
   const [rekapUang, setRekapUang] = useState(
@@ -46,7 +47,7 @@ export default function LaporanSetoran() {
 
     let qBBM = supabase.from('penjualan_bbm').select('total_harga').eq('tanggal', formData.tanggal);
     let qNFR = supabase.from('penjualan_nfr').select('total_harga, produk_nfr').eq('tanggal', formData.tanggal);
-    let qJurnal = supabase.from('jurnal_kasir').select('debet, kredit').eq('tanggal', formData.tanggal);
+    let qJurnal = supabase.from('jurnal_kasir').select('*').eq('tanggal', formData.tanggal);
     
     if (formData.shift) {
       qBBM = qBBM.eq('shift', formData.shift);
@@ -60,7 +61,7 @@ export default function LaporanSetoran() {
     
     const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
-    // Hitung Penjualan
+    // Hitung Penjualan (Untuk Info)
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
     let sumOli = 0;
     let sumLpg = 0;
@@ -83,10 +84,11 @@ export default function LaporanSetoran() {
     const grandTotal = sumBBM + sumOli + sumLpg;
     setPenjualan({ bbm: sumBBM, oli: sumOli, lpg: sumLpg, total: grandTotal });
 
-    // Hitung Jurnal Kas
+    // Hitung Jurnal Kas (Debet & Kredit) + Simpan Detailnya
     const sumDebet = dataJurnal?.reduce((acc, curr) => acc + (curr.debet || 0), 0) || 0;
     const sumKredit = dataJurnal?.reduce((acc, curr) => acc + (curr.kredit || 0), 0) || 0;
     setJurnalKas({ debet: sumDebet, kredit: sumKredit });
+    setDetailJurnal(dataJurnal || []);
 
     const defaultList = DEFAULT_PENGURANGAN.map(nama => ({ nama, nominal: 0 }));
     setPengurangan(defaultList);
@@ -166,7 +168,7 @@ export default function LaporanSetoran() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       
-      {/* HEADER & KONTROL (NO PRINT) */}
+      {/* HEADER & KONTROL */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Setoran Kasir</h1>
@@ -182,7 +184,7 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
-      {/* FILTER (NO PRINT) */}
+      {/* FILTER */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
         <div className="flex items-center gap-2 w-full md:w-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Tanggal</label>
@@ -304,16 +306,12 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
-        {/* 3. TABEL REKAP UANG */}
+        {/* 3. TABEL REKAP UANG & RINCIAN JURNAL */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calculator size={16} className="text-emerald-600" />
               <span className="font-bold text-emerald-900 text-sm">III. REKAP UANG FISIK</span>
-            </div>
-            {/* Info Jurnal Kas (No Print) */}
-            <div className="text-[10px] text-emerald-700 font-medium no-print bg-emerald-100 px-2 py-1 rounded-md">
-              Termasuk Jurnal Kas: +{formatRupiah(jurnalKas.debet)} / -{formatRupiah(jurnalKas.kredit)}
             </div>
           </div>
           <table className="w-full text-sm">
@@ -352,24 +350,32 @@ export default function LaporanSetoran() {
                   <span className="hidden print:inline tabular-nums">{uangKoin > 0 ? formatRupiah(uangKoin).replace('Rp', '').trim() : '-'}</span>
                 </td>
               </tr>
-              
-              {/* BARIS JURNAL KAS MASUK / KELUAR (Muncul di Print & Layar) */}
-              {jurnalKas.debet > 0 && (
-                <tr className="bg-blue-50/30">
-                  <td colSpan={5} className="px-4 py-2 text-right font-bold text-blue-700">TAMBAHAN DARI JURNAL (DEBET)</td>
-                  <td className="px-4 py-2 text-blue-400 text-right">Rp.</td>
-                  <td className="px-4 py-2 text-right font-mono font-bold text-blue-700 tabular-nums">{formatRupiah(jurnalKas.debet).replace('Rp', '').trim()}</td>
-                </tr>
-              )}
-              {jurnalKas.kredit > 0 && (
-                <tr className="bg-red-50/30">
-                  <td colSpan={5} className="px-4 py-2 text-right font-bold text-red-700">PENGURANGAN DARI JURNAL (KREDIT)</td>
-                  <td className="px-4 py-2 text-red-400 text-right">Rp.</td>
-                  <td className="px-4 py-2 text-right font-mono font-bold text-red-700 tabular-nums">-{formatRupiah(jurnalKas.kredit).replace('Rp', '').trim()}</td>
-                </tr>
+
+              {/* RINCIAN JURNAL KASIR MUNCUL DI SINI */}
+              {detailJurnal.length > 0 && (
+                <>
+                  <tr className="bg-slate-100 print:bg-gray-200">
+                    <td colSpan={7} className="px-4 py-2 font-bold text-slate-700 text-xs uppercase tracking-wider">Rincian Jurnal Kasir (Otomatis)</td>
+                  </tr>
+                  {detailJurnal.map((j, idx) => (
+                    <tr key={j.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-slate-400 text-center text-xs">{idx + 1}</td>
+                      <td colSpan={2} className="px-4 py-2 font-medium text-slate-700 text-xs">
+                        <span className="font-bold text-slate-800">{j.dari_ke}</span> - {j.uraian_kegiatan}
+                      </td>
+                      <td className="px-4 py-2 text-center text-slate-400 text-xs">{j.reff || '-'}</td>
+                      <td className="px-4 py-2 text-center text-slate-400 text-xs"></td>
+                      <td className="px-4 py-2 text-right text-xs">
+                        {j.debet > 0 && <span className="text-green-600 font-bold">+{formatRupiah(j.debet)}</span>}
+                        {j.kredit > 0 && <span className="text-red-600 font-bold">-{formatRupiah(j.kredit)}</span>}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono text-slate-700 text-xs">{formatRupiah(j.saldo)}</td>
+                    </tr>
+                  ))}
+                </>
               )}
 
-              <tr className="bg-slate-50">
+              <tr className="bg-slate-50 border-t-2 border-slate-200">
                 <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-800">TOTAL REKAP UANG FISIK</td>
                 <td className="px-4 py-3 text-slate-500 text-right">Rp.</td>
                 <td className="px-4 py-3 text-right font-black text-slate-800 font-mono text-base tabular-nums">{formatRupiah(totalUangFisik).replace('Rp', '').trim()}</td>
@@ -412,7 +418,6 @@ export default function LaporanSetoran() {
             <p className="mt-12">(...................................)</p>
           </div>
         </div>
-
       </div>
 
       {/* GAYA CETAK */}
