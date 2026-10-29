@@ -14,7 +14,7 @@ import LaporanKasir from './pages/LaporanKasir';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
-import AccountingVoucher from './pages/AccountingVoucher'; // <-- IMPORT BARU
+import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalKasir from './pages/JurnalKasir';
 
@@ -66,7 +66,6 @@ function AccountingRoute() {
   useEffect(() => {
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      // Bisa untuk accounting ATAU manager (manager punya akses penuh)
       if (user && (user.user_metadata?.role === 'accounting' || user.user_metadata?.role === 'manager')) {
         setIsAuthorized(true);
       } else {
@@ -93,15 +92,19 @@ function App() {
           <Route path="/" element={<LayoutUtama />}>
             <Route index element={<DashboardManager />} />
             <Route path="absensi" element={<Absensi />} />
+            
+            {/* RUTE YANG BISA DIAKSES KASIR, ACCOUNTING, & MANAGER */}
             <Route path="kasir" element={<Kasir />} />
+            <Route path="jurnal-kasir" element={<JurnalKasir />} /> {/* <-- DIPINDAH KE SINI */}
+            <Route path="laporan-setoran" element={<LaporanSetoran />} />    
+
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-            <Route path="/laporan-setoran" element={<LaporanSetoran />} />    
+            
             {/* RUTE ACCOUNTING (Dilindungi Satpam Accounting) */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
-              <Route path="/jurnal-kasir" element={<JurnalKasir />} />
             </Route>
 
             {/* RUTE MANAGER (Dilindungi Satpam Manager) */}
