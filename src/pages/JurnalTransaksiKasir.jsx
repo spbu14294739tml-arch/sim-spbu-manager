@@ -1,0 +1,449 @@
+// src/pages/JurnalTransaksiKasir.jsx
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { formatRupiah } from '../lib/formatHelper';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer } from 'lucide-react';
+import KopSurat from '../components/KopSurat';
+
+export default function JurnalTransaksiKasir() {
+  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'VOUCHER', 'LPG', 'OLI'
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [listShift, setListShift] = useState([]);
+  const [masterProdukBBM, setMasterProdukBBM] = useState([]);
+  const [masterProdukNFR, setMasterProdukNFR] = useState([]);
+  const [jurnalHariIni, setJurnalHariIni] = useState([]);
+
+  const [formData, setFormData] = useState({
+    tanggal: new Date().toISOString().split('T')[0],
+    shift: '',
+  });
+
+  // State Form BBM
+  const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '' });
+  
+  // State Form Voucher
+  const [voucherData, setVoucherData] = useState({ no_voucher: '', customer: '', jenis_bbm: '', jumlah_liter: '', total_harga: '' });
+
+  // State Form LPG & Oli
+  const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '' });
+
+  const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
+
+  const fetchData = async () => {
+    setIsLoading(true);
+
+    // Ambil Shift
+    const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
+    if (shiftData && shiftData.length > 0) {
+      setListShift(shiftData.map(s => s.nama_shift));
+      if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
+    }
+
+    // Ambil Master Produk
+    const { data: bbmData } = await supabase.from('master_produk_bbm').select('*');
+    if (bbmData) setMasterProdukBBM(bbmData);
+
+    const { data: nfrData } = await supabase.from('master_produk_nfr').select('*');
+    if (nfrData) setMasterProdukNFR(nfrData);
+
+    // Ambil Jurnal Hari Ini
+    let qJurnal = supabase.from('jurnal_kasir').select('*').eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
+    if (formData.shift) qJurnal = qJurnal.eq('shift', formData.shift);
+    const { data: dataJurnal } = await qJurnal;
+    if (dataJurnal) setJurnalHariIni(dataJurnal);
+
+    setIsLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [formData.tanggal, formData.shift]);
+
+  // === HANDLERS BBM ===
+  const handleBBMJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (jumlah && bbmData.jenis_bbm) {
+      const selectedBBM = masterProdukBBM.find(b => b.jenis_bbm === bbmData.jenis_bbm);
+      if (selectedBBM) total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
+    }
+    setBbmData({ ...bbmData, jumlah_liter: jumlah, total_harga: total });
+  };
+
+  const handleBBMSelect = (jenis_bbm) => {
+    const selectedBBM = masterProdukBBM.find(b => b.jenis_bbm === jenis_bbm);
+    const total = (bbmData.jumlah_liter && selectedBBM) ? parseFloat(bbmData.jumlah_liter) * selectedBBM.harga_per_liter : 0;
+    setBbmData({ ...bbmData, jenis_bbm, total_harga: total });
+  };
+
+  // === HANDLERS NFR (LPG/OLI) ===
+  const handleNFRProdukClick = (produk) => {
+    setNfrData({ ...nfrData, produk: produk, total_harga: nfrData.jumlah ? nfrData.jumlah * produk.harga_jual : 0 });
+  };
+
+  const handleNFRJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (nfrData.produk && jumlah) total = parseFloat(jumlah) * nfrData.produk.harga_jual;
+    setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
+  };
+
+  // === HANDLERS VOUCHER ===
+  const handleVoucherJumlahChange = (e) => {
+    const jumlah = e.target.value;
+    let total = 0;
+    if (jumlah && voucherData.jenis_bbm) {
+      const selectedBBM = masterProdukBBM.find(b => b.jenis_bbm === voucherData.jenis_bbm);
+      if (selectedBBM) total = parseFloat(jumlah) * selectedBBM.harga_per_liter;
+    }
+    setVoucherData({ ...voucherData, jumlah_liter: jumlah, total_harga: total });
+  };
+
+  const handleVoucherBBMSelect = (jenis_bbm) => {
+    const selectedBBM = masterProdukBBM.find(b => b.jenis_bbm === jenis_bbm);
+    const total = (voucherData.jumlah_liter && selectedBBM) ? parseFloat(voucherData.jumlah_liter) * selectedBBM.harga_per_liter : 0;
+    setVoucherData({ ...voucherData, jenis_bbm, total_harga: total });
+  };
+
+  // === SIMPAN KE JURNAL ===
+  const handleSimpanTransaksi = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    let payloadJurnal = {};
+    let tableTarget = '';
+
+    if (activeTab === 'BBM') {
+      if (!bbmData.jenis_bbm || !bbmData.jumlah_liter) { alert('Lengkapi data BBM!'); setIsSaving(false); return; }
+      payloadJurnal = {
+        dari_ke: 'PENJUALAN BBM',
+        uraian_kegiatan: `${bbmData.dispenser} - ${bbmData.operator || 'OPERATOR'}`,
+        reff: bbmData.jenis_bbm,
+        debet: bbmData.total_harga,
+        kredit: 0
+      };
+      tableTarget = 'penjualan_bbm';
+      await supabase.from('penjualan_bbm').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser,
+        jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter),
+        total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase() || 'OPERATOR'
+      }]);
+
+    } else if (activeTab === 'VOUCHER') {
+      if (!voucherData.no_voucher || !voucherData.customer || !voucherData.jenis_bbm || !voucherData.jumlah_liter) { alert('Lengkapi data Voucher!'); setIsSaving(false); return; }
+      payloadJurnal = {
+        dari_ke: `VOUCHER - ${voucherData.customer.toUpperCase()}`,
+        uraian_kegiatan: `Penjualan Voucher No: ${voucherData.no_voucher.toUpperCase()}`,
+        reff: voucherData.jenis_bbm,
+        debet: voucherData.total_harga,
+        kredit: 0
+      };
+      tableTarget = 'penjualan_voucher';
+      await supabase.from('penjualan_voucher').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, no_voucher: voucherData.no_voucher.toUpperCase(),
+        jenis_bbm: voucherData.jenis_bbm, jumlah_liter: parseFloat(voucherData.jumlah_liter),
+        total_harga: voucherData.total_harga, operator: 'VOUCHER'
+      }]);
+      setVoucherData({ no_voucher: '', customer: '', jenis_bbm: '', jumlah_liter: '', total_harga: '' });
+
+    } else if (activeTab === 'LPG' || activeTab === 'OLI') {
+      if (!nfrData.produk || !nfrData.jumlah) { alert('Lengkapi data Produk!'); setIsSaving(false); return; }
+      payloadJurnal = {
+        dari_ke: `PENJUALAN ${activeTab}`,
+        uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`,
+        reff: `${nfrData.jumlah} Unit`,
+        debet: nfrData.total_harga,
+        kredit: 0
+      };
+      tableTarget = 'penjualan_nfr';
+      await supabase.from('penjualan_nfr').insert([{
+        tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk,
+        jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR'
+      }]);
+      setNfrData({ produk: null, jumlah: '', total_harga: '' });
+    }
+
+    // Hitung Saldo Jurnal Terakhir
+    const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
+    const saldoBaru = saldoSebelumnya + payloadJurnal.debet - payloadJurnal.kredit;
+
+    // Insert ke Jurnal
+    const { error } = await supabase.from('jurnal_kasir').insert([{
+      tanggal: formData.tanggal,
+      shift: formData.shift,
+      dari_ke: payloadJurnal.dari_ke,
+      uraian_kegiatan: payloadJurnal.uraian_kegiatan,
+      reff: payloadJurnal.reff,
+      debet: payloadJurnal.debet,
+      kredit: payloadJurnal.kredit,
+      saldo: saldoBaru,
+      created_by: 'Kasir'
+    }]);
+
+    if (error) alert('Gagal simpan ke jurnal: ' + error.message);
+    else {
+      if (activeTab === 'BBM') setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '' });
+      fetchData(); // Refresh jurnal
+    }
+    
+    setIsSaving(false);
+  };
+
+  // Hitung Total Kategori dari Jurnal untuk Info
+  const totalDebetBBM = jurnalHariIni.filter(j => j.dari_ke.includes('BBM')).reduce((a, b) => a + b.debet, 0);
+  const totalDebetNFR = jurnalHariIni.filter(j => j.dari_ke.includes('LPG') || j.dari_ke.includes('OLI')).reduce((a, b) => a + b.debet, 0);
+  const totalDebetVoucher = jurnalHariIni.filter(j => j.dari_ke.includes('VOUCHER')).reduce((a, b) => a + b.debet, 0);
+  const totalKeseluruhan = totalDebetBBM + totalDebetNFR + totalDebetVoucher;
+
+  const produkLPG = masterProdukNFR.filter(p => p.kategori === 'LPG');
+  const produkOLI = masterProdukNFR.filter(p => p.kategori === 'OLI');
+
+  if (isLoading) return <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>;
+
+  return (
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      
+      {/* HEADER & KONTROL (NO PRINT) */}
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Jurnal Transaksi Harian Kasir</h1>
+          <p className="text-slate-500 text-sm mt-1">Catat penjualan di sini. Data otomatis masuk ke Buku Jurnal dan Setoran.</p>
+        </div>
+        <button onClick={() => window.print()} className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-sm transition-all">
+          <Printer size={18} /> Cetak Jurnal
+        </button>
+      </div>
+
+      {/* MINI DASHBOARD (NO PRINT) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 no-print">
+        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm"><p className="text-[10px] text-slate-500 font-bold uppercase">Total BBM</p><p className="text-sm font-bold text-blue-600">{formatRupiah(totalDebetBBM)}</p></div>
+        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm"><p className="text-[10px] text-slate-500 font-bold uppercase">Total NFR (LPG/Oli)</p><p className="text-sm font-bold text-orange-600">{formatRupiah(totalDebetNFR)}</p></div>
+        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm"><p className="text-[10px] text-slate-500 font-bold uppercase">Total Voucher</p><p className="text-sm font-bold text-purple-600">{formatRupiah(totalDebetVoucher)}</p></div>
+        <div className="bg-slate-800 p-3 rounded-xl shadow-md"><p className="text-[10px] text-slate-300 font-bold uppercase">Total Pendapatan</p><p className="text-sm font-bold text-green-400">{formatRupiah(totalKeseluruhan)}</p></div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* KOLOM KIRI: FORM INPUT (NO PRINT) */}
+        <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit no-print">
+          
+          {/* TAB MENU */}
+          <div className="flex flex-wrap gap-1 mb-4 p-1 bg-slate-100 rounded-xl">
+            <button type="button" onClick={() => setActiveTab('BBM')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'BBM' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}><Fuel size={12} className="inline mr-1"/> BBM</button>
+            <button type="button" onClick={() => setActiveTab('VOUCHER')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'VOUCHER' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}><Ticket size={12} className="inline mr-1"/> Voucher</button>
+            <button type="button" onClick={() => setActiveTab('LPG')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'LPG' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500'}`}><Droplet size={12} className="inline mr-1"/> LPG</button>
+            <button type="button" onClick={() => setActiveTab('OLI')} className={`flex-1 py-1.5 px-2 text-[10px] font-bold rounded-lg transition-all ${activeTab === 'OLI' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500'}`}><ShoppingBag size={12} className="inline mr-1"/> Oli</button>
+          </div>
+
+          <form onSubmit={handleSimpanTransaksi} className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">Tanggal</label>
+                <input type="date" value={formData.tanggal} readOnly className="w-full px-2 py-1.5 border rounded-lg bg-slate-50 text-xs" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">Shift</label>
+                <select value={formData.shift} onChange={(e) => setFormData({ ...formData, shift: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                  {listShift.map((s, i) => <option key={i} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* --- FORM BBM --- */}
+            {activeTab === 'BBM' && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Pompa / Dispenser</label>
+                  <select value={bbmData.dispenser} onChange={(e) => setBbmData({ ...bbmData, dispenser: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                    {listDispenser.map((d, i) => <option key={i} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Pilih Jenis BBM</label>
+                  <div className="grid grid-cols-2 gap-1">
+                    {masterProdukBBM.map((bbm) => (
+                      <div key={bbm.id} onClick={() => handleBBMSelect(bbm.jenis_bbm)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === bbm.jenis_bbm ? 'ring-2 ring-blue-500 bg-blue-50' : 'bg-white'}`}>
+                        <span className="text-[10px] font-bold text-center">{bbm.jenis_bbm}</span>
+                        <span className="text-[9px] text-slate-500">{formatRupiah(bbm.harga_per_liter)}/L</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Jumlah (Liter)</label>
+                    <input type="number" step="0.01" required value={bbmData.jumlah_liter} onChange={handleBBMJumlahChange} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="0.0" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Operator</label>
+                    <input type="text" required value={bbmData.operator} onChange={(e) => setBbmData({ ...bbmData, operator: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Nama..." />
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-2 rounded-lg border border-blue-100">
+                  <p className="text-[10px] text-blue-600 font-bold mb-0.5">Total Harga:</p>
+                  <p className="text-lg font-black text-blue-700">{formatRupiah(bbmData.total_harga)}</p>
+                </div>
+              </>
+            )}
+
+            {/* --- FORM VOUCHER --- */}
+            {activeTab === 'VOUCHER' && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Nomor Voucher</label>
+                  <input type="text" required value={voucherData.no_voucher} onChange={(e) => setVoucherData({ ...voucherData, no_voucher: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg text-xs font-bold text-purple-700" placeholder="Ketik No. Voucher..." />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Nama Customer / Instansi</label>
+                  <input type="text" required value={voucherData.customer} onChange={(e) => setVoucherData({ ...voucherData, customer: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border rounded-lg text-xs" placeholder="Cth: TMB / BANK BJB..." />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Pilih BBM</label>
+                  <select value={voucherData.jenis_bbm} onChange={(e) => handleVoucherBBMSelect(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                    <option value="">-- Pilih BBM --</option>
+                    {masterProdukBBM.map((b, i) => <option key={i} value={b.jenis_bbm}>{b.jenis_bbm}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Jumlah Liter</label>
+                  <input type="number" step="0.01" required value={voucherData.jumlah_liter} onChange={handleVoucherJumlahChange} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="0.0" />
+                </div>
+                <div className="bg-purple-50 p-2 rounded-lg border border-purple-100">
+                  <p className="text-[10px] text-purple-600 font-bold mb-0.5">Total Harga:</p>
+                  <p className="text-lg font-black text-purple-700">{formatRupiah(voucherData.total_harga)}</p>
+                </div>
+              </>
+            )}
+
+            {/* --- FORM LPG / OLI --- */}
+            {(activeTab === 'LPG' || activeTab === 'OLI') && (
+              <>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Pilih Produk {activeTab}</label>
+                  <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
+                    {(activeTab === 'LPG' ? produkLPG : produkOLI).map(p => (
+                      <div key={p.id} onClick={() => handleNFRProdukClick(p)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-200'}`}>
+                        <span className="text-[10px] font-semibold text-center leading-tight mb-1">{p.nama_produk}</span>
+                        <span className="text-[9px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Jumlah (Pcs/Tabung)</label>
+                  <input type="number" required value={nfrData.jumlah} onChange={handleNFRJumlahChange} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="0" />
+                </div>
+                <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                  <p className="text-[10px] text-emerald-600 font-bold mb-0.5">Total Harga:</p>
+                  <p className="text-lg font-black text-emerald-700">{formatRupiah(nfrData.total_harga)}</p>
+                </div>
+              </>
+            )}
+
+            <button type="submit" disabled={isSaving} className="w-full bg-slate-800 text-white font-semibold py-2.5 rounded-xl hover:bg-slate-900 transition-colors shadow-sm text-xs mt-2 disabled:opacity-50">
+              {isSaving ? 'Menyimpan...' : 'Simpan & Masukkan ke Jurnal'}
+            </button>
+          </form>
+        </div>
+
+        {/* KOLOM KANAN: TABEL JURNAL HARIAN (NO PRINT) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden no-print">
+          <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
+            <p className="text-xs text-slate-500">{jurnalHariIni.length} transaksi</p>
+          </div>
+
+          <div className="overflow-x-auto max-h-[600px]">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                <tr>
+                  <th className="px-3 py-3 text-left">Dari / Ke</th>
+                  <th className="px-3 py-3 text-left">Uraian</th>
+                  <th className="px-3 py-3 text-center">Reff</th>
+                  <th className="px-3 py-3 text-right">Debet (Rp)</th>
+                  <th className="px-3 py-3 text-right">Kredit (Rp)</th>
+                  <th className="px-3 py-3 text-right">Saldo (Rp)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {jurnalHariIni.length === 0 ? (
+                  <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
+                ) : jurnalHariIni.map((item, idx) => (
+                  <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                    <td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
+                    <td className="px-3 py-2 text-slate-600">{item.uraian_kegiatan}</td>
+                    <td className="px-3 py-2 text-center text-slate-400">{item.reff || '-'}</td>
+                    <td className="px-3 py-2 text-right font-medium text-green-600">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
+                    <td className="px-3 py-2 text-right font-medium text-red-600">{item.kredit > 0 ? formatRupiah(item.kredit) : '-'}</td>
+                    <td className="px-3 py-2 text-right font-bold text-slate-800 bg-slate-50/50">{formatRupiah(item.saldo)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= AREA CETAK JURNAL (HANYA MUNCUL SAAT PRINT) ================= */}
+      <div className="hidden print:block print-area w-full">
+        <KopSurat 
+          judul="JURNAL TRANSAKSI HARIAN KASIR" 
+          periode={`Tanggal: ${new Date(formData.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${formData.shift}`} 
+        />
+        
+        <table className="w-full text-xs border-collapse mt-4">
+          <thead>
+            <tr className="bg-slate-100 border-y-2 border-black">
+              <th className="border border-black px-2 py-2 text-left">Dari / Ke</th>
+              <th className="border border-black px-2 py-2 text-left">Uraian Kegiatan</th>
+              <th className="border border-black px-2 py-2 text-center">Reff</th>
+              <th className="border border-black px-2 py-2 text-right">Debet (Rp)</th>
+              <th className="border border-black px-2 py-2 text-right">Kredit (Rp)</th>
+              <th className="border border-black px-2 py-2 text-right">Saldo (Rp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jurnalHariIni.map((item) => (
+              <tr key={item.id}>
+                <td className="border border-black px-2 py-1.5 font-semibold">{item.dari_ke}</td>
+                <td className="border border-black px-2 py-1.5">{item.uraian_kegiatan}</td>
+                <td className="border border-black px-2 py-1.5 text-center">{item.reff || '-'}</td>
+                <td className="border border-black px-2 py-1.5 text-right">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
+                <td className="border border-black px-2 py-1.5 text-right">{item.kredit > 0 ? formatRupiah(item.kredit) : '-'}</td>
+                <td className="border border-black px-2 py-1.5 text-right font-bold">{formatRupiah(item.saldo)}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-200 border-t-2 border-black font-bold">
+              <td colSpan={3} className="border border-black px-2 py-2 text-right uppercase">Total</td>
+              <td className="border border-black px-2 py-2 text-right">{formatRupiah(totalDebetBBM + totalDebetNFR + totalDebetVoucher)}</td>
+              <td className="border border-black px-2 py-2 text-right">Rp 0</td>
+              <td className="border border-black px-2 py-2 text-right">{formatRupiah(jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="flex justify-between mt-12 px-8 text-sm font-semibold text-black">
+          <div className="text-center flex flex-col justify-between h-28">
+            <p>Kasir</p>
+            <p className="mt-16">(...................................)</p>
+          </div>
+          <div className="text-center flex flex-col justify-between h-28">
+            <p>Diperiksa Oleh,<br/>Accounting</p>
+            <p className="mt-12">(...................................)</p>
+          </div>
+        </div>
+      </div>
+
+      {/* GAYA PRINT */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          body { background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .no-print { display: none !important; }
+          .print-area { display: block !important; }
+          .bg-slate-100 { background-color: #f3f4f6 !important; }
+          .bg-slate-200 { background-color: #e5e7eb !important; }
+          th, td { color: black !important; }
+        }
+      `}} />
+    </div>
+  );
+}
