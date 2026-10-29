@@ -2,38 +2,37 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle, Hash } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
-  // Tab Input: 'BBM', 'VOUCHER', 'LPG', 'OLI'
-  // Tab Kanan: 'JURNAL'
   const [activeTab, setActiveTab] = useState('BBM'); 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [listShift, setListShift] = useState([]);
   const [masterProdukBBM, setMasterProdukBBM] = useState([]);
   const [masterProdukNFR, setMasterProdukNFR] = useState([]);
+  const [masterKodeAkun, setMasterKodeAkun] = useState([]); // Master Kode Akun
   const [jurnalHariIni, setJurnalHariIni] = useState([]);
   
   // State Voucher
   const [daftarVoucherHariIni, setDaftarVoucherHariIni] = useState([]);
   const [daftarCustomer, setDaftarCustomer] = useState([]);
-  const [checklistSementara, setChecklistSementara] = useState({}); // Menyimpan centang sementara { voucher_id: [no_lembar, ...] }
+  const [checklistSementara, setChecklistSementara] = useState({});
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     shift: '',
   });
 
-  // State Form BBM
+  // State Form BBM (Ditambah input teks untuk kode akun)
   const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
   
   // State Form Voucher
   const [voucherData, setVoucherData] = useState({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
 
-  // State Form LPG & Oli
-  const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '' });
+  // State Form LPG & Oli (Ditambah input teks untuk kode akun)
+  const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '', reff: '' });
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
 
@@ -51,6 +50,10 @@ export default function JurnalTransaksiKasir() {
 
     const { data: nfrData } = await supabase.from('master_produk_nfr').select('*');
     if (nfrData) setMasterProdukNFR(nfrData);
+
+    // Ambil Master Kode Akun
+    const { data: kodeAkunData } = await supabase.from('master_kode_akun').select('*');
+    if (kodeAkunData) setMasterKodeAkun(kodeAkunData);
 
     let qJurnal = supabase.from('jurnal_kasir').select('*').eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
     if (formData.shift) qJurnal = qJurnal.eq('shift', formData.shift);
@@ -94,8 +97,13 @@ export default function JurnalTransaksiKasir() {
   };
 
   // === HANDLERS NFR (LPG/OLI) ===
-  const handleNFRProdukClick = (produk) => {
-    setNfrData({ ...nfrData, produk: produk, total_harga: nfrData.jumlah ? nfrData.jumlah * produk.harga_jual : 0 });
+  const handleNFRProdukClick = (produk, tabAktif) => {
+    // Tentukan Reff default berdasarkan tab
+    let defaultReff = '';
+    if (tabAktif === 'LPG') defaultReff = 'SP 4121';
+    if (tabAktif === 'OLI') defaultReff = 'SP 4122';
+
+    setNfrData({ ...nfrData, produk: produk, total_harga: nfrData.jumlah ? nfrData.jumlah * produk.harga_jual : 0, reff: defaultReff });
   };
 
   const handleNFRJumlahChange = (e) => {
@@ -125,7 +133,6 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(true);
     const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
 
-    // SIMPAN DENGAN REFF OTOMATIS SP-2100
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
       shift: formData.shift,
@@ -156,7 +163,7 @@ export default function JurnalTransaksiKasir() {
     });
   };
 
-  // === SIMPAN CHECKLIST MASSAL (TOMbol AKSI) ===
+  // === SIMPAN CHECKLIST MASSAL (JADI 1 BARIS JURNAL) ===
   const handleSimpanChecklist = async (bundel) => {
     const selectedLembar = checklistSementara[bundel.id] || [];
     if (selectedLembar.length === 0) return alert('Pilih minimal satu nomor voucher yang akan di-checklist!');
@@ -167,40 +174,40 @@ export default function JurnalTransaksiKasir() {
     const today = new Date();
     today.setMonth(today.getMonth() + 6);
     const tglKedaluwarsa = today.toISOString().split('T')[0];
+    const totalNominalMasuk = selectedLembar.length * bundel.nominal;
 
-    let saldoBerjalan = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
-
+    // 1. Simpan ke voucher_masuk
     for (const noLembar of selectedLembar) {
-      // 1. Simpan ke voucher_masuk
       await supabase.from('voucher_masuk').insert([{
         voucher_bundel_id: bundel.id,
         no_voucher_lembar: noLembar,
         nominal: bundel.nominal,
         tanggal_masuk: today.toISOString().split('T')[0]
       }]);
-
-      // 2. Masukkan ke Jurnal Kasir (Debet) - REFF OTOMATIS SP-2100
-      saldoBerjalan += bundel.nominal;
-      await supabase.from('jurnal_kasir').insert([{
-        tanggal: bundel.tanggal,
-        shift: bundel.shift,
-        dari_ke: `VOUCHER - ${bundel.nama_customer}`,
-        uraian_kegiatan: `Penerimaan Voucher Lembar No: ${noLembar}`,
-        reff: 'SP-2100', // Otomatis SP-2100
-        debet: bundel.nominal,
-        kredit: 0,
-        saldo: saldoBerjalan,
-        created_by: 'Kasir'
-      }]);
     }
 
-    // 3. Update status bundel jika belum pernah masuk
+    // 2. Masukkan ke Jurnal Kasir HANYA 1 BARIS
+    const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
+    const saldoBaru = saldoSebelumnya + totalNominalMasuk;
+
+    await supabase.from('jurnal_kasir').insert([{
+      tanggal: bundel.tanggal,
+      shift: bundel.shift,
+      dari_ke: `VOUCHER - ${bundel.nama_customer}`,
+      uraian_kegiatan: `Penerimaan Voucher BBM ${selectedLembar.length} Lembar`, // JADI 1 BARIS
+      reff: 'SP-2100',
+      debet: totalNominalMasuk,
+      kredit: 0,
+      saldo: saldoBaru,
+      created_by: 'Kasir'
+    }]);
+
+    // 3. Update status bundel
     await supabase.from('penjualan_voucher').update({ 
       status_voucher: 'MASUK',
       tanggal_kedaluwarsa: bundel.tanggal_kedaluwarsa || tglKedaluwarsa
     }).eq('id', bundel.id);
 
-    // Bersihkan state checklist untuk bundel ini
     setChecklistSementara(prev => {
       const newState = { ...prev };
       delete newState[bundel.id];
@@ -225,9 +232,9 @@ export default function JurnalTransaksiKasir() {
 
     } else if (activeTab === 'LPG' || activeTab === 'OLI') {
       if (!nfrData.produk || !nfrData.jumlah) { alert('Lengkapi data Produk!'); setIsSaving(false); return; }
-      payloadJurnal = { dari_ke: `PENJUALAN ${activeTab}`, uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`, reff: `${nfrData.jumlah} Unit`, debet: nfrData.total_harga, kredit: 0 };
+      payloadJurnal = { dari_ke: `PENJUALAN ${activeTab}`, uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`, reff: nfrData.reff, debet: nfrData.total_harga, kredit: 0 };
       await supabase.from('penjualan_nfr').insert([{ tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk, jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR' }]);
-      setNfrData({ produk: null, jumlah: '', total_harga: '' });
+      setNfrData({ produk: null, jumlah: '', total_harga: '', reff: '' });
     }
 
     const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
@@ -394,7 +401,7 @@ export default function JurnalTransaksiKasir() {
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Pilih Produk {activeTab}</label>
                   <div className="grid grid-cols-2 gap-1 max-h-40 overflow-y-auto">
                     {(activeTab === 'LPG' ? produkLPG : produkOLI).map(p => (
-                      <div key={p.id} onClick={() => handleNFRProdukClick(p)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-200'}`}>
+                      <div key={p.id} onClick={() => handleNFRProdukClick(p, activeTab)} className={`cursor-pointer border rounded-lg p-1.5 flex flex-col items-center transition-all ${nfrData.produk?.id === p.id ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-200'}`}>
                         {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-8 h-8 object-cover rounded-md mb-1" /> : <div className="w-8 h-8 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={14} className="text-slate-400" /></div>}
                         <span className="text-[10px] font-semibold text-center leading-tight mb-1">{p.nama_produk}</span>
                         <span className="text-[9px] text-green-600 font-bold">{formatRupiah(p.harga_jual)}</span>
@@ -405,6 +412,13 @@ export default function JurnalTransaksiKasir() {
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Jumlah (Pcs/Tabung)</label>
                   <input type="number" required value={nfrData.jumlah} onChange={handleNFRJumlahChange} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Kode Akun / Reff</label>
+                  <select value={nfrData.reff} onChange={(e) => setNfrData({ ...nfrData, reff: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg bg-white text-xs">
+                    <option value="">-- Pilih Kode Akun --</option>
+                    {masterKodeAkun.map((k, i) => <option key={i} value={k.kode_reff}>{k.kode_reff} - {k.nama_transaksi}</option>)}
+                  </select>
                 </div>
                 <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-100">
                   <p className="text-[10px] text-emerald-600 font-bold mb-0.5">Total Harga:</p>
@@ -421,7 +435,6 @@ export default function JurnalTransaksiKasir() {
 
         <div className="lg:col-span-2 flex flex-col gap-6 no-print">
           
-          {/* TAB KHUSUS JURNAL HARIAN */}
           <div className="flex bg-slate-200 p-1 rounded-xl w-fit mb-2">
             <button onClick={() => setActiveTab('BBM')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${['BBM','VOUCHER','LPG','OLI'].includes(activeTab) ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}>Input Transaksi</button>
             <button onClick={() => setActiveTab('JURNAL')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${activeTab === 'JURNAL' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'}`}><BookOpen size={14}/> Jurnal Harian Kasir</button>
