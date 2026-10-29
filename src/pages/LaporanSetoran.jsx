@@ -26,6 +26,7 @@ export default function LaporanSetoran() {
   });
 
   const [penjualan, setPenjualan] = useState({ bbm: 0, oli: 0, lpg: 0, total: 0 });
+  const [jurnalKas, setJurnalKas] = useState({ debet: 0, kredit: 0 });
   
   const [pengurangan, setPengurangan] = useState([]);
   const [rekapUang, setRekapUang] = useState(
@@ -45,17 +46,21 @@ export default function LaporanSetoran() {
 
     let qBBM = supabase.from('penjualan_bbm').select('total_harga').eq('tanggal', formData.tanggal);
     let qNFR = supabase.from('penjualan_nfr').select('total_harga, produk_nfr').eq('tanggal', formData.tanggal);
+    let qJurnal = supabase.from('jurnal_kasir').select('debet, kredit').eq('tanggal', formData.tanggal);
     
     if (formData.shift) {
       qBBM = qBBM.eq('shift', formData.shift);
       qNFR = qNFR.eq('shift', formData.shift);
+      qJurnal = qJurnal.eq('shift', formData.shift);
     }
 
     const { data: dataBBM } = await qBBM;
     const { data: dataNFR } = await qNFR;
+    const { data: dataJurnal } = await qJurnal;
     
     const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
+    // Hitung Penjualan
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
     let sumOli = 0;
     let sumLpg = 0;
@@ -76,8 +81,12 @@ export default function LaporanSetoran() {
     }
 
     const grandTotal = sumBBM + sumOli + sumLpg;
-    
     setPenjualan({ bbm: sumBBM, oli: sumOli, lpg: sumLpg, total: grandTotal });
+
+    // Hitung Jurnal Kas
+    const sumDebet = dataJurnal?.reduce((acc, curr) => acc + (curr.debet || 0), 0) || 0;
+    const sumKredit = dataJurnal?.reduce((acc, curr) => acc + (curr.kredit || 0), 0) || 0;
+    setJurnalKas({ debet: sumDebet, kredit: sumKredit });
 
     const defaultList = DEFAULT_PENGURANGAN.map(nama => ({ nama, nominal: 0 }));
     setPengurangan(defaultList);
@@ -123,7 +132,9 @@ export default function LaporanSetoran() {
   const totalYangDisetor = penjualan.total - totalPengurangan;
   
   const totalRekapLembar = rekapUang.reduce((acc, curr) => acc + curr.total, 0);
-  const totalUangFisik = totalRekapLembar + (parseFloat(uangKoin) || 0);
+  
+  // UANG FISIK = (Uang Lembaran + Uang Koin) + Debet Jurnal - Kredit Jurnal
+  const totalUangFisik = totalRekapLembar + (parseFloat(uangKoin) || 0) + jurnalKas.debet - jurnalKas.kredit;
   
   const plusMinus = totalUangFisik - totalYangDisetor;
 
@@ -295,9 +306,15 @@ export default function LaporanSetoran() {
 
         {/* 3. TABEL REKAP UANG */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
-          <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
-            <Calculator size={16} className="text-emerald-600" />
-            <span className="font-bold text-emerald-900 text-sm">III. REKAP UANG FISIK</span>
+          <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calculator size={16} className="text-emerald-600" />
+              <span className="font-bold text-emerald-900 text-sm">III. REKAP UANG FISIK</span>
+            </div>
+            {/* Info Jurnal Kas (No Print) */}
+            <div className="text-[10px] text-emerald-700 font-medium no-print bg-emerald-100 px-2 py-1 rounded-md">
+              Termasuk Jurnal Kas: +{formatRupiah(jurnalKas.debet)} / -{formatRupiah(jurnalKas.kredit)}
+            </div>
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-100">
@@ -335,8 +352,25 @@ export default function LaporanSetoran() {
                   <span className="hidden print:inline tabular-nums">{uangKoin > 0 ? formatRupiah(uangKoin).replace('Rp', '').trim() : '-'}</span>
                 </td>
               </tr>
+              
+              {/* BARIS JURNAL KAS MASUK / KELUAR (Muncul di Print & Layar) */}
+              {jurnalKas.debet > 0 && (
+                <tr className="bg-blue-50/30">
+                  <td colSpan={5} className="px-4 py-2 text-right font-bold text-blue-700">TAMBAHAN DARI JURNAL (DEBET)</td>
+                  <td className="px-4 py-2 text-blue-400 text-right">Rp.</td>
+                  <td className="px-4 py-2 text-right font-mono font-bold text-blue-700 tabular-nums">{formatRupiah(jurnalKas.debet).replace('Rp', '').trim()}</td>
+                </tr>
+              )}
+              {jurnalKas.kredit > 0 && (
+                <tr className="bg-red-50/30">
+                  <td colSpan={5} className="px-4 py-2 text-right font-bold text-red-700">PENGURANGAN DARI JURNAL (KREDIT)</td>
+                  <td className="px-4 py-2 text-red-400 text-right">Rp.</td>
+                  <td className="px-4 py-2 text-right font-mono font-bold text-red-700 tabular-nums">-{formatRupiah(jurnalKas.kredit).replace('Rp', '').trim()}</td>
+                </tr>
+              )}
+
               <tr className="bg-slate-50">
-                <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-800">TOTAL REKAP UANG</td>
+                <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-800">TOTAL REKAP UANG FISIK</td>
                 <td className="px-4 py-3 text-slate-500 text-right">Rp.</td>
                 <td className="px-4 py-3 text-right font-black text-slate-800 font-mono text-base tabular-nums">{formatRupiah(totalUangFisik).replace('Rp', '').trim()}</td>
               </tr>
@@ -363,7 +397,7 @@ export default function LaporanSetoran() {
           {plusMinus === 0 ? '✅ Uang fisik SESUAI dengan sistem (BALANCE).' : plusMinus > 0 ? 'ℹ️ Uang fisik LEBIH dari sistem.' : '⚠️ Uang fisik KURANG dari sistem.'}
         </div>
 
-        {/* TANDA TANGAN (HANYA MUNCUL SAAT PRINT) */}
+        {/* TANDA TANGAN */}
         <div className="hidden print:flex justify-between mt-12 px-8 text-sm font-semibold text-black">
           <div className="text-center flex flex-col justify-between h-28">
             <p>Kasir</p>
@@ -381,16 +415,10 @@ export default function LaporanSetoran() {
 
       </div>
 
-      {/* GAYA KHUSUS UNTUK CETAK (MEMAKSA TEKS & WARNA MUNCUL) */}
+      {/* GAYA CETAK */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          /* Sembunyikan scrollbar browser yang ikut tercetak */
-          ::-webkit-scrollbar { display: none !important; }
-          body { 
-            background: white; 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-          }
+          body { background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .no-print { display: none !important; }
           .print-area { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
           table { border-collapse: collapse !important; width: 100% !important; }
@@ -400,9 +428,7 @@ export default function LaporanSetoran() {
           .text-green-600, .text-yellow-900, .text-white { color: black !important; }
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
-          
           .no-print h1, .no-print p { display: none !important; }
-          
           .hidden.print\\:block { display: block !important; }
         }
       `}} />

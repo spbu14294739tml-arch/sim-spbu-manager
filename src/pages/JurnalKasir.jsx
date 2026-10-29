@@ -2,8 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Plus, Trash2, ArrowRightLeft, BookOpen, Calculator } from 'lucide-react';
+import { Loader2, Plus, Trash2, BookOpen, Printer } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
+
+const DAFTAR_DARI_KE = [
+  'KASIR', 'MANAGER', 'ACCOUNTING', 'BANK BJB', 'BANK BRI', 'BANK MANDIRI', 
+  'TMB (Tata Murtaya Bersama)', 'PT TPS', 'JASA RAHARJA', 'PERTAMINA', 
+  'OPERASIONAL', 'LAINNYA'
+];
 
 export default function JurnalKasir() {
   const [isLoading, setIsLoading] = useState(true);
@@ -14,7 +20,8 @@ export default function JurnalKasir() {
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     shift: '',
-    dari_ke: '',
+    pilihan_dari_ke: 'KASIR',
+    custom_dari_ke: '',
     uraian_kegiatan: '',
     reff: '',
     debet: '',
@@ -24,14 +31,12 @@ export default function JurnalKasir() {
   const fetchData = async () => {
     setIsLoading(true);
 
-    // Ambil Shift
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData && shiftData.length > 0) {
       setListShift(shiftData.map(s => s.nama_shift));
       if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
     }
 
-    // Ambil Jurnal berdasarkan Tanggal & Shift
     let query = supabase.from('jurnal_kasir')
       .select('*')
       .eq('tanggal', formData.tanggal)
@@ -47,9 +52,9 @@ export default function JurnalKasir() {
 
   useEffect(() => { fetchData(); }, [formData.tanggal, formData.shift]);
 
-  // Hitung Total & Saldo Berjalan
+  // Hitung Saldo Berjalan
   let saldoBerjalan = 0;
-  const jurnalDenganSaldo = jurnal.map((item, idx) => {
+  const jurnalDenganSaldo = jurnal.map((item) => {
     saldoBerjalan += (item.debet || 0) - (item.kredit || 0);
     return { ...item, running_saldo: saldoBerjalan };
   });
@@ -57,15 +62,27 @@ export default function JurnalKasir() {
   const totalDebet = jurnalDenganSaldo.reduce((acc, curr) => acc + (curr.debet || 0), 0);
   const totalKredit = jurnalDenganSaldo.reduce((acc, curr) => acc + (curr.kredit || 0), 0);
 
+  // HANDLER PILIH DARI/KE
+  const handlePilihDariKe = (val) => {
+    let autoReff = '';
+    if (val === 'BANK BJB') autoReff = 'SETOR-BJB-';
+    else if (val === 'BANK BRI') autoReff = 'SETOR-BRI-';
+    else if (val === 'BANK MANDIRI') autoReff = 'SETOR-MDR-';
+    else if (val === 'LAINNYA') autoReff = '';
+
+    setFormData({ ...formData, pilihan_dari_ke: val, reff: autoReff });
+  };
+
   // Simpan Transaksi
   const handleSimpan = async (e) => {
     e.preventDefault();
-    if (!formData.dari_ke || !formData.uraian_kegiatan) return alert('Lengkapi Dari/Ke dan Uraian Kegiatan!');
+    const namaFinal = formData.pilihan_dari_ke === 'LAINNYA' ? formData.custom_dari_ke : formData.pilihan_dari_ke;
+    
+    if (!namaFinal || !formData.uraian_kegiatan) return alert('Lengkapi Dari/Ke dan Uraian Kegiatan!');
     if (!formData.debet && !formData.kredit) return alert('Isi salah satu: Debet atau Kredit!');
 
     setIsSaving(true);
 
-    // Tentukan saldo akhir saat ini (untuk disimpan di row baru)
     const saldoAkhirSekarang = totalDebet - totalKredit;
     const debetNum = parseFloat(formData.debet) || 0;
     const kreditNum = parseFloat(formData.kredit) || 0;
@@ -74,7 +91,7 @@ export default function JurnalKasir() {
     const payload = {
       tanggal: formData.tanggal,
       shift: formData.shift,
-      dari_ke: formData.dari_ke.toUpperCase(),
+      dari_ke: namaFinal.toUpperCase(),
       uraian_kegiatan: formData.uraian_kegiatan.toUpperCase(),
       reff: formData.reff.toUpperCase(),
       debet: debetNum,
@@ -87,7 +104,7 @@ export default function JurnalKasir() {
     if (error) {
       alert('Gagal menyimpan: ' + error.message);
     } else {
-      setFormData({ ...formData, dari_ke: '', uraian_kegiatan: '', reff: '', debet: '', kredit: '' });
+      setFormData({ ...formData, custom_dari_ke: '', uraian_kegiatan: '', reff: '', debet: '', kredit: '' });
       fetchData();
     }
     setIsSaving(false);
@@ -102,7 +119,6 @@ export default function JurnalKasir() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       
-      {/* HEADER & KONTROL */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Jurnal Kas Harian</h1>
@@ -110,14 +126,14 @@ export default function JurnalKasir() {
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
-            Cetak Jurnal
+            <Printer size={18}/> Cetak Jurnal
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* FORM INPUT (KIRI) */}
+        {/* FORM INPUT */}
         <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit no-print">
           <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus size={18} className="text-blue-600"/> Tambah Catatan</h2>
           
@@ -137,17 +153,27 @@ export default function JurnalKasir() {
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Dari / Ke</label>
-              <input type="text" value={formData.dari_ke} onChange={(e) => setFormData({...formData, dari_ke: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: KASIR / BANK BJB" />
+              <select value={formData.pilihan_dari_ke} onChange={(e) => handlePilihDariKe(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                {DAFTAR_DARI_KE.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+              </select>
             </div>
+
+            {/* Jika Pilih LAINNYA, Munculkan Input Customer */}
+            {formData.pilihan_dari_ke === 'LAINNYA' && (
+              <div className="animate-in fade-in slide-in-from-top-2">
+                <label className="block text-xs font-medium text-blue-700 mb-1">Input Customer / Instansi Baru</label>
+                <input type="text" value={formData.custom_dari_ke} onChange={(e) => setFormData({...formData, custom_dari_ke: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg text-sm" placeholder="Ketik nama..." required />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Uraian Kegiatan</label>
-              <input type="text" value={formData.uraian_kegiatan} onChange={(e) => setFormData({...formData, uraian_kegiatan: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: SETORAN MODAL AWAL" />
+              <input type="text" value={formData.uraian_kegiatan} onChange={(e) => setFormData({...formData, uraian_kegiatan: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: SETORAN MODAL AWAL" required />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">Reff / No. Bukti</label>
-              <input type="text" value={formData.reff} onChange={(e) => setFormData({...formData, reff: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Opsional" />
+              <input type="text" value={formData.reff} onChange={(e) => setFormData({...formData, reff: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Otomatis / Ketik Manual" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -167,7 +193,7 @@ export default function JurnalKasir() {
           </form>
         </div>
 
-        {/* TABEL JURNAL (KANAN) */}
+        {/* TABEL JURNAL */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden no-print">
           <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={18} className="text-slate-500"/> Jurnal Berjalan</h2>
@@ -217,14 +243,14 @@ export default function JurnalKasir() {
         </div>
       </div>
 
-      {/* AREA CETAK (HANYA MUNCUL SAAT PRINT) */}
+      {/* AREA CETAK */}
       <div className="hidden print:block print-area">
         <KopSurat 
           judul="JURNAL KAS HARIAN" 
           periode={`Tanggal: ${new Date(formData.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} - Shift: ${formData.shift}`} 
         />
         
-        <table className="w-full text-xs border-collapse">
+        <table className="w-full text-xs border-collapse mt-4">
           <thead>
             <tr className="bg-slate-100 border-y-2 border-black">
               <th className="border border-black px-2 py-2 text-left">Dari / Ke</th>
@@ -267,7 +293,6 @@ export default function JurnalKasir() {
         </div>
       </div>
 
-      {/* GAYA PRINT */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { background: white; }
