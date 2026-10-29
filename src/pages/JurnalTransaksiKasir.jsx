@@ -333,7 +333,13 @@ export default function JurnalTransaksiKasir() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Tanggal</label>
-                  <input type="date" value={formData.tanggal} readOnly className="w-full px-2 py-1.5 border rounded-lg bg-slate-50 text-xs" />
+                  {/* INI BAGIAN YANG DIPERBAIKI AGAR BISA DI-EDIT */}
+                  <input 
+                    type="date" 
+                    value={formData.tanggal} 
+                    onChange={(e) => setFormData({ ...formData, tanggal: e.target.value })} 
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Shift</label>
