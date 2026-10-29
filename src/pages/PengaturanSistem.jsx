@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus, Briefcase, X, Printer } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Fuel, ShoppingBag, Droplet, RefreshCw, Edit, History, ArrowUp, ArrowDown, Minus, Briefcase, X, Printer, Hash, Edit2 } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function PengaturanSistem() {
@@ -21,6 +21,11 @@ export default function PengaturanSistem() {
   // State Jabatan
   const [daftarJabatan, setDaftarJabatan] = useState([]);
   const [jabatanBaru, setJabatanBaru] = useState('');
+
+  // State Kode Akun (BARU)
+  const [daftarKodeAkun, setDaftarKodeAkun] = useState([]);
+  const [kodeAkunBaru, setKodeAkunBaru] = useState({ nama_transaksi: '', kode_reff: '' });
+  const [editingKodeAkunId, setEditingKodeAkunId] = useState(null);
 
   // State Produk NFR
   const [daftarProduk, setDaftarProduk] = useState([]);
@@ -67,6 +72,9 @@ export default function PengaturanSistem() {
 
     const { data: dataJabatan } = await supabase.from('master_jabatan').select('*').order('nama_jabatan');
     if (dataJabatan) setDaftarJabatan(dataJabatan);
+
+    const { data: dataKodeAkun } = await supabase.from('master_kode_akun').select('*').order('kode_reff');
+    if (dataKodeAkun) setDaftarKodeAkun(dataKodeAkun);
 
     const { data: dataProduk } = await supabase.from('master_produk_nfr').select('*').order('id', { ascending: false });
     if (dataProduk) setDaftarProduk(dataProduk);
@@ -260,6 +268,48 @@ export default function PengaturanSistem() {
     setDaftarJabatan(daftarJabatan.filter(j => j.id !== id));
   };
 
+  // === HANDLERS KODE AKUN ===
+  const handleSimpanKodeAkun = async () => {
+    if (!kodeAkunBaru.nama_transaksi || !kodeAkunBaru.kode_reff) return alert('Lengkapi Nama Transaksi dan Kode Reff!');
+    setIsSaving(true);
+
+    if (editingKodeAkunId) {
+      // Update
+      const { error } = await supabase.from('master_kode_akun').update({
+        nama_transaksi: kodeAkunBaru.nama_transaksi,
+        kode_reff: kodeAkunBaru.kode_reff.toUpperCase()
+      }).eq('id', editingKodeAkunId);
+      
+      if (error) alert('Gagal update: ' + error.message);
+      else { setNotif('Kode Akun berhasil diupdate!'); setTimeout(() => setNotif(''), 3000); }
+    } else {
+      // Insert
+      const { error } = await supabase.from('master_kode_akun').insert([{
+        nama_transaksi: kodeAkunBaru.nama_transaksi,
+        kode_reff: kodeAkunBaru.kode_reff.toUpperCase()
+      }]);
+      
+      if (error) alert('Gagal tambah: ' + error.message);
+      else { setNotif('Kode Akun berhasil ditambahkan!'); setTimeout(() => setNotif(''), 3000); }
+    }
+
+    setKodeAkunBaru({ nama_transaksi: '', kode_reff: '' });
+    setEditingKodeAkunId(null);
+    fetchData();
+    setIsSaving(false);
+  };
+
+  const handleEditKodeAkun = (kode) => {
+    setEditingKodeAkunId(kode.id);
+    setKodeAkunBaru({ nama_transaksi: kode.nama_transaksi, kode_reff: kode.kode_reff });
+  };
+
+  const handleHapusKodeAkun = async (id) => {
+    if (!window.confirm('Hapus Kode Akun ini?')) return;
+    await supabase.from('master_kode_akun').delete().eq('id', id);
+    fetchData();
+  };
+
   // Produk NFR
   const handleHargaProdukChange = (e) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, '');
@@ -418,12 +468,13 @@ export default function PengaturanSistem() {
 
         {/* TAB NAVIGATION MODERN */}
         <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit">
-          <button type="button" onClick={() => setActiveTab('profil')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'profil' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Profil SPBU</button>
-          <button type="button" onClick={() => setActiveTab('shift')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'shift' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Shift</button>
-          <button type="button" onClick={() => setActiveTab('jabatan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'jabatan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Briefcase size={16}/> Jabatan</button>
-          <button type="button" onClick={() => setActiveTab('produk')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'produk' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><ShoppingBag size={16}/> Produk NFR</button>
-          <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Fuel size={16}/> Harga BBM</button>
-          <button type="button" onClick={() => setActiveTab('stok_tangki')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'stok_tangki' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Droplet size={16}/> Stok Tangki</button>
+          <button type="button" onClick={() => setActiveTab('profil')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'profil' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Profil SPBU</button>
+          <button type="button" onClick={() => setActiveTab('shift')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 ${activeTab === 'shift' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}>Shift</button>
+          <button type="button" onClick={() => setActiveTab('jabatan')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'jabatan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Briefcase size={16}/> Jabatan</button>
+          <button type="button" onClick={() => setActiveTab('kode_akun')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'kode_akun' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Hash size={16}/> Kode Akun</button>
+          <button type="button" onClick={() => setActiveTab('produk')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'produk' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><ShoppingBag size={16}/> Produk NFR</button>
+          <button type="button" onClick={() => setActiveTab('harga_bbm')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harga_bbm' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Fuel size={16}/> Harga BBM</button>
+          <button type="button" onClick={() => setActiveTab('stok_tangki')} className={`py-2 px-4 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'stok_tangki' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Droplet size={16}/> Stok Tangki</button>
         </div>
 
         {/* TAB PROFIL */}
@@ -501,6 +552,65 @@ export default function PengaturanSistem() {
                 <input type="text" value={jabatanBaru} onChange={(e) => setJabatanBaru(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: SUPERVISOR" />
               </div>
               <button onClick={handleTambahJabatan} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button>
+            </div>
+          </div>
+        )}
+
+        {/* TAB KODE AKUN (BARU) */}
+        {activeTab === 'kode_akun' && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in fade-in duration-300">
+            <div className="flex flex-col md:flex-row gap-6">
+              
+              {/* Tabel Kode Akun */}
+              <div className="flex-1 overflow-hidden rounded-xl border border-slate-200">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b">
+                    <tr className="text-slate-500">
+                      <th className="py-3 px-4 font-semibold">Kode Reff</th>
+                      <th className="py-3 px-4 font-semibold">Nama Transaksi</th>
+                      <th className="py-3 px-4 font-semibold text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {daftarKodeAkun.map((kode) => (
+                      <tr key={kode.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-mono font-bold text-blue-600">{kode.kode_reff}</td>
+                        <td className="py-3 px-4 font-medium text-slate-700">{kode.nama_transaksi}</td>
+                        <td className="py-3 px-4 text-center flex justify-center gap-2">
+                          <button onClick={() => handleEditKodeAkun(kode)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
+                          <button onClick={() => handleHapusKodeAkun(kode.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Form Input Kode Akun */}
+              <div className="w-full md:w-72 shrink-0">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <h3 className="font-bold text-blue-900 mb-4">{editingKodeAkunId ? 'Edit Kode Akun' : 'Tambah Kode Akun'}</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Kode Reff</label>
+                      <input type="text" value={kodeAkunBaru.kode_reff} onChange={(e) => setKodeAkunBaru({...kodeAkunBaru, kode_reff: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border rounded-lg text-sm font-bold" placeholder="Cth: SP 4121" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Nama Transaksi</label>
+                      <input type="text" value={kodeAkunBaru.nama_transaksi} onChange={(e) => setKodeAkunBaru({...kodeAkunBaru, nama_transaksi: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="Cth: Penjualan LPG" />
+                    </div>
+                    <div className="pt-2 flex gap-2">
+                      {editingKodeAkunId && (
+                        <button onClick={() => { setEditingKodeAkunId(null); setKodeAkunBaru({ nama_transaksi: '', kode_reff: '' }); }} className="flex-1 bg-white border text-slate-600 py-2 rounded-lg text-sm font-medium">Batal</button>
+                      )}
+                      <button onClick={handleSimpanKodeAkun} disabled={isSaving} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex justify-center items-center gap-2">
+                        {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Simpan
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
