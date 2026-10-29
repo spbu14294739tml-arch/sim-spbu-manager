@@ -101,7 +101,7 @@ function App() {
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             
-            {/* RUTE LAPORAN REKAP (BARU) */}
+            {/* RUTE LAPORAN REKAP (BISA DIAKSES SEMUA ROLE) */}
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
 
             <Route path="master-tugas" element={<MasterTugas />} />

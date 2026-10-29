@@ -52,8 +52,8 @@ export default function Sidebar() {
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
     
-    // MENU LAPORAN REKAP BARU
-    { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting'] },
+    // MENU LAPORAN REKAP (DIAKSES SEMUA ROLE)
+    { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting', 'kasir'] },
     
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
