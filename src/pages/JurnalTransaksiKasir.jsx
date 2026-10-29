@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock } from 'lucide-react';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
-  const [activeTab, setActiveTab] = useState('BBM'); // 'BBM', 'VOUCHER', 'LPG', 'OLI'
+  const [activeTab, setActiveTab] = useState('BBM');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [listShift, setListShift] = useState([]);
@@ -14,7 +14,7 @@ export default function JurnalTransaksiKasir() {
   const [masterProdukNFR, setMasterProdukNFR] = useState([]);
   const [jurnalHariIni, setJurnalHariIni] = useState([]);
   
-  // State Khusus Voucher
+  // State Voucher
   const [daftarVoucherHariIni, setDaftarVoucherHariIni] = useState([]);
   const [daftarCustomer, setDaftarCustomer] = useState([]);
 
@@ -26,8 +26,13 @@ export default function JurnalTransaksiKasir() {
   // State Form BBM
   const [bbmData, setBbmData] = useState({ dispenser: 'DISPENSER 1', jenis_bbm: '', jumlah_liter: '', operator: '', total_harga: '', reff: 'SP-4100' });
   
-  // State Form Voucher
-  const [voucherData, setVoucherData] = useState({ no_voucher: '', customer: '', nominal: '' });
+  // State Form Voucher (Revisi: Awal, Akhir, Nominal)
+  const [voucherData, setVoucherData] = useState({ 
+    no_awal: '', 
+    no_akhir: '', 
+    customer: '', 
+    nominal: '' 
+  });
 
   // State Form LPG & Oli
   const [nfrData, setNfrData] = useState({ produk: null, jumlah: '', total_harga: '' });
@@ -37,34 +42,28 @@ export default function JurnalTransaksiKasir() {
   const fetchData = async () => {
     setIsLoading(true);
 
-    // Ambil Shift
     const { data: shiftData } = await supabase.from('pengaturan_shift').select('nama_shift').order('id');
     if (shiftData && shiftData.length > 0) {
       setListShift(shiftData.map(s => s.nama_shift));
       if (!formData.shift) setFormData(prev => ({ ...prev, shift: shiftData[0].nama_shift }));
     }
 
-    // Ambil Master Produk
     const { data: bbmData } = await supabase.from('master_produk_bbm').select('*');
     if (bbmData) setMasterProdukBBM(bbmData);
 
     const { data: nfrData } = await supabase.from('master_produk_nfr').select('*');
     if (nfrData) setMasterProdukNFR(nfrData);
 
-    // Ambil Jurnal Hari Ini
     let qJurnal = supabase.from('jurnal_kasir').select('*').eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
     if (formData.shift) qJurnal = qJurnal.eq('shift', formData.shift);
     const { data: dataJurnal } = await qJurnal;
     if (dataJurnal) setJurnalHariIni(dataJurnal);
 
-    // Ambil Data Voucher Hari Ini
     let qVoucher = supabase.from('penjualan_voucher').select('*').eq('tanggal', formData.tanggal).order('created_at', { ascending: true });
     if (formData.shift) qVoucher = qVoucher.eq('shift', formData.shift);
     const { data: dataVoucher } = await qVoucher;
     if (dataVoucher) {
       setDaftarVoucherHariIni(dataVoucher);
-      
-      // Simpan nama customer unik untuk dropdown memori
       const uniqueCustomers = [...new Set(dataVoucher.map(v => v.nama_customer).filter(Boolean))];
       setDaftarCustomer(uniqueCustomers);
     }
@@ -103,43 +102,66 @@ export default function JurnalTransaksiKasir() {
     setNfrData({ ...nfrData, jumlah: jumlah, total_harga: total });
   };
 
+  // === HITUNG SELISIH VOUCHER OTOMATIS ===
+  const hitungTotalLembar = () => {
+    const awal = parseInt(voucherData.no_awal);
+    const akhir = parseInt(voucherData.no_akhir);
+    if (!isNaN(awal) && !isNaN(akhir) && akhir >= awal) {
+      return (akhir - awal) + 1; // +1 karena nomor awal dan akhir ikut dihitung
+    }
+    return 0;
+  };
+
+  const totalLembar = hitungTotalLembar();
+  const totalNominalVoucher = totalLembar * (parseFloat(voucherData.nominal) || 0);
+
   // === SIMPAN VOUCHER BARU (PENDING) ===
   const handleSimpanVoucher = async (e) => {
     e.preventDefault();
-    if (!voucherData.no_voucher || !voucherData.customer || !voucherData.nominal) {
-      return alert('Lengkapi Nomor Voucher, Customer, dan Nominal!');
+    if (!voucherData.no_awal || !voucherData.no_akhir || !voucherData.customer || !voucherData.nominal) {
+      return alert('Lengkapi semua data voucher!');
     }
+    if (totalLembar <= 0) return alert('Nomor Akhir harus lebih besar atau sama dengan Nomor Awal!');
+
     setIsSaving(true);
+    const formatNo = `${voucherData.no_awal} - ${voucherData.no_akhir}`;
 
     const { error } = await supabase.from('penjualan_voucher').insert([{
       tanggal: formData.tanggal,
       shift: formData.shift,
-      no_voucher: voucherData.no_voucher.toUpperCase(),
+      no_voucher: formatNo,
       nama_customer: voucherData.customer.toUpperCase(),
       nominal: parseFloat(voucherData.nominal),
+      total_harga: totalNominalVoucher, // Simpan total harga (selisih * nominal)
       status_voucher: 'PENDING',
       operator: 'KASIR'
     }]);
 
     if (error) alert('Gagal simpan voucher: ' + error.message);
     else {
-      setVoucherData({ no_voucher: '', customer: '', nominal: '' });
+      setVoucherData({ no_awal: '', no_akhir: '', customer: '', nominal: '' });
       fetchData();
     }
     setIsSaving(false);
   };
 
-  // === CHECKLIST VOUCHER MASUK ===
+  // === CHECKLIST VOUCHER MASUK (Set 6 Bulan Kedaluwarsa) ===
   const handleVoucherMasuk = async (voucher) => {
-    if (!window.confirm(`Konfirmasi bahwa fisik Voucher No. ${voucher.no_voucher} (${formatRupiah(voucher.nominal)}) sudah DITERIMA?`)) return;
+    if (!window.confirm(`Konfirmasi fisik Voucher No. ${voucher.no_voucher} sudah DITERIMA?`)) return;
     setIsSaving(true);
 
-    // 1. Update status di penjualan_voucher
-    await supabase.from('penjualan_voucher').update({ status_voucher: 'MASUK' }).eq('id', voucher.id);
+    // Hitung tanggal kedaluwarsa (6 bulan dari hari ini)
+    const today = new Date();
+    today.setMonth(today.getMonth() + 6);
+    const tglKedaluwarsa = today.toISOString().split('T')[0];
 
-    // 2. Masukkan ke Jurnal Kasir sebagai Debet (Uang Masuk)
+    await supabase.from('penjualan_voucher').update({ 
+      status_voucher: 'MASUK',
+      tanggal_kedaluwarsa: tglKedaluwarsa
+    }).eq('id', voucher.id);
+
     const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
-    const saldoBaru = saldoSebelumnya + voucher.nominal;
+    const saldoBaru = saldoSebelumnya + voucher.total_harga;
 
     await supabase.from('jurnal_kasir').insert([{
       tanggal: voucher.tanggal,
@@ -147,7 +169,7 @@ export default function JurnalTransaksiKasir() {
       dari_ke: `VOUCHER - ${voucher.nama_customer}`,
       uraian_kegiatan: `Penerimaan Voucher No: ${voucher.no_voucher}`,
       reff: 'VOUCHER',
-      debet: voucher.nominal,
+      debet: voucher.total_harga, // Uang masuk sebesar total nominal voucher
       kredit: 0,
       saldo: saldoBaru,
       created_by: 'Kasir'
@@ -165,38 +187,22 @@ export default function JurnalTransaksiKasir() {
 
     if (activeTab === 'BBM') {
       if (!bbmData.jenis_bbm || !bbmData.jumlah_liter) { alert('Lengkapi data BBM!'); setIsSaving(false); return; }
-      payloadJurnal = {
-        dari_ke: 'SPBU 14.294.739', uraian_kegiatan: `PENJUALAN BBM ${bbmData.jenis_bbm}`,
-        reff: bbmData.reff || 'SP-4100', debet: bbmData.total_harga, kredit: 0
-      };
-      await supabase.from('penjualan_bbm').insert([{
-        tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser,
-        jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter),
-        total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase() || 'OPERATOR'
-      }]);
+      payloadJurnal = { dari_ke: 'SPBU 14.294.739', uraian_kegiatan: `PENJUALAN BBM ${bbmData.jenis_bbm}`, reff: bbmData.reff || 'SP-4100', debet: bbmData.total_harga, kredit: 0 };
+      await supabase.from('penjualan_bbm').insert([{ tanggal: formData.tanggal, shift: formData.shift, dispenser: bbmData.dispenser, jenis_bbm: bbmData.jenis_bbm, jumlah_liter: parseFloat(bbmData.jumlah_liter), total_harga: bbmData.total_harga, operator: bbmData.operator.toUpperCase() || 'OPERATOR' }]);
       setBbmData({ ...bbmData, jumlah_liter: '', operator: '', total_harga: '', jenis_bbm: '' });
 
     } else if (activeTab === 'LPG' || activeTab === 'OLI') {
       if (!nfrData.produk || !nfrData.jumlah) { alert('Lengkapi data Produk!'); setIsSaving(false); return; }
-      payloadJurnal = {
-        dari_ke: `PENJUALAN ${activeTab}`, uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`,
-        reff: `${nfrData.jumlah} Unit`, debet: nfrData.total_harga, kredit: 0
-      };
-      await supabase.from('penjualan_nfr').insert([{
-        tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk,
-        jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR'
-      }]);
+      payloadJurnal = { dari_ke: `PENJUALAN ${activeTab}`, uraian_kegiatan: `Produk: ${nfrData.produk.nama_produk}`, reff: `${nfrData.jumlah} Unit`, debet: nfrData.total_harga, kredit: 0 };
+      await supabase.from('penjualan_nfr').insert([{ tanggal: formData.tanggal, shift: formData.shift, produk_nfr: nfrData.produk.nama_produk, jumlah: parseFloat(nfrData.jumlah), total_harga: nfrData.total_harga, kasir_foreman: 'KASIR' }]);
       setNfrData({ produk: null, jumlah: '', total_harga: '' });
     }
 
-    // Hitung Saldo Jurnal Terakhir
     const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
     const saldoBaru = saldoSebelumnya + payloadJurnal.debet - payloadJurnal.kredit;
 
     const { error } = await supabase.from('jurnal_kasir').insert([{
-      tanggal: formData.tanggal, shift: formData.shift, dari_ke: payloadJurnal.dari_ke,
-      uraian_kegiatan: payloadJurnal.uraian_kegiatan, reff: payloadJurnal.reff,
-      debet: payloadJurnal.debet, kredit: payloadJurnal.kredit, saldo: saldoBaru, created_by: 'Kasir'
+      tanggal: formData.tanggal, shift: formData.shift, dari_ke: payloadJurnal.dari_ke, uraian_kegiatan: payloadJurnal.uraian_kegiatan, reff: payloadJurnal.reff, debet: payloadJurnal.debet, kredit: payloadJurnal.kredit, saldo: saldoBaru, created_by: 'Kasir'
     }]);
 
     if (error) alert('Gagal simpan ke jurnal: ' + error.message);
@@ -205,7 +211,6 @@ export default function JurnalTransaksiKasir() {
     setIsSaving(false);
   };
 
-  // Hitung Total Kategori dari Jurnal untuk Info
   const totalDebetBBM = jurnalHariIni.filter(j => j.dari_ke.includes('SPBU') && j.uraian_kegiatan.includes('BBM')).reduce((a, b) => a + b.debet, 0);
   const totalDebetNFR = jurnalHariIni.filter(j => j.dari_ke.includes('LPG') || j.dari_ke.includes('OLI')).reduce((a, b) => a + b.debet, 0);
   const totalDebetVoucher = jurnalHariIni.filter(j => j.dari_ke.includes('VOUCHER')).reduce((a, b) => a + b.debet, 0);
@@ -303,9 +308,15 @@ export default function JurnalTransaksiKasir() {
 
             {activeTab === 'VOUCHER' && (
               <>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Nomor Voucher</label>
-                  <input type="text" required value={voucherData.no_voucher} onChange={(e) => setVoucherData({ ...voucherData, no_voucher: e.target.value.toUpperCase() })} className="w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg text-xs font-bold text-purple-700" placeholder="Cth: 0001 - 0010" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Awal No. Voucher</label>
+                    <input type="number" required value={voucherData.no_awal} onChange={(e) => setVoucherData({ ...voucherData, no_awal: e.target.value })} className="w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg text-xs font-bold text-purple-700" placeholder="Cth: 1" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1">Akhir No. Voucher</label>
+                    <input type="number" required value={voucherData.no_akhir} onChange={(e) => setVoucherData({ ...voucherData, no_akhir: e.target.value })} className="w-full px-2 py-1.5 border-2 border-purple-300 rounded-lg text-xs font-bold text-purple-700" placeholder="Cth: 10" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Nama Customer / Instansi</label>
@@ -315,14 +326,20 @@ export default function JurnalTransaksiKasir() {
                   </datalist>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Nominal Voucher (Rp)</label>
-                  <input type="number" required value={voucherData.nominal} onChange={(e) => setVoucherData({ ...voucherData, nominal: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="Cth: 1000000" />
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Nominal / Lembar (Rp)</label>
+                  <input type="number" required value={voucherData.nominal} onChange={(e) => setVoucherData({ ...voucherData, nominal: e.target.value })} className="w-full px-2 py-1.5 border rounded-lg text-xs font-bold" placeholder="Cth: 50000" />
                 </div>
                 <div className="bg-purple-50 p-2 rounded-lg border border-purple-100">
-                  <p className="text-[10px] text-purple-600 font-bold mb-0.5">Total Tagihan:</p>
-                  <p className="text-lg font-black text-purple-700">{formatRupiah(voucherData.nominal || 0)}</p>
+                  <div className="flex justify-between text-[10px] font-bold text-purple-600 mb-0.5">
+                    <span>Total Lembar:</span>
+                    <span>{totalLembar} Lembar</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-[10px] text-purple-600 font-bold">Total Tagihan:</p>
+                    <p className="text-lg font-black text-purple-700">{formatRupiah(totalNominalVoucher)}</p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-slate-500 italic mt-1">*Voucher akan berstatus PENDING sampai fisik voucher tiba dan dicentang.</p>
+                <p className="text-[10px] text-slate-500 italic mt-1">*Status PENDING. Masa berlaku 6 bulan setelah fisik voucher diterima (Checklist).</p>
               </>
             )}
 
@@ -358,13 +375,11 @@ export default function JurnalTransaksiKasir() {
         </div>
 
         <div className="lg:col-span-2 flex flex-col gap-6 no-print">
-          
-          {/* TABEL VOUCHER KHUSUS */}
           {activeTab === 'VOUCHER' && (
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in">
               <div className="p-4 border-b border-slate-100 bg-purple-50 flex justify-between items-center">
-                <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2"><Ticket size={16} className="text-purple-600"/> Daftar Tunggu Voucher (Pending)</h2>
-                <p className="text-xs text-purple-600 font-medium">Centang jika fisik sudah masuk</p>
+                <h2 className="text-sm font-bold text-purple-900 flex items-center gap-2"><Ticket size={16} className="text-purple-600"/> Daftar Voucher</h2>
+                <p className="text-xs text-purple-600 font-medium">Ceklis jika fisik sudah masuk</p>
               </div>
               <div className="overflow-x-auto max-h-[300px]">
                 <table className="w-full text-xs">
@@ -372,7 +387,7 @@ export default function JurnalTransaksiKasir() {
                     <tr>
                       <th className="px-3 py-3 text-left">No Voucher</th>
                       <th className="px-3 py-3 text-left">Customer</th>
-                      <th className="px-3 py-3 text-right">Nominal</th>
+                      <th className="px-3 py-3 text-right">Total Nilai</th>
                       <th className="px-3 py-3 text-center">Status</th>
                       <th className="px-3 py-3 text-center">Aksi</th>
                     </tr>
@@ -380,33 +395,40 @@ export default function JurnalTransaksiKasir() {
                   <tbody className="divide-y divide-slate-100">
                     {daftarVoucherHariIni.length === 0 ? (
                       <tr><td colSpan={5} className="px-3 py-8 text-center text-slate-400">Belum ada input voucher hari ini.</td></tr>
-                    ) : daftarVoucherHariIni.map((v, idx) => (
-                      <tr key={v.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 font-bold text-slate-700">{v.no_voucher}</td>
-                        <td className="px-3 py-2 text-slate-600">{v.nama_customer}</td>
-                        <td className="px-3 py-2 text-right font-mono font-semibold text-purple-700">{formatRupiah(v.nominal)}</td>
-                        <td className="px-3 py-2 text-center">
-                          {v.status_voucher === 'MASUK' ? 
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded"><CheckCircle2 size={12}/> MASUK</span> :
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded"><Clock size={12}/> PENDING</span>
-                          }
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {v.status_voucher === 'PENDING' && (
-                            <button onClick={() => handleVoucherMasuk(v)} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm text-[10px]">
-                              Checklist Masuk
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    ) : daftarVoucherHariIni.map((v, idx) => {
+                      // Cek Masa Berlaku (jika MASUK, cek tanggal_kedaluwarsa)
+                      const isExpired = v.status_voucher === 'MASUK' && v.tanggal_kedaluwarsa && new Date(v.tanggal_kedaluwarsa) < new Date();
+                      
+                      return (
+                        <tr key={v.id} className="hover:bg-slate-50">
+                          <td className="px-3 py-2 font-bold text-slate-700">{v.no_voucher}</td>
+                          <td className="px-3 py-2 text-slate-600">{v.nama_customer}</td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-purple-700">{formatRupiah(v.total_harga)}</td>
+                          <td className="px-3 py-2 text-center">
+                            {v.status_voucher === 'MASUK' ? 
+                              (isExpired ? 
+                                <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-red-600 bg-red-100 px-2 py-1 rounded"><AlertTriangle size={12}/> HANGUS</span> :
+                                <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-1 rounded"><CheckCircle2 size={12}/> MASUK<br/>{new Date(v.tanggal_kedaluwarsa).toLocaleDateString('id-ID')}</span>
+                              ) :
+                              <span className="inline-flex flex-col items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded"><Clock size={12}/> PENDING</span>
+                            }
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {v.status_voucher === 'PENDING' && (
+                              <button onClick={() => handleVoucherMasuk(v)} className="bg-purple-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-purple-700 transition-colors shadow-sm text-[10px]">
+                                Checklist Masuk
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* TABEL JURNAL HARIAN */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex-1">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2"><BookOpen size={16} className="text-slate-500"/> Buku Jurnal Harian Kasir</h2>
