@@ -17,6 +17,8 @@ import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir'; // <-- IMPORT BARU
+import LaporanRekapHarian from './pages/LaporanRekapHarian'; // Tambahkan import
+
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -103,6 +105,7 @@ function App() {
             {/* RUTE ACCOUNTING */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
+              <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
             </Route>
 
             {/* RUTE MANAGER */}

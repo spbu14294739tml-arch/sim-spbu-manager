@@ -12,7 +12,8 @@ import {
   UserCheck,
   ShoppingCart,
   FileText,
-  FileCheck
+  FileCheck,
+  PieChart
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -43,7 +44,8 @@ export default function Sidebar() {
     { path: '/', name: 'Dashboard', icon: LayoutDashboard, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] },
     { path: '/absensi', name: 'Absensi', icon: UserCheck, roles: ['manager', 'accounting'] },
-    
+    { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting'] },
+
     // MENU GABUNGAN KASIR & JURNAL
     { path: '/jurnal-transaksi', name: 'Jurnal Transaksi Kasir', icon: ShoppingCart, roles: ['kasir', 'manager'] },
     
