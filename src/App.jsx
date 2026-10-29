@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { supabase } from './lib/supabaseClient';
@@ -9,14 +10,15 @@ import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
 import DatabaseKaryawan from './pages/DatabaseKaryawan';
 import Absensi from './pages/Absensi';
-import Kasir from './pages/Kasir';
 import LaporanKasir from './pages/LaporanKasir';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
-import JurnalKasir from './pages/JurnalKasir';
+
+// IMPORT HALAMAN BARU GABUNGAN
+import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -94,8 +96,7 @@ function App() {
             <Route path="absensi" element={<Absensi />} />
             
             {/* RUTE YANG BISA DIAKSES KASIR, ACCOUNTING, & MANAGER */}
-            <Route path="kasir" element={<Kasir />} />
-            <Route path="jurnal-kasir" element={<JurnalKasir />} /> {/* <-- DIPINDAH KE SINI */}
+            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
 
             <Route path="laporan-kasir" element={<LaporanKasir />} />
