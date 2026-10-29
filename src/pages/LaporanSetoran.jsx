@@ -2,16 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Save, Plus, Trash2, ArrowRight, Wallet, Calculator, Ticket } from 'lucide-react';
+import { Loader2, Printer, Save, ArrowRight, Wallet, Calculator, Ticket, ArrowDownRight } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
-
-const DEFAULT_PENGURANGAN = [
-  'Tata Murtaya Bersama (TMB)', 'Alltrue Lite Hotel', 'PT Tri Putra Senamustika (TPS)',
-  'DISHUB', 'MPS', 'Imigrasi Batam', 'BNNK', 'G.E.D Mina', 'Putra Tridar Perkasa (PTP)',
-  'Balai Karantina Pertanian (BKP)', 'Bank BJB', 'Trans Auto', 'JASA RAHARJA',
-  'PT Surya Buana Bintan (SBB)', 'KB Bank/Penggunaan Kartu BBM', 'My Pertamina',
-  'Pembelian BBM Transfer ke TML'
-];
 
 const PECAHAN_UANG = [100000, 50000, 20000, 10000, 5000, 2000, 1000];
 
@@ -26,15 +18,17 @@ export default function LaporanSetoran() {
   });
 
   const [penjualan, setPenjualan] = useState({ bbm: 0, oli: 0, lpg: 0, total: 0 });
-  const [jurnalKas, setJurnalKas] = useState({ debet: 0, kredit: 0 });
-  const [detailJurnal, setDetailJurnal] = useState([]); 
   
-  const [pengurangan, setPengurangan] = useState([]);
+  // State Jurnal & Voucher
+  const [detailJurnal, setDetailJurnal] = useState([]); 
+  const [totalVoucher, setTotalVoucher] = useState(0);
+  const [totalKreditJurnal, setTotalKreditJurnal] = useState(0); // Total pengeluaran dari jurnal
+  
+  // State Rekap Uang
   const [rekapUang, setRekapUang] = useState(
     PECAHAN_UANG.map(p => ({ nominal: p, lembar: 0, total: 0 }))
   );
   const [uangKoin, setUangKoin] = useState(0);
-  const [totalVoucher, setTotalVoucher] = useState(0); // State baru untuk total voucher
 
   // ================= FETCH DATA =================
   const fetchData = async () => {
@@ -64,7 +58,7 @@ export default function LaporanSetoran() {
     const { data: dataVoucher } = await qVoucher;
     const { data: masterNFR } = await supabase.from('master_produk_nfr').select('nama_produk, kategori');
 
-    // Hitung Penjualan
+    // 1. Hitung Penjualan
     const sumBBM = dataBBM?.reduce((acc, curr) => acc + curr.total_harga, 0) || 0;
     let sumOli = 0;
     let sumLpg = 0;
@@ -87,44 +81,20 @@ export default function LaporanSetoran() {
     const grandTotal = sumBBM + sumOli + sumLpg;
     setPenjualan({ bbm: sumBBM, oli: sumOli, lpg: sumLpg, total: grandTotal });
 
-    // Hitung Jurnal Kas & Voucher
-    const sumDebet = dataJurnal?.reduce((acc, curr) => acc + (curr.debet || 0), 0) || 0;
-    const sumKredit = dataJurnal?.reduce((acc, curr) => acc + (curr.kredit || 0), 0) || 0;
-    setJurnalKas({ debet: sumDebet, kredit: sumKredit });
+    // 2. Hitung Jurnal & Voucher
     setDetailJurnal(dataJurnal || []);
-
+    
     const sumVoucher = dataVoucher?.reduce((acc, curr) => acc + (curr.total_harga || 0), 0) || 0;
     setTotalVoucher(sumVoucher);
 
-    const defaultList = DEFAULT_PENGURANGAN.map(nama => ({ nama, nominal: 0 }));
-    setPengurangan(defaultList);
+    // Hitung total kredit dari Jurnal (untuk Pengurangan)
+    const sumKredit = dataJurnal?.reduce((acc, curr) => acc + (curr.kredit || 0), 0) || 0;
+    setTotalKreditJurnal(sumKredit);
 
     setIsLoading(false);
   };
 
   useEffect(() => { fetchData(); }, [formData.tanggal, formData.shift]);
-
-  // ================= HANDLER PENGURANGAN (CRUD) =================
-  const handleNamaPenguranganChange = (index, val) => {
-    const newArr = [...pengurangan];
-    newArr[index].nama = val;
-    setPengurangan(newArr);
-  };
-
-  const handleNominalPenguranganChange = (index, val) => {
-    const newArr = [...pengurangan];
-    newArr[index].nominal = parseFloat(val) || 0;
-    setPengurangan(newArr);
-  };
-
-  const handleAddPengurangan = () => {
-    setPengurangan([...pengurangan, { nama: '', nominal: 0 }]);
-  };
-
-  const handleRemovePengurangan = (index) => {
-    const newArr = pengurangan.filter((_, i) => i !== index);
-    setPengurangan(newArr);
-  };
 
   // ================= HANDLER REKAP UANG =================
   const handleLembarChange = (index, val) => {
@@ -136,16 +106,16 @@ export default function LaporanSetoran() {
   };
 
   // ================= KALKULASI =================
-  // Total pengurangan gabungan (Manual + Voucher)
-  const totalPenguranganManual = pengurangan.reduce((acc, curr) => acc + curr.nominal, 0);
-  const totalPengurangan = totalPenguranganManual + totalVoucher;
+  // Total Pengurangan = Voucher + Total Kredit dari Jurnal
+  const totalPengurangan = totalVoucher + totalKreditJurnal;
 
   const totalYangDisetor = penjualan.total - totalPengurangan;
   
   const totalRekapLembar = rekapUang.reduce((acc, curr) => acc + curr.total, 0);
   
-  // UANG FISIK = (Uang Lembaran + Uang Koin) + Debet Jurnal - Kredit Jurnal - (Voucher sudah masuk ke pengurangan)
-  const totalUangFisik = totalRekapLembar + (parseFloat(uangKoin) || 0) + jurnalKas.debet - jurnalKas.kredit;
+  // UANG FISIK = (Uang Lembaran + Uang Koin) + Total Debet Jurnal
+  const totalDebetJurnal = detailJurnal.reduce((acc, curr) => acc + (curr.debet || 0), 0);
+  const totalUangFisik = totalRekapLembar + (parseFloat(uangKoin) || 0) + totalDebetJurnal;
   
   const plusMinus = totalUangFisik - totalYangDisetor;
 
@@ -158,7 +128,7 @@ export default function LaporanSetoran() {
       total_bbm: penjualan.bbm,
       total_nfr: penjualan.oli + penjualan.lpg,
       total_penjualan: penjualan.total,
-      data_pengurangan: pengurangan.filter(p => p.nominal > 0),
+      data_pengurangan: [], // Kosong karena sekarang otomatis dari jurnal
       total_pengurangan: totalPengurangan,
       total_disetor: totalYangDisetor,
       data_rekap_uang: rekapUang.filter(r => r.lembar > 0),
@@ -177,6 +147,7 @@ export default function LaporanSetoran() {
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto">
       
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Setoran Kasir</h1>
@@ -192,6 +163,7 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
+      {/* FILTER */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
         <div className="flex items-center gap-2 w-full md:w-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-2">Tanggal</label>
@@ -205,9 +177,11 @@ export default function LaporanSetoran() {
         </div>
       </div>
 
+      {/* AREA CETAK & TAMPILAN */}
       <div className="print-area bg-white md:shadow-sm md:border md:border-slate-200 md:rounded-2xl p-6">
         <div className="hidden print:block mb-6"><KopSurat /></div>
         
+        {/* Header Info */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 px-2 pb-4 border-b-2 border-slate-800 gap-4">
           <div className="text-sm font-bold bg-slate-100 md:bg-transparent px-4 py-2 md:p-0 rounded-lg w-full md:w-auto text-center md:text-left">
             TANGGAL : {new Date(formData.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase()}
@@ -218,6 +192,7 @@ export default function LaporanSetoran() {
           </div>
         </div>
 
+        {/* I. PENJUALAN */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
           <div className="bg-blue-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
             <Wallet size={16} className="text-blue-600" />
@@ -252,79 +227,59 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
+        {/* II. PENGURANGAN (OTOMATIS DARI JURNAL & VOUCHER) */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
-          <div className="bg-orange-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ArrowRight size={16} className="text-orange-600" />
-              <span className="font-bold text-orange-900 text-sm">II. PENGURANGAN (SETORAN)</span>
-            </div>
-            <button onClick={handleAddPengurangan} className="text-xs font-bold text-orange-600 bg-orange-100 hover:bg-orange-200 px-3 py-1 rounded-lg flex items-center gap-1 transition-colors no-print">
-              <Plus size={14}/> Tambah Baris
-            </button>
+          <div className="bg-orange-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
+            <ArrowRight size={16} className="text-orange-600" />
+            <span className="font-bold text-orange-900 text-sm">II. PENGURANGAN (SETORAN)</span>
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-100">
-              {/* BARIS VOUCHER OTOMATIS */}
+              {/* BARIS VOUCHER */}
               {totalVoucher > 0 && (
-                <tr className="bg-purple-50/50">
+                <tr className="bg-purple-50/30">
                   <td className="px-4 py-3 text-purple-600 w-12 text-center"><Ticket size={16}/></td>
-                  <td className="px-4 py-3 font-bold text-purple-900 w-full">PENGGUNAAN / PENERBITAN VOUCHER</td>
-                  <td className="px-4 py-3 text-purple-500 w-8 text-right whitespace-nowrap">Rp.</td>
+                  <td className="px-4 py-3 font-bold text-purple-900 w-full" colSpan={2}>PENGGUNAAN / PENERBITAN VOUCHER</td>
                   <td className="px-4 py-3 w-48 text-right font-bold text-purple-900 font-mono tabular-nums">{formatRupiah(totalVoucher).replace('Rp', '').trim()}</td>
                 </tr>
               )}
 
-              {pengurangan.map((p, idx) => (
-                <tr key={idx} className="group hover:bg-slate-50/50">
-                  <td className="px-4 py-2 text-slate-500 w-12 text-center">{idx + 1}</td>
-                  <td className="px-4 py-2 font-medium text-slate-700 w-full">
-                    <input 
-                      type="text" 
-                      value={p.nama} 
-                      onChange={(e) => handleNamaPenguranganChange(idx, e.target.value)}
-                      placeholder="Nama Instansi / Bank..."
-                      className="w-full bg-transparent outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-400"
-                    />
-                    <span className="hidden print:inline">{p.nama || '-'}</span>
+              {/* BARIS KREDIT DARI JURNAL (PENGELUARAN) */}
+              {detailJurnal.filter(j => j.kredit > 0).map((j, idx) => (
+                <tr key={j.id} className="hover:bg-slate-50/50">
+                  <td className="px-4 py-2 text-slate-500 w-12 text-center text-xs"><ArrowDownRight size={14} className="text-red-500"/></td>
+                  <td className="px-4 py-2 font-medium text-slate-700 w-full text-xs">
+                    {j.uraian_kegiatan} <span className="text-slate-400">({j.dari_ke})</span>
                   </td>
-                  <td className="px-4 py-2 text-slate-400 w-8 text-right whitespace-nowrap">Rp.</td>
-                  <td className="px-4 py-2 w-48 text-right flex items-center justify-end gap-2">
-                    <input 
-                      type="number" 
-                      value={p.nominal || ''} 
-                      onChange={(e) => handleNominalPenguranganChange(idx, e.target.value)}
-                      className="w-full bg-transparent text-right font-mono font-semibold outline-none border-b border-transparent focus:border-orange-400 no-print placeholder-slate-300 tabular-nums"
-                      placeholder="0"
-                    />
-                    <span className="hidden print:inline font-mono tabular-nums">{p.nominal > 0 ? formatRupiah(p.nominal).replace('Rp', '').trim() : '-'}</span>
-                    
-                    <button onClick={() => handleRemovePengurangan(idx)} className="text-red-400 hover:text-red-600 hidden group-hover:block no-print p-1" title="Hapus Baris">
-                      <Trash2 size={16}/>
-                    </button>
-                  </td>
+                  <td className="px-4 py-2 text-slate-400 w-8 text-right whitespace-nowrap text-xs">Rp.</td>
+                  <td className="px-4 py-2 text-right font-mono font-semibold text-red-600 tabular-nums text-xs">-{formatRupiah(j.kredit).replace('Rp', '').trim()}</td>
                 </tr>
               ))}
+
+              {/* JIKA TIDAK ADA PENGURANGAN SAMA SEKALI */}
+              {totalVoucher === 0 && detailJurnal.filter(j => j.kredit > 0).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400 text-xs italic">Tidak ada pengurangan / setoran pada shift ini.</td>
+                </tr>
+              )}
               
               <tr className="bg-slate-50">
-                <td colSpan={2} className="px-4 py-3 text-right font-bold text-slate-700">TOTAL PENGURANGAN</td>
-                <td className="px-4 py-3 text-slate-500 text-right">Rp.</td>
+                <td colSpan={3} className="px-4 py-3 text-right font-bold text-slate-700">TOTAL PENGURANGAN</td>
                 <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono tabular-nums">{formatRupiah(totalPengurangan).replace('Rp', '').trim()}</td>
               </tr>
               <tr className="bg-yellow-100">
-                <td colSpan={2} className="px-4 py-4 text-right font-black text-yellow-900 text-sm uppercase tracking-wide">Total Yang Disetor</td>
-                <td className="px-4 py-4 text-yellow-700 text-right font-bold">Rp.</td>
+                <td colSpan={3} className="px-4 py-4 text-right font-black text-yellow-900 text-sm uppercase tracking-wide">Total Yang Disetor</td>
                 <td className="px-4 py-4 text-right font-black text-yellow-900 font-mono text-lg tracking-wide tabular-nums">{formatRupiah(totalYangDisetor).replace('Rp', '').trim()}</td>
               </tr>
             </tbody>
           </table>
         </div>
 
+        {/* III. REKAP UANG FISIK */}
         <div className="mb-8 overflow-hidden rounded-xl border border-slate-200">
-          <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calculator size={16} className="text-emerald-600" />
-              <span className="font-bold text-emerald-900 text-sm">III. REKAP UANG FISIK</span>
-            </div>
+          <div className="bg-emerald-50/50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
+            <Calculator size={16} className="text-emerald-600" />
+            <span className="font-bold text-emerald-900 text-sm">III. REKAP UANG FISIK</span>
           </div>
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-100">
@@ -363,13 +318,13 @@ export default function LaporanSetoran() {
                 </td>
               </tr>
 
-              {/* RINCIAN JURNAL KASIR MUNCUL DI SINI (HANYA JIKA ADA) */}
-              {detailJurnal.length > 0 && (
+              {/* RINCIAN JURNAL (HANYA YANG DEBET / UANG MASUK) */}
+              {detailJurnal.filter(j => j.debet > 0).length > 0 && (
                 <>
                   <tr className="bg-slate-100 print:bg-gray-200">
-                    <td colSpan={7} className="px-4 py-2 font-bold text-slate-700 text-xs uppercase tracking-wider">Rincian Jurnal Kasir (Otomatis)</td>
+                    <td colSpan={7} className="px-4 py-2 font-bold text-slate-700 text-xs uppercase tracking-wider">Pemasukan Kas dari Jurnal (Debet)</td>
                   </tr>
-                  {detailJurnal.map((j, idx) => (
+                  {detailJurnal.filter(j => j.debet > 0).map((j, idx) => (
                     <tr key={j.id} className="hover:bg-slate-50">
                       <td className="px-4 py-2 text-slate-400 text-center text-xs">{idx + 1}</td>
                       <td colSpan={2} className="px-4 py-2 font-medium text-slate-700 text-xs">
@@ -377,10 +332,7 @@ export default function LaporanSetoran() {
                       </td>
                       <td className="px-4 py-2 text-center text-slate-400 text-xs">{j.reff || '-'}</td>
                       <td className="px-4 py-2 text-center text-slate-400 text-xs"></td>
-                      <td className="px-4 py-2 text-right text-xs">
-                        {j.debet > 0 && <span className="text-green-600 font-bold">+{formatRupiah(j.debet)}</span>}
-                        {j.kredit > 0 && <span className="text-red-600 font-bold">-{formatRupiah(j.kredit)}</span>}
-                      </td>
+                      <td className="px-4 py-2 text-right text-xs"><span className="text-green-600 font-bold">+{formatRupiah(j.debet)}</span></td>
                       <td className="px-4 py-2 text-right font-mono text-slate-700 text-xs">{formatRupiah(j.saldo)}</td>
                     </tr>
                   ))}
@@ -396,6 +348,7 @@ export default function LaporanSetoran() {
           </table>
         </div>
 
+        {/* IV. PLUS MINUS */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <table className="w-full text-sm">
             <tbody>
@@ -414,6 +367,7 @@ export default function LaporanSetoran() {
           {plusMinus === 0 ? '✅ Uang fisik SESUAI dengan sistem (BALANCE).' : plusMinus > 0 ? 'ℹ️ Uang fisik LEBIH dari sistem.' : '⚠️ Uang fisik KURANG dari sistem.'}
         </div>
 
+        {/* TANDA TANGAN */}
         <div className="hidden print:flex justify-between mt-12 px-8 text-sm font-semibold text-black">
           <div className="text-center flex flex-col justify-between h-28">
             <p>Kasir</p>
@@ -437,9 +391,9 @@ export default function LaporanSetoran() {
           .print-area { box-shadow: none !important; border: none !important; padding: 0 !important; margin: 0 !important; }
           table { border-collapse: collapse !important; width: 100% !important; }
           th, td { border: 1px solid black !important; padding: 4px 8px !important; color: black !important; }
-          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50, .bg-purple-50\\/50 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact !important; }
+          .bg-blue-50\\/50, .bg-orange-50\\/50, .bg-emerald-50\\/50, .bg-slate-50, .bg-purple-50\\/50, .bg-purple-50\\/30 { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact !important; }
           .bg-yellow-100, .bg-green-600, .bg-red-500, .bg-blue-600 { background-color: #fef08a !important; color: black !important; -webkit-print-color-adjust: exact !important; }
-          .text-green-600, .text-yellow-900, .text-white, .text-purple-900, .text-purple-600 { color: black !important; }
+          .text-green-600, .text-yellow-900, .text-white, .text-purple-900, .text-purple-600, .text-red-600 { color: black !important; }
           input { border: none !important; padding: 0 !important; text-align: right; }
           .rounded-xl, .rounded-2xl { border-radius: 0 !important; }
           .no-print h1, .no-print p { display: none !important; }
