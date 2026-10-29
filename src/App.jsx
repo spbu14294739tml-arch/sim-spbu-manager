@@ -16,9 +16,7 @@ import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
-
-// IMPORT HALAMAN BARU GABUNGAN
-import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
+import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir'; // <-- IMPORT BARU
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -95,26 +93,28 @@ function App() {
             <Route index element={<DashboardManager />} />
             <Route path="absensi" element={<Absensi />} />
             
-            {/* RUTE YANG BISA DIAKSES KASIR, ACCOUNTING, & MANAGER */}
-            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
+            {/* RUTE KASIR & MANAJEMEN */}
+            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} /> {/* <-- RUTE BARU */}
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
-
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
             
-            {/* RUTE ACCOUNTING (Dilindungi Satpam Accounting) */}
+            {/* RUTE ACCOUNTING */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
             </Route>
 
-            {/* RUTE MANAGER (Dilindungi Satpam Manager) */}
+            {/* RUTE MANAGER */}
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
               <Route path="pengaturan" element={<PengaturanSistem />} />
             </Route>
           </Route>
         </Route>
+        
+        {/* Redirect jika rute tidak ditemukan (mencegah blank putih) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
