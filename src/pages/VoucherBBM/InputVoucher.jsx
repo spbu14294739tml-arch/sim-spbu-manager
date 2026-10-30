@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
+import KopSurat from '../../components/KopSurat';
 import { Loader2, Save, Ticket } from 'lucide-react';
 
 export default function InputVoucher() {
