@@ -19,6 +19,7 @@ import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 import LaporanVoucherMacet from './pages/LaporanVoucherMacet';
 import ScanVoucher from './pages/ScanVoucher'; // <-- TAMBAHKAN INI
+import VoucherBBM from './pages/VoucherBBM'; // <-- Cukup sampai foldernya saja
 
 // IMPORT HALAMAN BARU
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
@@ -97,7 +98,7 @@ function App() {
           <Route path="/" element={<LayoutUtama />}>
             <Route index element={<DashboardManager />} />
             <Route path="absensi" element={<Absensi />} />
-            
+                        
             {/* RUTE KASIR & MANAJEMEN */}
             <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
@@ -108,7 +109,8 @@ function App() {
             <Route path="/scan-voucher" element={<ScanVoucher />} /> {/* <-- TAMBAHKAN INI */}  
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-            
+            <Route path="/voucher-bbm" element={<VoucherBBM />} />
+
             {/* RUTE ACCOUNTING */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />

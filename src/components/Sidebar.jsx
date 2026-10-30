@@ -14,8 +14,7 @@ import {
   FileText,
   FileCheck,
   PieChart, 
-  Search,
-  Barcode // <-- Ikon Baru untuk Scan
+  Ticket // <-- Ikon baru untuk Manajemen Voucher
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -49,7 +48,9 @@ export default function Sidebar() {
     
     // MENU KASIR
     { path: '/jurnal-transaksi', name: 'Jurnal Transaksi Kasir', icon: ShoppingCart, roles: ['kasir', 'manager'] },
-    { path: '/scan-voucher', name: 'Scan Voucher Fisik', icon: Barcode, roles: ['kasir', 'manager'] }, // <-- MENU BARU SCAN
+    
+    // MENU BARU: MANAJEMEN VOUCHER (Gabungan Input, Scan, Macet)
+    { path: '/voucher-bbm', name: 'Manajemen Voucher BBM', icon: Ticket, roles: ['kasir', 'manager', 'accounting'] },
     
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
@@ -58,7 +59,6 @@ export default function Sidebar() {
     // MENU LAPORAN
     { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting', 'kasir'] },
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
-    { path: '/laporan-voucher-macet', name: 'Audit Voucher Macet', icon: Search, roles: ['manager', 'accounting'] },
     
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];
