@@ -10,7 +10,7 @@ export default function TabStokTangki() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // State Form Edit Tangki (Inline)
+  // State Form Edit Tangki
   const [editingTangkiId, setEditingTangkiId] = useState(null);
   const [stokBaru, setStokBaru] = useState('');
   const [kapasitasBaru, setKapasitasBaru] = useState('');
@@ -33,7 +33,7 @@ export default function TabStokTangki() {
 
   useEffect(() => { fetchData(); }, []);
 
-  // === UPDATE (EDIT) ===
+  // === EDIT ===
   const handleUpdateTangki = async (id) => {
     if (!stokBaru && stokBaru !== 0) return alert('Masukkan jumlah stok baru!');
     if (!kapasitasBaru) return alert('Masukkan kapasitas maksimal!');
@@ -55,7 +55,7 @@ export default function TabStokTangki() {
     setIsSaving(false);
   };
 
-  // === CREATE (TAMBAH) ===
+  // === TAMBAH ===
   const handleTambahTangki = async (e) => {
     e.preventDefault();
     if (!formTambah.nomor_tangki || !formTambah.kapasitas_maksimal) {
@@ -71,15 +71,16 @@ export default function TabStokTangki() {
       stok_saat_ini: parseFloat(formTambah.stok_saat_ini) || 0
     }]);
 
-    if (error) alert('Gagal tambah tangki: ' + error.message);
-    else {
+    if (error) {
+      alert('Gagal tambah tangki: ' + error.message);
+    } else {
       setFormTambah({ nomor_tangki: '', jenis_bbm: 'PERTALITE', kapasitas_maksimal: '', stok_saat_ini: '' });
       fetchData();
     }
     setIsSaving(false);
   };
 
-  // === DELETE (HAPUS) ===
+  // === HAPUS ===
   const handleHapusTangki = async (id, nomor) => {
     if (!window.confirm(`Yakin ingin menghapus Tangki ${nomor}? Data stok akan hilang permanen.`)) return;
     const { error } = await supabase.from('stok_tangki').delete().eq('id', id);
@@ -92,9 +93,11 @@ export default function TabStokTangki() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* FORM TAMBAH TANGKI BARU */}
+      {/* ================= FORM TAMBAH TANGKI BARU ================= */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Plus size={20} className="text-blue-600"/> Tambah Tangki Baru</h2>
+        <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Plus size={20} className="text-blue-600"/> Tambah Tangki Baru
+        </h2>
         <form onSubmit={handleTambahTangki} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">Nomor Tangki</label>
@@ -120,14 +123,16 @@ export default function TabStokTangki() {
         </form>
       </div>
 
-      {/* DAFTAR KARTU TANGKI */}
+      {/* ================= DAFTAR TANGKI ================= */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <div>
             <h2 className="text-lg font-bold text-slate-800">Monitor Stok Tangki Pendam</h2>
             <p className="text-sm text-slate-500 mt-1">Update stok dan kapasitas maksimal tangki.</p>
           </div>
-          <button onClick={fetchData} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2"><RefreshCw size={16} /> Refresh</button>
+          <button onClick={fetchData} className="bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 flex items-center gap-2">
+            <RefreshCw size={16} /> Refresh
+          </button>
         </div>
         
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -144,7 +149,9 @@ export default function TabStokTangki() {
                 
                 <div className="flex justify-between items-start mb-4 ml-2">
                   <div>
-                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Droplet size={18} className="text-slate-400"/> {tangki.nomor_tangki}</h3>
+                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                      <Droplet size={18} className="text-slate-400"/> {tangki.nomor_tangki}
+                    </h3>
                     <p className="text-blue-600 font-semibold text-sm">{tangki.jenis_bbm}</p>
                   </div>
                   <div className="text-right">
