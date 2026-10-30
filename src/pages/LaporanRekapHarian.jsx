@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, BarChart3, TrendingUp } from 'lucide-react';
+import { Loader2, Printer, Calendar, BarChart3, Filter } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanRekapHarian() {
@@ -12,8 +12,11 @@ export default function LaporanRekapHarian() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // State Filter Kategori (BARU)
+  const [kategoriFilter, setKategoriFilter] = useState('SEMUA'); 
 
-  // State Harian (Dinamis per Produk)
+  // State Harian
   const [dataHarian, setDataHarian] = useState({ 
     shift1: { items: [], total: 0 }, 
     shift2: { items: [], total: 0 }, 
@@ -32,33 +35,31 @@ export default function LaporanRekapHarian() {
       .select('*')
       .eq('tanggal', selectedDate);
 
-    let rekapPerProduk = {}; // Menyimpan data dinamis { NamaProduk: { shift1: 0, shift2: 0, total: 0 } }
+    let rekapPerProduk = {}; 
 
     if (jurnal) {
       jurnal.forEach(item => {
         const isShift1 = item.shift.toLowerCase().includes('1') || item.shift.toLowerCase().includes('pagi');
         const target = isShift1 ? 'shift1' : 'shift2';
         
-        // Tentukan Nama Baris (Kategori Produk)
         let namaBaris = item.uraian_kegiatan;
         
-        // Bersihkan nama baris agar rapi (opsional)
-        if (namaBaris.includes('PENJUALAN BBM')) {
-          // Tetap gunakan nama dari jurnal (misal: PENJUALAN BBM PERTALITE)
-        } else if (item.dari_ke.includes('VOUCHER')) {
-          namaBaris = 'PENERIMAAN VOUCHER';
-        } else if (namaBaris.includes('PENJUALAN LPG') || namaBaris.includes('PENJUALAN OLI')) {
-          // Tetap gunakan nama produk
+        // Tentukan Kategori untuk Filter
+        let kategoriItem = 'LAINNYA';
+        if (namaBaris.includes('PENJUALAN BBM')) kategoriItem = 'BBM';
+        else if (namaBaris.includes('PENJUALAN LPG')) kategoriItem = 'LPG';
+        else if (namaBaris.includes('PENJUALAN OLI')) kategoriItem = 'OLI';
+        else if (item.dari_ke.includes('VOUCHER')) {
+            namaBaris = 'PENERIMAAN VOUCHER';
+            kategoriItem = 'VOUCHER';
         } else {
-          // Transaksi Lainnya
-          namaBaris = `${item.uraian_kegiatan} (${item.dari_ke})`;
+            namaBaris = `${item.uraian_kegiatan} (${item.dari_ke})`;
         }
 
         if (!rekapPerProduk[namaBaris]) {
-          rekapPerProduk[namaBaris] = { shift1: 0, shift2: 0, total: 0, type: 'DEBET' };
+          rekapPerProduk[namaBaris] = { shift1: 0, shift2: 0, total: 0, type: 'DEBET', kategori: kategoriItem };
         }
 
-        // Hitung
         if (item.debet > 0) {
           rekapPerProduk[namaBaris][target] += item.debet;
           rekapPerProduk[namaBaris].total += item.debet;
@@ -71,15 +72,21 @@ export default function LaporanRekapHarian() {
       });
     }
 
-    const itemsArray = Object.keys(rekapPerProduk).map(key => ({
+    let itemsArray = Object.keys(rekapPerProduk).map(key => ({
       nama: key,
       shift1: rekapPerProduk[key].shift1,
       shift2: rekapPerProduk[key].shift2,
       total: rekapPerProduk[key].total,
-      type: rekapPerProduk[key].type
+      type: rekapPerProduk[key].type,
+      kategori: rekapPerProduk[key].kategori
     })).sort((a, b) => a.nama.localeCompare(b.nama));
 
-    // Hitung Grand Total
+    // FILTER DATA SESUAI PILIHAN USER
+    if (kategoriFilter !== 'SEMUA') {
+      itemsArray = itemsArray.filter(item => item.kategori === kategoriFilter);
+    }
+
+    // Hitung Grand Total dari data yang sudah difilter
     const totalShift1 = itemsArray.reduce((acc, curr) => acc + curr.shift1, 0);
     const totalShift2 = itemsArray.reduce((acc, curr) => acc + curr.shift2, 0);
     const grandTotal = itemsArray.reduce((acc, curr) => acc + curr.total, 0);
@@ -104,7 +111,6 @@ export default function LaporanRekapHarian() {
       .gte('tanggal', startDate)
       .lte('tanggal', endDate);
 
-    // 1. Rekap Harian untuk Tabel Bawah
     const rekapHarian = {};
     let total = { bbm: 0, nfr: 0, voucher: 0, lain: 0, grandTotal: 0 };
 
@@ -141,7 +147,7 @@ export default function LaporanRekapHarian() {
   useEffect(() => {
     if (activeTab === 'harian') fetchLaporanHarian();
     else fetchLaporanBulanan();
-  }, [activeTab, selectedDate, selectedMonth, selectedYear]);
+  }, [activeTab, selectedDate, selectedMonth, selectedYear, kategoriFilter]);
 
   const formatTanggalIndo = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -154,7 +160,7 @@ export default function LaporanRekapHarian() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Rekapitulasi</h1>
-          <p className="text-slate-500 mt-1">Laporan gabungan Shift 1 & Shift 2 secara detail per produk.</p>
+          <p className="text-slate-500 mt-1">Laporan gabungan Shift 1 & Shift 2 secara detail.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => window.print()} className="bg-white border border-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 hover:bg-slate-50 transition-colors shadow-sm">
@@ -169,32 +175,53 @@ export default function LaporanRekapHarian() {
         <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'bulanan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><BarChart3 size={16}/> Laporan Bulanan</button>
       </div>
 
-      {/* FILTER */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row gap-4 items-center no-print">
-        {activeTab === 'harian' ? (
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <Calendar size={18} className="text-slate-500" />
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
-          </div>
-        ) : (
-          <>
-            <span className="text-sm font-medium text-slate-600">Pilih Periode:</span>
-            <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
-              {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
-                <option key={i+1} value={i+1}>{m}</option>
-              ))}
-            </select>
-            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
-              <option value={2027}>2027</option>
-            </select>
-          </>
+      {/* FILTER & KONTROL */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+        
+        <div className="flex flex-col md:flex-row gap-4 items-center w-full">
+            {activeTab === 'harian' ? (
+            <div className="flex items-center gap-2 w-full md:w-auto">
+                <Calendar size={18} className="text-slate-500" />
+                <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 font-medium text-slate-700" />
+            </div>
+            ) : (
+            <>
+                <span className="text-sm font-medium text-slate-600">Periode:</span>
+                <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
+                {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((m, i) => (
+                    <option key={i+1} value={i+1}>{m}</option>
+                ))}
+                </select>
+                <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-medium text-slate-700">
+                <option value={2025}>2025</option>
+                <option value={2026}>2026</option>
+                <option value={2027}>2027</option>
+                </select>
+            </>
+            )}
+        </div>
+
+        {/* FILTER KATEGORI (Hanya muncul di Harian) */}
+        {activeTab === 'harian' && (
+            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
+                <Filter size={16} className="text-blue-600" />
+                <select 
+                    value={kategoriFilter} 
+                    onChange={(e) => setKategoriFilter(e.target.value)} 
+                    className="bg-transparent font-semibold text-sm text-blue-800 outline-none cursor-pointer"
+                >
+                    <option value="SEMUA">Semua Transaksi</option>
+                    <option value="BBM">Khusus BBM</option>
+                    <option value="NFR">Khusus NFR (Oli/LPG)</option>
+                    <option value="VOUCHER">Khusus Voucher</option>
+                    <option value="LAINNYA">Lain-lain / Setoran</option>
+                </select>
+            </div>
         )}
       </div>
 
       <KopSurat 
-        judul={activeTab === 'harian' ? "Laporan Rekapitulasi Harian Kasir" : "Laporan Rekapitulasi Bulanan Kasir"} 
+        judul={activeTab === 'harian' ? `Laporan Rekapitulasi Harian Kasir ${kategoriFilter !== 'SEMUA' ? `- ${kategoriFilter}` : ''}` : "Laporan Rekapitulasi Bulanan Kasir"} 
         periode={activeTab === 'harian' 
           ? `Tanggal: ${formatTanggalIndo(selectedDate)}`
           : `Bulan: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][selectedMonth-1]} ${selectedYear}`
@@ -218,7 +245,7 @@ export default function LaporanRekapHarian() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {dataHarian.total.items.length === 0 ? (
-                <tr><td colSpan={5} className="py-8 text-center text-slate-500 italic">Belum ada transaksi pada tanggal ini.</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-slate-500 italic">Tidak ada transaksi untuk filter ini.</td></tr>
               ) : dataHarian.total.items.map((item, idx) => (
                 <tr key={idx} className="hover:bg-slate-50">
                   <td className="py-3 px-4 text-slate-500">{idx + 1}</td>
