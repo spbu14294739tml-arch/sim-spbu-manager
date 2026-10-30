@@ -21,7 +21,7 @@ import LaporanRekapHarian from './pages/LaporanRekapHarian';
 import VoucherBBM from './pages/VoucherBBM'; 
 
 // HALAMAN VOUCHER (Dipanggil dari index folder VoucherBBM)
-import VoucherBBM from './pages/VoucherBBM/index.jsx';
+import VoucherBBM from './pages/VoucherBBM/VoucherBBM.jsx';
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
