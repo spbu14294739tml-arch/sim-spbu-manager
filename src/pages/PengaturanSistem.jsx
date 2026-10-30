@@ -8,15 +8,6 @@ import {
 } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
-const DAFTAR_KELOMPOK = [
-  { value: 'PENDAPATAN', label: 'Pendapatan / Penjualan' },
-  { value: 'HPP', label: 'Harga Pokok Penjualan (HPP)' },
-  { value: 'BIAYA', label: 'Biaya Operasional' },
-  { value: 'KAS', label: 'Kas & Bank' },
-  { value: 'PIUTANG', label: 'Piutang / Setoran' },
-  { value: 'LAINNYA', label: 'Lain-lain' }
-];
-
 export default function PengaturanSistem() {
   const [activeTab, setActiveTab] = useState('profil'); 
   const [isLoading, setIsLoading] = useState(true);
@@ -34,12 +25,12 @@ export default function PengaturanSistem() {
   const [daftarJabatan, setDaftarJabatan] = useState([]);
   const [jabatanBaru, setJabatanBaru] = useState('');
 
-  // State Kode Akun (BARU)
+  // State Kode Akun (Revisi: Pengelompokan Manual)
   const [daftarKodeAkun, setDaftarKodeAkun] = useState([]);
   const [kodeAkunBaru, setKodeAkunBaru] = useState({ 
     kode_reff: '', 
     nama_transaksi: '', 
-    kelompok: 'PENDAPATAN', 
+    kelompok: '', 
     uraian_kelompok: '', 
     mutasi: 'DEBET' 
   });
@@ -132,6 +123,7 @@ export default function PengaturanSistem() {
   // Simpan Profil
   const handleSimpanProfil = async (e) => {
     e.preventDefault();
+    if (isSaving) return; // Cegah double klik
     setIsSaving(true);
     await supabase.from('profil_spbu').update({
       nama_spbu: profil.nama_spbu, nomor_izin: profil.nomor_izin, alamat: profil.alamat, telepon: profil.telepon, email: profil.email
@@ -193,6 +185,7 @@ export default function PengaturanSistem() {
   const handleSimpanHarga = async (bbm) => {
     const baru = parseFloat(hargaBaruInput);
     if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
+    if (isSaving) return; // Cegah double klik
 
     setIsSaving(true);
 
@@ -236,6 +229,7 @@ export default function PengaturanSistem() {
   const handleUpdateTangki = async (id) => {
     if (!stokBaru && stokBaru !== 0) return alert('Masukkan jumlah stok baru!');
     if (!kapasitasBaru) return alert('Masukkan kapasitas maksimal!');
+    if (isSaving) return; // Cegah double klik
     
     const { error } = await supabase.from('stok_tangki').update({ 
       stok_saat_ini: parseFloat(stokBaru), 
@@ -256,9 +250,12 @@ export default function PengaturanSistem() {
   // Shift
   const handleTambahShift = async () => {
     if (!shiftBaru.nama_shift || !shiftBaru.jam_kerja) return alert('Lengkapi data shift!');
+    if (isSaving) return;
+    setIsSaving(true);
     await supabase.from('pengaturan_shift').insert([shiftBaru]);
     const { data } = await supabase.from('pengaturan_shift').select('*').order('id');
     setDaftarShift(data); setShiftBaru({ nama_shift: '', jam_kerja: '' });
+    setIsSaving(false);
   };
 
   const handleHapusShift = async (id) => {
@@ -270,6 +267,8 @@ export default function PengaturanSistem() {
   // Jabatan
   const handleTambahJabatan = async () => {
     if (!jabatanBaru) return alert('Masukkan nama jabatan!');
+    if (isSaving) return;
+    setIsSaving(true);
     const { error } = await supabase.from('master_jabatan').insert([{ nama_jabatan: jabatanBaru.toUpperCase() }]);
     if (error) alert('Gagal tambah jabatan: ' + error.message);
     else {
@@ -277,6 +276,7 @@ export default function PengaturanSistem() {
       setDaftarJabatan(data); setJabatanBaru('');
       setNotif('Jabatan berhasil ditambahkan!'); setTimeout(() => setNotif(''), 3000);
     }
+    setIsSaving(false);
   };
 
   const handleHapusJabatan = async (id) => {
@@ -288,6 +288,7 @@ export default function PengaturanSistem() {
   // === HANDLERS KODE AKUN ===
   const handleSimpanKodeAkun = async () => {
     if (!kodeAkunBaru.kode_reff || !kodeAkunBaru.nama_transaksi) return alert('Lengkapi Kode Reff dan Nama Transaksi!');
+    if (isSaving) return; // Mencegah DOUBLE KLIK
     setIsSaving(true);
 
     const payload = {
@@ -308,7 +309,7 @@ export default function PengaturanSistem() {
       else { setNotif('Kode Akun berhasil ditambahkan!'); setTimeout(() => setNotif(''), 3000); }
     }
 
-    setKodeAkunBaru({ kode_reff: '', nama_transaksi: '', kelompok: 'PENDAPATAN', uraian_kelompok: '', mutasi: 'DEBET' });
+    setKodeAkunBaru({ kode_reff: '', nama_transaksi: '', kelompok: '', uraian_kelompok: '', mutasi: 'DEBET' });
     setEditingKodeAkunId(null);
     fetchData();
     setIsSaving(false);
@@ -319,7 +320,7 @@ export default function PengaturanSistem() {
     setKodeAkunBaru({ 
       kode_reff: kode.kode_reff, 
       nama_transaksi: kode.nama_transaksi, 
-      kelompok: kode.kelompok || 'PENDAPATAN',
+      kelompok: kode.kelompok || '',
       uraian_kelompok: kode.uraian_kelompok || '',
       mutasi: kode.mutasi || 'DEBET'
     });
@@ -346,6 +347,7 @@ export default function PengaturanSistem() {
   const handleTambahProduk = async (e) => {
     e.preventDefault();
     if (!produkBaru.nama_produk || !produkBaru.harga_jual) return alert('Lengkapi Nama dan Harga Produk!');
+    if (isUploadingProduk) return;
     setIsUploadingProduk(true);
     let fotoUrl = '';
 
@@ -543,7 +545,9 @@ export default function PengaturanSistem() {
                 <label className="block text-xs font-medium text-slate-600 mb-1">Jam Kerja</label>
                 <input type="text" value={shiftBaru.jam_kerja} onChange={(e) => setShiftBaru({...shiftBaru, jam_kerja: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: 08:00 - 16:00" />
               </div>
-              <button onClick={handleTambahShift} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button>
+              <button onClick={handleTambahShift} disabled={isSaving} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700">
+                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />} Tambah
+              </button>
             </div>
           </div>
         )}
@@ -564,7 +568,9 @@ export default function PengaturanSistem() {
                 <label className="block text-xs font-medium text-slate-600 mb-1">Nama Jabatan Baru</label>
                 <input type="text" value={jabatanBaru} onChange={(e) => setJabatanBaru(e.target.value)} className="w-full px-3 py-2 border rounded-lg" placeholder="Cth: SUPERVISOR" />
               </div>
-              <button onClick={handleTambahJabatan} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700"><Plus size={18} /> Tambah</button>
+              <button onClick={handleTambahJabatan} disabled={isSaving} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 hover:bg-blue-700">
+                {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />} Tambah
+              </button>
             </div>
           </div>
         )}
@@ -600,9 +606,10 @@ export default function PengaturanSistem() {
                             </span>
                           </td>
                           <td className="py-3 px-3 text-center">
-                            <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleEditKodeAkun(kode)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={16} /></button>
-                              <button onClick={() => handleHapusKodeAkun(kode.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                            {/* TOMBOL SELALU TAMPIL */}
+                            <div className="flex justify-center gap-1">
+                              <button onClick={() => handleEditKodeAkun(kode)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit"><Edit2 size={16} /></button>
+                              <button onClick={() => handleHapusKodeAkun(kode.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg" title="Hapus"><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
@@ -630,10 +637,8 @@ export default function PengaturanSistem() {
                     <hr className="border-blue-200 my-2" />
                     
                     <div>
-                      <label className="block text-xs font-bold text-blue-700 mb-1">Pengelompokan Akun</label>
-                      <select value={kodeAkunBaru.kelompok} onChange={(e) => setKodeAkunBaru({...kodeAkunBaru, kelompok: e.target.value})} className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm bg-white">
-                        {DAFTAR_KELOMPOK.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
-                      </select>
+                      <label className="block text-xs font-bold text-blue-700 mb-1">Pengelompokan Akun (Manual)</label>
+                      <input type="text" value={kodeAkunBaru.kelompok} onChange={(e) => setKodeAkunBaru({...kodeAkunBaru, kelompok: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm" placeholder="Cth: PENDAPATAN" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-blue-700 mb-1">Uraian Kelompok</label>
@@ -653,10 +658,10 @@ export default function PengaturanSistem() {
 
                     <div className="pt-3 flex gap-2">
                       {editingKodeAkunId && (
-                        <button onClick={() => { setEditingKodeAkunId(null); setKodeAkunBaru({ kode_reff: '', nama_transaksi: '', kelompok: 'PENDAPATAN', uraian_kelompok: '', mutasi: 'DEBET' }); }} className="flex-1 bg-white border text-slate-600 py-2 rounded-lg text-sm font-medium">Batal</button>
+                        <button onClick={() => { setEditingKodeAkunId(null); setKodeAkunBaru({ kode_reff: '', nama_transaksi: '', kelompok: '', uraian_kelompok: '', mutasi: 'DEBET' }); }} className="flex-1 bg-white border text-slate-600 py-2 rounded-lg text-sm font-medium">Batal</button>
                       )}
                       <button onClick={handleSimpanKodeAkun} disabled={isSaving} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex justify-center items-center gap-2">
-                        {isSaving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />} Simpan
+                        {isSaving ? <><Loader2 className="animate-spin" size={16} /> Menyimpan...</> : <><Save size={16} /> Simpan</>}
                       </button>
                     </div>
                   </div>
