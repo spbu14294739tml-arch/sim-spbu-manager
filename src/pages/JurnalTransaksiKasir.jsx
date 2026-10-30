@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle, FileText } from 'lucide-react';
+import { Loader2, Save, Fuel, Ticket, ShoppingBag, Droplet, BookOpen, Printer, Image as ImageIcon, CheckCircle2, Clock, AlertTriangle, FileText, Trash2 } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function JurnalTransaksiKasir() {
@@ -39,7 +39,44 @@ export default function JurnalTransaksiKasir() {
   const [lainnyaData, setLainnyaData] = useState({ dari_ke: '', uraian_kegiatan: '', reff: '', debet: '', kredit: '' });
 
   const listDispenser = ['DISPENSER 1', 'DISPENSER 2', 'DISPENSER 3', 'DISPENSER 4', 'DISPENSER 5'];
+  // === FUNGSI ANTI-DOBEL SALDO ===
+  const getSaldoTerakhir = (listJurnal) => {
+    if (!listJurnal || listJurnal.length === 0) return 0;
+    return Math.max(...listJurnal.map(j => j.saldo || 0));
+  };
 
+  // === FUNGSI HAPUS JURNAL (HANYA HARI INI) ===
+  const handleHapusJurnal = async (jurnal) => {
+    const hariIni = new Date().toISOString().split('T')[0];
+    
+    if (jurnal.tanggal !== hariIni) {
+      return alert(`❌ Tidak bisa hapus data tanggal ${jurnal.tanggal}.\nData lampau hanya boleh dikoreksi lewat tab Koreksi.`);
+    }
+
+    const yakin = window.confirm(`Yakin ingin menghapus catatan "${jurnal.uraian_kegiatan}"?\nData penjualan terkait juga akan dihapus, dan total dihitung ulang.`);
+    if (!yakin) return;
+
+    setIsSaving(true);
+    try {
+      // 1. Hapus dari tabel asal (penjualan) agar sinkron
+      if (jurnal.uraian_kegiatan.includes('PENJUALAN BBM')) {
+        await supabase.from('penjualan_bbm').delete().eq('tanggal', jurnal.tanggal).eq('shift', jurnal.shift).eq('total_harga', jurnal.debet);
+      } else if (jurnal.uraian_kegiatan.includes('PENJUALAN LPG') || jurnal.uraian_kegiatan.includes('PENJUALAN OLI')) {
+        await supabase.from('penjualan_nfr').delete().eq('tanggal', jurnal.tanggal).eq('shift', jurnal.shift).eq('total_harga', jurnal.debet);
+      }
+      
+      // 2. Hapus dari jurnal kasir
+      const { error } = await supabase.from('jurnal_kasir').delete().eq('id', jurnal.id);
+      if (error) throw error;
+
+      alert('✅ Transaksi berhasil dihapus.');
+      fetchData(); // Refresh tabel
+    } catch (error) {
+      alert('Gagal hapus: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   const fetchData = async () => {
     setIsLoading(true);
 
@@ -181,7 +218,7 @@ export default function JurnalTransaksiKasir() {
   };
 
   // === SIMPAN CHECKLIST MASSAL ===
-  const handleSimpanChecklist = async (bundel) => {
+ const handleSimpanChecklist = async (bundel) => {
     const selectedLembar = checklistSementara[bundel.id] || [];
     if (selectedLembar.length === 0) return alert('Pilih minimal satu nomor voucher yang akan di-checklist!');
     if (!window.confirm(`Apakah Anda Yakin Sudah Selesai Checklist ${selectedLembar.length} Lembar untuk Voucher ${bundel.no_voucher}?`)) return;
@@ -198,7 +235,7 @@ export default function JurnalTransaksiKasir() {
       }]);
     }
 
-    const saldoSebelumnya = jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0;
+    const saldoSebelumnya = getSaldoTerakhir(jurnalHariIni);
     const saldoBaru = saldoSebelumnya + totalNominalMasuk;
 
     await supabase.from('jurnal_kasir').insert([{
@@ -598,7 +635,7 @@ export default function JurnalTransaksiKasir() {
                           </td>
                           <td className="px-3 py-3 text-center">
                             <button 
-                              onClick={() => handleSimpanChecklist(v)}
+                             onClick={() => handleSimpanChecklist(v)}
                               disabled={checkedList.length === 0 || isSaving}
                               className={`px-3 py-1.5 rounded-lg font-semibold text-[10px] shadow-sm transition-colors ${
                                 checkedList.length > 0 
@@ -639,7 +676,7 @@ export default function JurnalTransaksiKasir() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {jurnalHariIni.length === 0 ? (
-                      <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
+                      <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
                     ) : jurnalHariIni.map((item, idx) => (
                       <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
                         <td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
@@ -648,6 +685,15 @@ export default function JurnalTransaksiKasir() {
                         <td className="px-3 py-2 text-right font-medium text-green-600">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
                         <td className="px-3 py-2 text-right font-medium text-red-600">{item.kredit > 0 ? formatRupiah(item.kredit) : '-'}</td>
                         <td className="px-3 py-2 text-right font-bold text-slate-800 bg-slate-50/50">{formatRupiah(item.saldo)}</td>
+<td className="px-3 py-2 text-center">
+  {item.uraian_kegiatan.startsWith('[KOREKSI]') ? (
+    <span className="text-[9px] text-amber-600 font-bold italic">AUDIT</span>
+  ) : (
+    <button onClick={() => handleHapusJurnal(item)} disabled={isSaving} className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30">
+      <Trash2 size={14} />
+    </button>
+  )}
+</td>
                       </tr>
                     ))}
                   </tbody>
