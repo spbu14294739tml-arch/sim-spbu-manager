@@ -18,6 +18,7 @@ import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
+import VoucherBBM from './pages/VoucherBBM'; 
 
 // HALAMAN VOUCHER (Dipanggil dari index folder VoucherBBM)
 import VoucherBBM from './pages/VoucherBBM/index.jsx';
