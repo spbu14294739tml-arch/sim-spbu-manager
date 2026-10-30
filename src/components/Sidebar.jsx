@@ -14,7 +14,8 @@ import {
   FileText,
   FileCheck,
   PieChart, 
-  Search // <-- Ikon untuk Audit Voucher Macet
+  Search,
+  Barcode // <-- Ikon Baru untuk Scan
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -46,19 +47,17 @@ export default function Sidebar() {
     { path: '/karyawan', name: 'Database Karyawan', icon: Users, roles: ['manager'] },
     { path: '/absensi', name: 'Absensi', icon: UserCheck, roles: ['manager', 'accounting'] },
     
-    // MENU GABUNGAN KASIR & JURNAL
+    // MENU KASIR
     { path: '/jurnal-transaksi', name: 'Jurnal Transaksi Kasir', icon: ShoppingCart, roles: ['kasir', 'manager'] },
+    { path: '/scan-voucher', name: 'Scan Voucher Fisik', icon: Barcode, roles: ['kasir', 'manager'] }, // <-- MENU BARU SCAN
     
     { path: '/master-tugas', name: 'Master Tugas', icon: ClipboardList, roles: ['manager', 'accounting'] },
     { path: '/laporan-kerusakan', name: 'Laporan Kerusakan', icon: AlertTriangle, roles: ['manager', 'accounting'] },
     { path: '/laporan-kasir', name: 'Laporan Kasir', icon: FileText, roles: ['manager', 'accounting'] },
     
-    // MENU LAPORAN REKAP (DIAKSES SEMUA ROLE)
+    // MENU LAPORAN
     { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting', 'kasir'] },
-    
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
-    
-    // === MENU BARU: AUDIT VOUCHER MACET ===
     { path: '/laporan-voucher-macet', name: 'Audit Voucher Macet', icon: Search, roles: ['manager', 'accounting'] },
     
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },

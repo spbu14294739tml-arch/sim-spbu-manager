@@ -18,6 +18,7 @@ import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 import LaporanVoucherMacet from './pages/LaporanVoucherMacet';
+import ScanVoucher from './pages/ScanVoucher'; // <-- TAMBAHKAN INI
 
 // IMPORT HALAMAN BARU
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
@@ -104,7 +105,7 @@ function App() {
             <Route path="/laporan-voucher-macet" element={<LaporanVoucherMacet />} />
             {/* RUTE LAPORAN REKAP (BISA DIAKSES SEMUA ROLE) */}
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
-
+            <Route path="/scan-voucher" element={<ScanVoucher />} /> {/* <-- TAMBAHKAN INI */}  
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
             
