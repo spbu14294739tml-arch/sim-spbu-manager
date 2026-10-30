@@ -13,7 +13,8 @@ import {
   ShoppingCart,
   FileText,
   FileCheck,
-  PieChart // <-- Icon Laporan Rekap
+  PieChart, 
+  Search // <-- Ikon untuk Audit Voucher Macet
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -56,6 +57,10 @@ export default function Sidebar() {
     { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart, roles: ['manager', 'accounting', 'kasir'] },
     
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck, roles: ['manager', 'accounting', 'kasir'] },
+    
+    // === MENU BARU: AUDIT VOUCHER MACET ===
+    { path: '/laporan-voucher-macet', name: 'Audit Voucher Macet', icon: Search, roles: ['manager', 'accounting'] },
+    
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings, roles: ['manager'] },
   ];
 

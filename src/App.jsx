@@ -17,6 +17,7 @@ import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
+import LaporanVoucherMacet from './pages/LaporanVoucherMacet';
 
 // IMPORT HALAMAN BARU
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
@@ -100,7 +101,7 @@ function App() {
             <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
-            
+            <Route path="/laporan-voucher-macet" element={<LaporanVoucherMacet />} />
             {/* RUTE LAPORAN REKAP (BISA DIAKSES SEMUA ROLE) */}
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
 
@@ -116,7 +117,7 @@ function App() {
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
               <Route path="pengaturan" element={<PengaturanSistem />} />
-            </Route>
+                          </Route>
           </Route>
         </Route>
         
