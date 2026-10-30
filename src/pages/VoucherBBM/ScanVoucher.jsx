@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
+import KopSurat from '../../components/KopSurat';
 import { Barcode, CheckCircle2, XCircle, Search, Loader2 } from 'lucide-react';
 
 export default function ScanVoucher() {
