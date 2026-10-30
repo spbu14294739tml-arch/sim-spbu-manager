@@ -238,8 +238,21 @@ export default function JurnalTransaksiKasir() {
       if (!lainnyaData.dari_ke || !lainnyaData.uraian_kegiatan) { alert('Lengkapi Dari/Ke dan Uraian!'); setIsSaving(false); return; }
       if (!lainnyaData.debet && !lainnyaData.kredit) { alert('Isi salah satu: Debet atau Kredit!'); setIsSaving(false); return; }
       
-      const debetNum = parseFloat(lainnyaData.debet) || 0;
-      const kreditNum = parseFloat(lainnyaData.kredit) || 0;
+            // Cari Kode Akun yang dipilih untuk melihat Mutasi normalnya
+      const selectedAkun = masterKodeAkun.find(k => k.kode_reff === lainnyaData.reff);
+      
+      let debetNum = 0;
+      let kreditNum = 0;
+
+      if (selectedAkun) {
+        // Jika Kode Akun bermutasi DEBET, maka input uang masuk ke Debet
+        if (selectedAkun.mutasi === 'DEBET') {
+          debetNum = parseFloat(lainnyaData.debet || 0);
+        } else {
+        // Jika Kode Akun bermutasi KREDIT, maka input uang keluar ke Kredit
+          kreditNum = parseFloat(lainnyaData.kredit || 0);
+        }
+      }
       
       payloadJurnal = { 
         dari_ke: lainnyaData.dari_ke.toUpperCase(), 
