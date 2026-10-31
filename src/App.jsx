@@ -18,10 +18,9 @@ import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
-import VoucherBBM from './pages/VoucherBBM'; 
 
-// HALAMAN VOUCHER (Dipanggil dari index folder VoucherBBM)
-import VoucherBBM from './pages/VoucherBBM/index.jsx';
+// Import Halaman Voucher (Hanya SATU baris ini saja!)
+import VoucherBBM from './pages/VoucherBBM'; 
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
