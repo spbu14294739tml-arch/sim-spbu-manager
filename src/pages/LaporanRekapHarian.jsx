@@ -15,8 +15,11 @@ export default function LaporanRekapHarian() {
   
   // State Filter Kategori & Filter Dari/Ke (BARU)
   const [kategoriFilter, setKategoriFilter] = useState('SEMUA'); 
-  const [dariKeFilter, setDariKeFilter] = useState('SEMUA'); // <-- Filter Baru
-  const [listDariKe, setListDariKe] = useState([]); // <-- Untuk menampung pilihan unik Dari/Ke
+  const [dariKeFilter, setDariKeFilter] = useState('SEMUA'); 
+  
+  // List untuk menampung pilihan unik Dari/Ke
+  const [listDariKeHarian, setListDariKeHarian] = useState([]); 
+  const [listDariKeBulanan, setListDariKeBulanan] = useState([]); 
 
   // State Harian
   const [dataHarian, setDataHarian] = useState({ 
@@ -38,18 +41,17 @@ export default function LaporanRekapHarian() {
       .eq('tanggal', selectedDate);
 
     let rekapPerProduk = {}; 
-    let uniqueDariKe = new Set(); // Untuk mengumpulkan list Dari/Ke yang ada hari ini
+    let uniqueDariKe = new Set();
 
     if (jurnal) {
       jurnal.forEach(item => {
-        uniqueDariKe.add(item.dari_ke); // Simpan daftar Dari/Ke
+        uniqueDariKe.add(item.dari_ke);
 
         const isShift1 = item.shift.toLowerCase().includes('1') || item.shift.toLowerCase().includes('pagi');
         const target = isShift1 ? 'shift1' : 'shift2';
         
         let namaBaris = item.uraian_kegiatan;
         
-        // Tentukan Kategori untuk Filter
         let kategoriItem = 'LAINNYA';
         if (namaBaris.includes('PENJUALAN BBM')) kategoriItem = 'BBM';
         else if (namaBaris.includes('PENJUALAN LPG')) kategoriItem = 'LPG';
@@ -77,8 +79,7 @@ export default function LaporanRekapHarian() {
       });
     }
 
-    // Urutkan list Dari/Ke
-    setListDariKe(['SEMUA', ...Array.from(uniqueDariKe)].sort());
+    setListDariKeHarian(['SEMUA', ...Array.from(uniqueDariKe)].sort());
 
     let itemsArray = Object.keys(rekapPerProduk).map(key => ({
       nama: key,
@@ -87,20 +88,12 @@ export default function LaporanRekapHarian() {
       total: rekapPerProduk[key].total,
       type: rekapPerProduk[key].type,
       kategori: rekapPerProduk[key].kategori,
-      dari_ke: rekapPerProduk[key].dari_ke // Sertakan Dari/Ke untuk filter
+      dari_ke: rekapPerProduk[key].dari_ke
     })).sort((a, b) => a.nama.localeCompare(b.nama));
 
-    // FILTER DATA SESUAI PILIHAN USER
-    if (kategoriFilter !== 'SEMUA') {
-      itemsArray = itemsArray.filter(item => item.kategori === kategoriFilter);
-    }
+    if (kategoriFilter !== 'SEMUA') itemsArray = itemsArray.filter(item => item.kategori === kategoriFilter);
+    if (dariKeFilter !== 'SEMUA') itemsArray = itemsArray.filter(item => item.dari_ke === dariKeFilter);
 
-    // FILTER DARI/KE (BARU)
-    if (dariKeFilter !== 'SEMUA') {
-      itemsArray = itemsArray.filter(item => item.dari_ke === dariKeFilter);
-    }
-
-    // Hitung Grand Total dari data yang sudah difilter
     const totalShift1 = itemsArray.reduce((acc, curr) => acc + curr.shift1, 0);
     const totalShift2 = itemsArray.reduce((acc, curr) => acc + curr.shift2, 0);
     const grandTotal = itemsArray.reduce((acc, curr) => acc + curr.total, 0);
@@ -127,6 +120,7 @@ export default function LaporanRekapHarian() {
 
     const rekapHarian = {};
     let total = { bbm: 0, nfr: 0, voucher: 0, lain: 0, grandTotal: 0 };
+    let uniqueDariKe = new Set(); // Untuk filter Dari/Ke Bulanan
 
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
     for (let i = 1; i <= daysInMonth; i++) {
@@ -135,7 +129,14 @@ export default function LaporanRekapHarian() {
     }
 
     if (jurnal) {
+      // Kumpulkan semua Dari/Ke unik di bulan ini
+      jurnal.forEach(item => uniqueDariKe.add(item.dari_ke));
+      setListDariKeBulanan(['SEMUA', ...Array.from(uniqueDariKe)].sort());
+
       jurnal.forEach(item => {
+        // Jika ada filter Dari/Ke yang dipilih, lewati yang tidak cocok
+        if (dariKeFilter !== 'SEMUA' && item.dari_ke !== dariKeFilter) return;
+        
         if (!rekapHarian[item.tanggal]) return;
         const r = rekapHarian[item.tanggal];
         const netValue = (item.debet || 0) - (item.kredit || 0);
@@ -170,7 +171,6 @@ export default function LaporanRekapHarian() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Laporan Rekapitulasi</h1>
@@ -183,13 +183,11 @@ export default function LaporanRekapHarian() {
         </div>
       </div>
 
-      {/* TAB NAVIGATION */}
       <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit no-print">
         <button type="button" onClick={() => setActiveTab('harian')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'harian' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><Calendar size={16}/> Laporan Harian</button>
         <button type="button" onClick={() => setActiveTab('bulanan')} className={`py-2 px-5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center gap-2 ${activeTab === 'bulanan' ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'}`}><BarChart3 size={16}/> Laporan Bulanan</button>
       </div>
 
-      {/* FILTER & KONTROL */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
         
         <div className="flex flex-col md:flex-row gap-4 items-center w-full">
@@ -215,17 +213,12 @@ export default function LaporanRekapHarian() {
             )}
         </div>
 
-        {/* FILTER KHUSUS HARIAN */}
-        {activeTab === 'harian' && (
-            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                {/* Filter Kategori */}
+        {/* FILTER DARI/KE (Tampil di Harian & Bulanan) */}
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            {activeTab === 'harian' && (
                 <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
                     <Filter size={16} className="text-blue-600" />
-                    <select 
-                        value={kategoriFilter} 
-                        onChange={(e) => setKategoriFilter(e.target.value)} 
-                        className="bg-transparent font-semibold text-sm text-blue-800 outline-none cursor-pointer"
-                    >
+                    <select value={kategoriFilter} onChange={(e) => setKategoriFilter(e.target.value)} className="bg-transparent font-semibold text-sm text-blue-800 outline-none cursor-pointer">
                         <option value="SEMUA">Semua Kategori</option>
                         <option value="BBM">Khusus BBM</option>
                         <option value="NFR">Khusus NFR (Oli/LPG)</option>
@@ -233,26 +226,25 @@ export default function LaporanRekapHarian() {
                         <option value="LAINNYA">Lain-lain / Setoran</option>
                     </select>
                 </div>
+            )}
 
-                {/* Filter Dari / Ke (BARU) */}
-                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
-                    <ListFilter size={16} className="text-purple-600" />
-                    <select 
-                        value={dariKeFilter} 
-                        onChange={(e) => setDariKeFilter(e.target.value)} 
-                        className="bg-transparent font-semibold text-sm text-purple-800 outline-none cursor-pointer max-w-[200px]"
-                    >
-                        {listDariKe.map((dk, i) => (
-                            <option key={i} value={dk}>{dk === 'SEMUA' ? 'Semua Dari/Ke' : dk}</option>
-                        ))}
-                    </select>
-                </div>
+            <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+                <ListFilter size={16} className="text-purple-600" />
+                <select 
+                    value={dariKeFilter} 
+                    onChange={(e) => setDariKeFilter(e.target.value)} 
+                    className="bg-transparent font-semibold text-sm text-purple-800 outline-none cursor-pointer max-w-[200px]"
+                >
+                    {(activeTab === 'harian' ? listDariKeHarian : listDariKeBulanan).map((dk, i) => (
+                        <option key={i} value={dk}>{dk === 'SEMUA' ? 'Semua Dari/Ke' : dk}</option>
+                    ))}
+                </select>
             </div>
-        )}
+        </div>
       </div>
 
       <KopSurat 
-        judul={activeTab === 'harian' ? `Laporan Rekapitulasi Harian Kasir ${kategoriFilter !== 'SEMUA' ? `- ${kategoriFilter}` : ''} ${dariKeFilter !== 'SEMUA' ? `(${dariKeFilter})` : ''}` : "Laporan Rekapitulasi Bulanan Kasir"} 
+        judul={activeTab === 'harian' ? `Laporan Rekapitulasi Harian Kasir ${kategoriFilter !== 'SEMUA' ? `- ${kategoriFilter}` : ''} ${dariKeFilter !== 'SEMUA' ? `(${dariKeFilter})` : ''}` : `Laporan Rekapitulasi Bulanan Kasir ${dariKeFilter !== 'SEMUA' ? `(${dariKeFilter})` : ''}`} 
         periode={activeTab === 'harian' 
           ? `Tanggal: ${formatTanggalIndo(selectedDate)}`
           : `Bulan: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][selectedMonth-1]} ${selectedYear}`
@@ -262,7 +254,6 @@ export default function LaporanRekapHarian() {
       {isLoading ? (
         <div className="bg-white p-12 text-center rounded-2xl shadow-sm border border-slate-100"><Loader2 className="animate-spin mx-auto text-blue-500" size={32} /></div>
       ) : activeTab === 'harian' ? (
-        // TAMPILAN HARIAN DETAIL
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
           <table className="w-full text-sm">
             <thead>
@@ -298,7 +289,6 @@ export default function LaporanRekapHarian() {
           </table>
         </div>
       ) : (
-        // TAMPILAN BULANAN (Sama seperti sebelumnya)
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
           <div className="overflow-x-auto max-h-[600px]">
             <table className="w-full text-xs">
