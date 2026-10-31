@@ -8,19 +8,17 @@ import { Loader2 } from 'lucide-react';
 import LayoutUtama from './layouts/LayoutUtama';
 import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
-import DashboardKasir from './pages/DashboardKasir'; // <-- Import Dashboard Kasir Baru
+import DashboardKasir from './pages/DashboardKasir';
 import DatabaseKaryawan from './pages/DatabaseKaryawan';
 import Absensi from './pages/Absensi';
 import LaporanKasir from './pages/LaporanKasir';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
-import PengaturanSistem from './pages/Pengaturan'; // Bukan './pages/PengaturanSistem'
+import PengaturanSistem from './pages/Pengaturan'; 
 import AccountingVoucher from './pages/AccountingVoucher';
-import LaporanSetoran from './pages/LaporanSetoran';
+import LaporanSetoran from './pages/HalamanSetoran'; 
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
-
-// Import Halaman Jurnal Kasir & Voucher (Folder Baru)
-import VoucherBBM from './pages/VoucherBBM'; 
+import VoucherBBM from './pages/VoucherBBM'; // <-- Cukup sampai foldernya saja
 import JurnalKasir from './pages/JurnalKasir'; 
 
 // 1. Satpam Umum (Cek Login)
@@ -86,7 +84,7 @@ function AccountingRoute() {
   return <Outlet />;
 }
 
-// 4. Satpam Pintar Dashboard (Beda Tampilan Kasir & Manager)
+// 4. Satpam Pintar Dashboard
 function DashboardUtama() {
   const [role, setRole] = useState(null);
 
@@ -113,10 +111,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        {/* Satpam Umum: Harus Login */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<LayoutUtama />}>
-            {/* Gunakan DashboardUtama untuk rute index */}
             <Route index element={<DashboardUtama />} />
             
             <Route path="absensi" element={<Absensi />} />
@@ -145,7 +141,6 @@ function App() {
           </Route>
         </Route>
         
-        {/* Redirect jika rute tidak ditemukan */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
