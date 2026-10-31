@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, BarChart3, Filter, ListFilter } from 'lucide-react';
+import { Loader2, Printer, Calendar, BarChart3, Filter, ListFilter, ListPlus } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanRekapHarian() {
@@ -13,11 +13,9 @@ export default function LaporanRekapHarian() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  // State Filter Kategori & Filter Dari/Ke (BARU)
   const [kategoriFilter, setKategoriFilter] = useState('SEMUA'); 
   const [dariKeFilter, setDariKeFilter] = useState('SEMUA'); 
   
-  // List untuk menampung pilihan unik Dari/Ke
   const [listDariKeHarian, setListDariKeHarian] = useState([]); 
   const [listDariKeBulanan, setListDariKeBulanan] = useState([]); 
 
@@ -31,6 +29,10 @@ export default function LaporanRekapHarian() {
   // State Bulanan
   const [dataBulanan, setDataBulanan] = useState([]);
   const [totalBulanan, setTotalBulanan] = useState({});
+  
+  // State BARU: Mode Rinci Bulanan
+  const [modeRinci, setModeRinci] = useState(false);
+  const [listProdukBBM, setListProdukBBM] = useState([]); 
 
   const fetchLaporanHarian = async () => {
     setIsLoading(true);
@@ -120,29 +122,37 @@ export default function LaporanRekapHarian() {
 
     const rekapHarian = {};
     let total = { bbm: 0, nfr: 0, voucher: 0, lain: 0, grandTotal: 0 };
-    let uniqueDariKe = new Set(); // Untuk filter Dari/Ke Bulanan
+    let uniqueDariKe = new Set();
+    let produkBBMUnik = new Set(); // Untuk menampung nama produk BBM (Dexlite, Pertalite, dll)
 
     const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
     for (let i = 1; i <= daysInMonth; i++) {
       const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-      rekapHarian[dateStr] = { tanggal: dateStr, bbm: 0, nfr: 0, voucher: 0, lain: 0, grandTotal: 0 };
+      // Tambahkan objek produk_bbm untuk mode rinci
+      rekapHarian[dateStr] = { tanggal: dateStr, bbm: 0, nfr: 0, voucher: 0, lain: 0, grandTotal: 0, produk_bbm: {} };
     }
 
     if (jurnal) {
-      // Kumpulkan semua Dari/Ke unik di bulan ini
       jurnal.forEach(item => uniqueDariKe.add(item.dari_ke));
       setListDariKeBulanan(['SEMUA', ...Array.from(uniqueDariKe)].sort());
 
       jurnal.forEach(item => {
-        // Jika ada filter Dari/Ke yang dipilih, lewati yang tidak cocok
         if (dariKeFilter !== 'SEMUA' && item.dari_ke !== dariKeFilter) return;
-        
         if (!rekapHarian[item.tanggal]) return;
+        
         const r = rekapHarian[item.tanggal];
         const netValue = (item.debet || 0) - (item.kredit || 0);
 
         if (item.uraian_kegiatan.includes('PENJUALAN BBM')) {
           r.bbm += netValue; total.bbm += netValue;
+          
+          // Ekstrak nama produk BBM (Misal: "PENJUALAN BBM DEXLITE" -> "DEXLITE")
+          const namaProduk = item.uraian_kegiatan.replace('PENJUALAN BBM ', '').trim() || 'LAINNYA';
+          produkBBMUnik.add(namaProduk);
+          
+          if (!r.produk_bbm[namaProduk]) r.produk_bbm[namaProduk] = 0;
+          r.produk_bbm[namaProduk] += netValue;
+
         } else if (item.uraian_kegiatan.includes('OLI') || item.uraian_kegiatan.includes('LPG')) {
           r.nfr += netValue; total.nfr += netValue;
         } else if (item.dari_ke.includes('VOUCHER')) {
@@ -154,6 +164,7 @@ export default function LaporanRekapHarian() {
       });
     }
 
+    setListProdukBBM(Array.from(produkBBMUnik).sort()); // Simpan list produk BBM unik
     setDataBulanan(Object.values(rekapHarian));
     setTotalBulanan(total);
     setIsLoading(false);
@@ -213,7 +224,6 @@ export default function LaporanRekapHarian() {
             )}
         </div>
 
-        {/* FILTER DARI/KE (Tampil di Harian & Bulanan) */}
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             {activeTab === 'harian' && (
                 <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
@@ -240,6 +250,17 @@ export default function LaporanRekapHarian() {
                     ))}
                 </select>
             </div>
+
+            {/* Tombol Toggle Mode Rinci (Khusus Bulanan) */}
+            {activeTab === 'bulanan' && (
+                <button 
+                    onClick={() => setModeRinci(!modeRinci)} 
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-colors ${modeRinci ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                >
+                    <ListPlus size={16} />
+                    <span className="font-semibold text-sm">{modeRinci ? 'Tampilan Ringkas' : 'Tampilkan Rincian'}</span>
+                </button>
+            )}
         </div>
       </div>
 
@@ -289,13 +310,23 @@ export default function LaporanRekapHarian() {
           </table>
         </div>
       ) : (
+        // TAMPILAN BULANAN (DENGAN MODE RINCI)
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
           <div className="overflow-x-auto max-h-[600px]">
             <table className="w-full text-xs">
               <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-3 text-left">Tanggal</th>
-                  <th className="py-3 px-3 text-right">Penjualan BBM</th>
+                  <th className="py-3 px-3 text-left sticky left-0 bg-slate-100 z-20">Tanggal</th>
+                  
+                  {/* Kolom dinamis untuk BBM jika mode rinci aktif */}
+                  {modeRinci ? (
+                    listProdukBBM.map((prod, i) => (
+                      <th key={i} className="py-3 px-3 text-right whitespace-nowrap">{prod}</th>
+                    ))
+                  ) : (
+                    <th className="py-3 px-3 text-right">Penjualan BBM</th>
+                  )}
+
                   <th className="py-3 px-3 text-right">Penjualan NFR</th>
                   <th className="py-3 px-3 text-right">Penerimaan Voucher</th>
                   <th className="py-3 px-3 text-right">Lain-lain</th>
@@ -305,8 +336,17 @@ export default function LaporanRekapHarian() {
               <tbody className="divide-y divide-slate-100">
                 {dataBulanan.map((hari) => (
                   <tr key={hari.tanggal} className="hover:bg-slate-50">
-                    <td className="py-2 px-3 font-medium text-slate-800">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td className="py-2 px-3 text-right font-mono">{formatRupiah(hari.bbm)}</td>
+                    <td className="py-2 px-3 font-medium text-slate-800 sticky left-0 bg-white">{new Date(hari.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                    
+                    {/* Isi kolom dinamis BBM */}
+                    {modeRinci ? (
+                      listProdukBBM.map((prod, i) => (
+                        <td key={i} className="py-2 px-3 text-right font-mono">{formatRupiah(hari.produk_bbm[prod] || 0)}</td>
+                      ))
+                    ) : (
+                      <td className="py-2 px-3 text-right font-mono">{formatRupiah(hari.bbm)}</td>
+                    )}
+
                     <td className="py-2 px-3 text-right font-mono">{formatRupiah(hari.nfr)}</td>
                     <td className="py-2 px-3 text-right font-mono">{formatRupiah(hari.voucher)}</td>
                     <td className="py-2 px-3 text-right font-mono">{formatRupiah(hari.lain)}</td>
@@ -316,8 +356,19 @@ export default function LaporanRekapHarian() {
               </tbody>
               <tfoot>
                 <tr className="bg-slate-800 text-white sticky bottom-0">
-                  <td className="py-3 px-3 font-bold">TOTAL BULAN INI</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold">{formatRupiah(totalBulanan.bbm)}</td>
+                  <td className="py-3 px-3 font-bold sticky left-0 bg-slate-800 z-20">TOTAL BULAN INI</td>
+                  
+                  {/* Total Dinamis BBM */}
+                  {modeRinci ? (
+                    listProdukBBM.map((prod, i) => {
+                      // Hitung total per produk
+                      const totalProd = dataBulanan.reduce((acc, curr) => acc + (curr.produk_bbm[prod] || 0), 0);
+                      return <td key={i} className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap">{formatRupiah(totalProd)}</td>;
+                    })
+                  ) : (
+                    <td className="py-3 px-3 text-right font-mono font-bold">{formatRupiah(totalBulanan.bbm)}</td>
+                  )}
+
                   <td className="py-3 px-3 text-right font-mono font-bold">{formatRupiah(totalBulanan.nfr)}</td>
                   <td className="py-3 px-3 text-right font-mono font-bold">{formatRupiah(totalBulanan.voucher)}</td>
                   <td className="py-3 px-3 text-right font-mono font-bold">{formatRupiah(totalBulanan.lain)}</td>
@@ -340,6 +391,7 @@ export default function LaporanRekapHarian() {
           .bg-slate-200 { background-color: #e5e7eb !important; }
           .bg-slate-800, .bg-slate-700, .bg-slate-900 { background-color: #1e293b !important; color: white !important; -webkit-print-color-adjust: exact !important; }
           .text-green-700, .text-green-400, .text-blue-700, .text-red-700 { color: black !important; }
+          .sticky { position: static !important; }
         }
       `}} />
     </div>
