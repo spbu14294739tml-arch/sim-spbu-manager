@@ -14,7 +14,7 @@ import Absensi from './pages/Absensi';
 import LaporanKasir from './pages/LaporanKasir';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
-import PengaturanSistem from './pages/PengaturanSistem';
+import PengaturanSistem from './pages/Pengaturan'; // Bukan './pages/PengaturanSistem'
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
