@@ -16,7 +16,7 @@ import MasterTugas from './pages/MasterTugas';
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/Pengaturan'; // Bukan './pages/PengaturanSistem'
 import AccountingVoucher from './pages/AccountingVoucher';
-import LaporanSetoran from './pages/LaporanSetoran.jsx';
+import LaporanSetoran from './pages/LaporanSetoran';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
 // Import Halaman Jurnal Kasir & Voucher (Folder Baru)
