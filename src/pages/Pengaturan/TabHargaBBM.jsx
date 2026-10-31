@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
-import { Loader2, Fuel, History, ArrowUp, ArrowDown, Minus, Printer, X } from 'lucide-react';
+import { Loader2, Fuel, History, ArrowUp, ArrowDown, Minus, Printer, X, Edit2, Calculator } from 'lucide-react';
 import KopSurat from '../KopSurat';
 
 export default function TabHargaBBM() {
   const [daftarHargaBBM, setDaftarHargaBBM] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // State Edit Harga
   const [editingHargaId, setEditingHargaId] = useState(null);
-  const [hargaBaruInput, setHargaBaruInput] = useState('');
+  const [hargaJualInput, setHargaJualInput] = useState('');
+  const [hargaBeliInput, setHargaBeliInput] = useState('');
   const [tanggalEfektif, setTanggalEfektif] = useState(new Date().toISOString().split('T')[0]);
   const [statusHarga, setStatusHarga] = useState('TETAP');
   const [selisihHarga, setSelisihHarga] = useState(0);
 
-  // State Modal
+  // State Modal Riwayat
   const [showRiwayatModal, setShowRiwayatModal] = useState(false);
   const [riwayatBulan, setRiwayatBulan] = useState(new Date().getMonth() + 1);
   const [riwayatTahun, setRiwayatTahun] = useState(new Date().getFullYear());
@@ -38,17 +41,18 @@ export default function TabHargaBBM() {
 
   useEffect(() => { if (showRiwayatModal) fetchRiwayatHarga(); }, [showRiwayatModal, riwayatBulan, riwayatTahun]);
 
-  const handleMulaiEditHarga = (bbm) => {
+  const handleMulaiEdit = (bbm) => {
     setEditingHargaId(bbm.id);
-    setHargaBaruInput(bbm.harga_per_liter.toString());
+    setHargaJualInput(bbm.harga_per_liter.toString());
+    setHargaBeliInput(bbm.harga_beli ? bbm.harga_beli.toString() : '0');
     setTanggalEfektif(new Date().toISOString().split('T')[0]);
     setStatusHarga('TETAP');
     setSelisihHarga(0);
   };
 
-  const handleHargaInputChange = (e, hargaLama) => {
+  const handleHargaJualChange = (e, hargaLama) => {
     const val = e.target.value;
-    setHargaBaruInput(val);
+    setHargaJualInput(val);
     const baru = parseFloat(val);
     const lama = parseFloat(hargaLama);
     if (!isNaN(baru) && !isNaN(lama)) {
@@ -61,16 +65,36 @@ export default function TabHargaBBM() {
   };
 
   const handleSimpanHarga = async (bbm) => {
-    const baru = parseFloat(hargaBaruInput);
-    if (isNaN(baru) || baru <= 0) return alert('Harga baru tidak valid!');
+    const baru = parseFloat(hargaJualInput);
+    const beli = parseFloat(hargaBeliInput) || 0;
+    
+    if (isNaN(baru) || baru <= 0) return alert('Harga jual tidak valid!');
     if (isSaving) return;
     setIsSaving(true);
 
     try {
-      await supabase.from('master_produk_bbm').update({ harga_per_liter: baru, tanggal_efektif: tanggalEfektif, status_harga: statusHarga, selisih_harga: selisihHarga }).eq('id', bbm.id);
-      if (baru !== bbm.harga_per_liter) {
-        await supabase.from('riwayat_harga_bbm').insert([{ jenis_bbm: bbm.jenis_bbm, harga_lama: bbm.harga_per_liter, harga_baru: baru, tanggal_efektif: tanggalEfektif, selisih: selisihHarga, status: statusHarga, updated_by: 'Manager Operasional' }]);
+      // Update Master BBM
+      await supabase.from('master_produk_bbm').update({ 
+        harga_per_liter: baru, 
+        harga_beli: beli,
+        tanggal_efektif: tanggalEfektif, 
+        status_harga: statusHarga, 
+        selisih_harga: selisihHarga 
+      }).eq('id', bbm.id);
+
+      // Catat ke Riwayat jika ada perubahan
+      if (baru !== bbm.harga_per_liter || beli !== (bbm.harga_beli || 0)) {
+        await supabase.from('riwayat_harga_bbm').insert([{ 
+          jenis_bbm: bbm.jenis_bbm, 
+          harga_lama: bbm.harga_per_liter, 
+          harga_baru: baru, 
+          tanggal_efektif: tanggalEfektif, 
+          selisih: selisihHarga, 
+          status: statusHarga, 
+          updated_by: 'Manager Operasional' 
+        }]);
       }
+      
       setEditingHargaId(null);
       fetchData();
     } catch (error) {
@@ -82,15 +106,15 @@ export default function TabHargaBBM() {
 
   return (
     <>
+      {/* MODAL RIWAYAT */}
       {showRiwayatModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:static print:block print:p-0 print:bg-transparent print:backdrop-blur-none">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 print:max-h-none print:shadow-none print:rounded-none print:block print:w-full">
             <div className="flex justify-between items-center p-5 border-b bg-slate-50 no-print">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><History className="text-blue-600"/> Daftar List Perubahan Harga</h2>
-                <p className="text-sm text-slate-500 mt-1">Riwayat perubahan harga BBM berdasarkan bulan efektif.</p>
               </div>
-              <button onClick={() => setShowRiwayatModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} className="text-slate-500" /></button>
+              <button onClick={() => setShowRiwayatModal(false)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24} className="text-slate-500" /></button>
             </div>
             <div className="p-4 border-b flex gap-4 items-center bg-white no-print">
               <select value={riwayatBulan} onChange={(e) => setRiwayatBulan(Number(e.target.value))} className="px-4 py-2 border border-slate-300 rounded-lg font-medium outline-none">
@@ -103,10 +127,6 @@ export default function TabHargaBBM() {
             </div>
             <div className="flex-1 overflow-auto p-6 bg-white print:overflow-visible print:p-0">
               <div className="hidden print:block mb-6"><KopSurat /></div>
-              <div className="hidden print:block text-center mb-6">
-                <h2 className="text-lg font-bold text-black uppercase underline">LAPORAN PERUBAHAN HARGA BBM</h2>
-                <p className="text-sm text-black mt-1">Periode: {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][riwayatBulan-1]} {riwayatTahun}</p>
-              </div>
               {isFetchingRiwayat ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-500" size={32} /></div> : dataRiwayat.length === 0 ? <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-xl border border-dashed">Belum ada perubahan harga di bulan ini.</div> : (
                 <div className="overflow-x-auto print:overflow-visible">
                   <table className="w-full text-left border-collapse">
@@ -144,11 +164,12 @@ export default function TabHargaBBM() {
         </div>
       )}
 
+      {/* TABEL UTAMA */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
         <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Harga BBM per Produk</h2>
-            <p className="text-sm text-slate-500 mt-1">Update harga BBM + tanggal efektif. History otomatis tercatat.</p>
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Harga BBM & Margin</h2>
+            <p className="text-sm text-slate-500 mt-1">Update harga modal & jual BBM. Margin otomatis dihitung.</p>
           </div>
           <button onClick={() => setShowRiwayatModal(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 hover:bg-blue-700 shadow-sm"><History size={16}/> Lihat Riwayat</button>
         </div>
@@ -158,17 +179,18 @@ export default function TabHargaBBM() {
               <tr className="bg-orange-500 text-white text-sm uppercase">
                 <th className="py-4 px-4 font-semibold w-12 text-center">No</th>
                 <th className="py-4 px-4 font-semibold">Produk BBM</th>
-                <th className="py-4 px-4 font-semibold text-center bg-orange-600">Harga Sebelumnya</th>
-                <th className="py-4 px-4 font-semibold text-center bg-blue-600">Harga Sekarang</th>
+                <th className="py-4 px-4 font-semibold text-center bg-orange-600">Harga Beli (Modal)</th>
+                <th className="py-4 px-4 font-semibold text-center bg-blue-600">Harga Jual</th>
+                <th className="py-4 px-4 font-semibold text-center bg-blue-700 text-green-300">Margin / L</th>
                 <th className="py-4 px-4 font-semibold text-center bg-blue-700">Efektif Tanggal</th>
-                <th className="py-4 px-4 font-semibold text-center bg-orange-600">Status</th>
-                <th className="py-4 px-4 font-semibold text-center bg-orange-600">Selisih</th>
                 <th className="py-4 px-4 font-semibold text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {daftarHargaBBM.map((bbm, index) => {
                 const isEditing = editingHargaId === bbm.id;
+                const margin = (bbm.harga_per_liter || 0) - (bbm.harga_beli || 0);
+
                 return (
                   <tr key={bbm.id} className="hover:bg-slate-50">
                     <td className="py-4 px-4 text-center text-slate-500">{index + 1}</td>
@@ -180,34 +202,55 @@ export default function TabHargaBBM() {
                         <span className="font-semibold text-slate-800">{bbm.jenis_bbm}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-center bg-slate-50"><span className="text-slate-600 font-medium">{bbm.harga_per_liter}</span></td>
-                    <td className="py-4 px-4 text-center bg-blue-50">
-                      {isEditing ? <input type="number" value={hargaBaruInput} onChange={(e) => handleHargaInputChange(e, bbm.harga_per_liter)} className="w-24 px-2 py-1.5 border-2 border-blue-400 rounded-lg text-center font-bold text-blue-700" /> : <span className="text-slate-800 font-bold text-lg">{bbm.harga_per_liter}</span>}
-                    </td>
-                    <td className="py-4 px-4 text-center bg-blue-50">
-                      {isEditing ? <input type="date" value={tanggalEfektif} onChange={(e) => setTanggalEfektif(e.target.value)} className="px-2 py-1.5 border-2 border-blue-400 rounded-lg text-sm font-medium text-blue-700" /> : <span className="text-slate-500 text-sm">{bbm.tanggal_efektif || '-'}</span>}
-                    </td>
-                    <td className="py-4 px-4 text-center">
+                    
+                    {/* Harga Beli */}
+                    <td className="py-4 px-4 text-center bg-slate-50">
                       {isEditing ? (
-                        <span className={`px-2 py-1 rounded text-xs font-bold flex items-center justify-center gap-1 w-fit mx-auto ${statusHarga === 'NAIK' ? 'bg-red-100 text-red-600' : statusHarga === 'TURUN' ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-600'}`}>
-                          {statusHarga === 'NAIK' && <ArrowUp size={14} />}{statusHarga === 'TURUN' && <ArrowDown size={14} />}{statusHarga === 'TETAP' && <Minus size={14} />}{statusHarga}
-                        </span>
-                      ) : bbm.status_harga ? (
-                        <span className={`px-2 py-1 rounded text-xs font-bold flex items-center justify-center gap-1 w-fit mx-auto ${bbm.status_harga === 'NAIK' ? 'bg-red-100 text-red-600' : bbm.status_harga === 'TURUN' ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-600'}`}>
-                          {bbm.status_harga === 'NAIK' && <ArrowUp size={14} />}{bbm.status_harga === 'TURUN' && <ArrowDown size={14} />}{bbm.status_harga === 'TETAP' && <Minus size={14} />}{bbm.status_harga}
-                        </span>
-                      ) : <span className="text-slate-400 text-xs italic">Belum ada</span>}
+                        <input type="number" value={hargaBeliInput} onChange={(e) => setHargaBeliInput(e.target.value)} className="w-24 px-2 py-1.5 border-2 border-orange-400 rounded-lg text-center font-bold text-orange-700" />
+                      ) : (
+                        <span className="text-slate-600 font-medium">{formatRupiah(bbm.harga_beli || 0)}</span>
+                      )}
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      {isEditing ? <span className={`font-medium ${selisihHarga > 0 ? 'text-red-600' : selisihHarga < 0 ? 'text-green-600' : 'text-slate-600'}`}>{selisihHarga === 0 ? '-' : formatRupiah(Math.abs(selisihHarga))}</span> : bbm.selisih_harga ? <span className={`font-medium ${bbm.selisih_harga > 0 ? 'text-red-600' : 'text-green-600'}`}>{formatRupiah(Math.abs(bbm.selisih_harga))}</span> : <span className="text-slate-400 text-xs italic">-</span>}
+
+                    {/* Harga Jual */}
+                    <td className="py-4 px-4 text-center bg-blue-50">
+                      {isEditing ? (
+                        <input type="number" value={hargaJualInput} onChange={(e) => handleHargaJualChange(e, bbm.harga_per_liter)} className="w-24 px-2 py-1.5 border-2 border-blue-400 rounded-lg text-center font-bold text-blue-700" />
+                      ) : (
+                        <span className="text-slate-800 font-bold text-lg">{formatRupiah(bbm.harga_per_liter)}</span>
+                      )}
                     </td>
+
+                    {/* Margin */}
+                    <td className="py-4 px-4 text-center bg-green-50/50">
+                      {isEditing ? (
+                        <span className="text-slate-400 italic text-sm">Hitung otomatis</span>
+                      ) : (
+                        <span className="font-bold text-green-600">{formatRupiah(margin)}</span>
+                      )}
+                    </td>
+
+                    {/* Tanggal Efektif */}
+                    <td className="py-4 px-4 text-center bg-blue-50">
+                      {isEditing ? (
+                        <input type="date" value={tanggalEfektif} onChange={(e) => setTanggalEfektif(e.target.value)} className="px-2 py-1.5 border-2 border-blue-400 rounded-lg text-sm font-medium text-blue-700" />
+                      ) : (
+                        <span className="text-slate-500 text-sm">{bbm.tanggal_efektif || '-'}</span>
+                      )}
+                    </td>
+
+                    {/* Aksi */}
                     <td className="py-4 px-4 text-center">
                       {isEditing ? (
                         <div className="flex justify-center gap-2">
                           <button onClick={() => setEditingHargaId(null)} className="px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border rounded-lg">Batal</button>
                           <button onClick={() => handleSimpanHarga(bbm)} disabled={isSaving} className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">{isSaving ? <Loader2 className="animate-spin" size={14} /> : 'Simpan'}</button>
                         </div>
-                      ) : <button onClick={() => handleMulaiEditHarga(bbm)} className="px-4 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100">Edit Harga</button>}
+                      ) : (
+                        <button onClick={() => handleMulaiEdit(bbm)} className="px-4 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 flex items-center gap-1 mx-auto">
+                          <Edit2 size={14} /> Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
