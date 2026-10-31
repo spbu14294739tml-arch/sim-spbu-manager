@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { formatRupiah } from '../lib/formatHelper';
-import { Loader2, Printer, Calendar, BarChart3, Filter } from 'lucide-react';
+import { Loader2, Printer, Calendar, BarChart3, Filter, ListFilter } from 'lucide-react';
 import KopSurat from '../components/KopSurat';
 
 export default function LaporanRekapHarian() {
@@ -13,8 +13,10 @@ export default function LaporanRekapHarian() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  // State Filter Kategori (BARU)
+  // State Filter Kategori & Filter Dari/Ke (BARU)
   const [kategoriFilter, setKategoriFilter] = useState('SEMUA'); 
+  const [dariKeFilter, setDariKeFilter] = useState('SEMUA'); // <-- Filter Baru
+  const [listDariKe, setListDariKe] = useState([]); // <-- Untuk menampung pilihan unik Dari/Ke
 
   // State Harian
   const [dataHarian, setDataHarian] = useState({ 
@@ -36,9 +38,12 @@ export default function LaporanRekapHarian() {
       .eq('tanggal', selectedDate);
 
     let rekapPerProduk = {}; 
+    let uniqueDariKe = new Set(); // Untuk mengumpulkan list Dari/Ke yang ada hari ini
 
     if (jurnal) {
       jurnal.forEach(item => {
+        uniqueDariKe.add(item.dari_ke); // Simpan daftar Dari/Ke
+
         const isShift1 = item.shift.toLowerCase().includes('1') || item.shift.toLowerCase().includes('pagi');
         const target = isShift1 ? 'shift1' : 'shift2';
         
@@ -57,7 +62,7 @@ export default function LaporanRekapHarian() {
         }
 
         if (!rekapPerProduk[namaBaris]) {
-          rekapPerProduk[namaBaris] = { shift1: 0, shift2: 0, total: 0, type: 'DEBET', kategori: kategoriItem };
+          rekapPerProduk[namaBaris] = { shift1: 0, shift2: 0, total: 0, type: 'DEBET', kategori: kategoriItem, dari_ke: item.dari_ke };
         }
 
         if (item.debet > 0) {
@@ -72,18 +77,27 @@ export default function LaporanRekapHarian() {
       });
     }
 
+    // Urutkan list Dari/Ke
+    setListDariKe(['SEMUA', ...Array.from(uniqueDariKe)].sort());
+
     let itemsArray = Object.keys(rekapPerProduk).map(key => ({
       nama: key,
       shift1: rekapPerProduk[key].shift1,
       shift2: rekapPerProduk[key].shift2,
       total: rekapPerProduk[key].total,
       type: rekapPerProduk[key].type,
-      kategori: rekapPerProduk[key].kategori
+      kategori: rekapPerProduk[key].kategori,
+      dari_ke: rekapPerProduk[key].dari_ke // Sertakan Dari/Ke untuk filter
     })).sort((a, b) => a.nama.localeCompare(b.nama));
 
     // FILTER DATA SESUAI PILIHAN USER
     if (kategoriFilter !== 'SEMUA') {
       itemsArray = itemsArray.filter(item => item.kategori === kategoriFilter);
+    }
+
+    // FILTER DARI/KE (BARU)
+    if (dariKeFilter !== 'SEMUA') {
+      itemsArray = itemsArray.filter(item => item.dari_ke === dariKeFilter);
     }
 
     // Hitung Grand Total dari data yang sudah difilter
@@ -147,7 +161,7 @@ export default function LaporanRekapHarian() {
   useEffect(() => {
     if (activeTab === 'harian') fetchLaporanHarian();
     else fetchLaporanBulanan();
-  }, [activeTab, selectedDate, selectedMonth, selectedYear, kategoriFilter]);
+  }, [activeTab, selectedDate, selectedMonth, selectedYear, kategoriFilter, dariKeFilter]);
 
   const formatTanggalIndo = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -201,27 +215,44 @@ export default function LaporanRekapHarian() {
             )}
         </div>
 
-        {/* FILTER KATEGORI (Hanya muncul di Harian) */}
+        {/* FILTER KHUSUS HARIAN */}
         {activeTab === 'harian' && (
-            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
-                <Filter size={16} className="text-blue-600" />
-                <select 
-                    value={kategoriFilter} 
-                    onChange={(e) => setKategoriFilter(e.target.value)} 
-                    className="bg-transparent font-semibold text-sm text-blue-800 outline-none cursor-pointer"
-                >
-                    <option value="SEMUA">Semua Transaksi</option>
-                    <option value="BBM">Khusus BBM</option>
-                    <option value="NFR">Khusus NFR (Oli/LPG)</option>
-                    <option value="VOUCHER">Khusus Voucher</option>
-                    <option value="LAINNYA">Lain-lain / Setoran</option>
-                </select>
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+                {/* Filter Kategori */}
+                <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-100">
+                    <Filter size={16} className="text-blue-600" />
+                    <select 
+                        value={kategoriFilter} 
+                        onChange={(e) => setKategoriFilter(e.target.value)} 
+                        className="bg-transparent font-semibold text-sm text-blue-800 outline-none cursor-pointer"
+                    >
+                        <option value="SEMUA">Semua Kategori</option>
+                        <option value="BBM">Khusus BBM</option>
+                        <option value="NFR">Khusus NFR (Oli/LPG)</option>
+                        <option value="VOUCHER">Khusus Voucher</option>
+                        <option value="LAINNYA">Lain-lain / Setoran</option>
+                    </select>
+                </div>
+
+                {/* Filter Dari / Ke (BARU) */}
+                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+                    <ListFilter size={16} className="text-purple-600" />
+                    <select 
+                        value={dariKeFilter} 
+                        onChange={(e) => setDariKeFilter(e.target.value)} 
+                        className="bg-transparent font-semibold text-sm text-purple-800 outline-none cursor-pointer max-w-[200px]"
+                    >
+                        {listDariKe.map((dk, i) => (
+                            <option key={i} value={dk}>{dk === 'SEMUA' ? 'Semua Dari/Ke' : dk}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
         )}
       </div>
 
       <KopSurat 
-        judul={activeTab === 'harian' ? `Laporan Rekapitulasi Harian Kasir ${kategoriFilter !== 'SEMUA' ? `- ${kategoriFilter}` : ''}` : "Laporan Rekapitulasi Bulanan Kasir"} 
+        judul={activeTab === 'harian' ? `Laporan Rekapitulasi Harian Kasir ${kategoriFilter !== 'SEMUA' ? `- ${kategoriFilter}` : ''} ${dariKeFilter !== 'SEMUA' ? `(${dariKeFilter})` : ''}` : "Laporan Rekapitulasi Bulanan Kasir"} 
         periode={activeTab === 'harian' 
           ? `Tanggal: ${formatTanggalIndo(selectedDate)}`
           : `Bulan: ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][selectedMonth-1]} ${selectedYear}`
@@ -267,7 +298,7 @@ export default function LaporanRekapHarian() {
           </table>
         </div>
       ) : (
-        // TAMPILAN BULANAN
+        // TAMPILAN BULANAN (Sama seperti sebelumnya)
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-area">
           <div className="overflow-x-auto max-h-[600px]">
             <table className="w-full text-xs">
