@@ -19,8 +19,8 @@ import LaporanSetoran from './pages/LaporanSetoran';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
 // Import Halaman Jurnal Kasir & Voucher (Folder Baru)
-import JurnalKasir from './pages/JurnalKasir'; 
 import VoucherBBM from './pages/VoucherBBM'; 
+import JurnalKasir from './pages/JurnalKasir'; 
 
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
@@ -105,7 +105,7 @@ function App() {
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
 
-            {/* RUTE VOUCHER BBM (Input, Scan, Macet digabung jadi satu) */}
+            {/* RUTE VOUCHER BBM */}
             <Route path="voucher-bbm" element={<VoucherBBM />} />
 
             {/* RUTE ACCOUNTING */}
