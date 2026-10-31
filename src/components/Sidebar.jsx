@@ -16,7 +16,12 @@ import {
   PieChart, 
   Ticket,
   Barcode,
-  ChevronDown
+  ChevronDown,
+  Fuel,       // Ikon untuk sub-menu Jurnal
+  Droplet,    // Ikon untuk sub-menu Jurnal
+  ShoppingBag,// Ikon untuk sub-menu Jurnal
+  RotateCcw,  // Ikon untuk sub-menu Jurnal
+  BookOpen    // Ikon untuk sub-menu Jurnal
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -26,8 +31,9 @@ export default function Sidebar() {
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState('');
   
-  // State untuk kontrol buka-tutup menu Voucher
+  // State untuk kontrol buka-tutup menu
   const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+  const [isJurnalOpen, setIsJurnalOpen] = useState(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -40,11 +46,10 @@ export default function Sidebar() {
     getUser();
   }, []);
 
-  // Jika sedang berada di halaman voucher, otomatis buka menunya saat pertama dimuat
+  // Otomatis buka menu jika sedang berada di halamannya
   useEffect(() => {
-    if (location.pathname.includes('/voucher-bbm')) {
-      setIsVoucherOpen(true);
-    }
+    if (location.pathname.includes('/voucher-bbm')) setIsVoucherOpen(true);
+    if (location.pathname.includes('/jurnal-transaksi')) setIsJurnalOpen(true);
   }, [location.pathname]);
 
   const handleLogout = async () => {
@@ -55,6 +60,9 @@ export default function Sidebar() {
 
   const isVoucherPage = location.pathname.includes('/voucher-bbm');
   const currentVoucherTab = new URLSearchParams(location.search).get('tab') || 'input';
+  
+  const isJurnalPage = location.pathname.includes('/jurnal-transaksi');
+  const currentJurnalTab = new URLSearchParams(location.search).get('tab') || 'BBM';
 
   return (
     <div className="w-64 min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-black text-slate-300 flex flex-col shadow-2xl z-20 border-r border-slate-800/50 relative overflow-hidden">
@@ -92,12 +100,45 @@ export default function Sidebar() {
           );
         })}
 
-        {/* JURNAL KASIR (Path diubah ke /jurnal-transaksi) */}
+        {/* === DROPDOWN JURNAL TRANSAKSI KASIR === */}
         {['kasir', 'manager'].includes(userRole) && (
-          <Link to="/jurnal-transaksi" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group ${location.pathname === '/jurnal-transaksi' ? 'bg-blue-600 text-white font-semibold' : 'hover:bg-slate-800/60 hover:text-white'}`}>
-            <ShoppingCart size={18} className={location.pathname === '/jurnal-transaksi' ? 'text-white' : 'text-slate-400'} />
-            <span className="text-sm">Jurnal Transaksi Kasir</span>
-          </Link>
+          <div className="pt-2">
+            <button 
+              onClick={() => setIsJurnalOpen(!isJurnalOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 ${
+                isJurnalPage ? 'bg-slate-800/80 text-white font-semibold' : 'hover:bg-slate-800/60 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingCart size={18} className={isJurnalPage ? 'text-blue-400' : 'text-slate-400'} />
+                <span className="text-sm">Jurnal Kasir</span>
+              </div>
+              <ChevronDown size={16} className={`transition-transform duration-300 ${isJurnalOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <div className={`overflow-hidden transition-all duration-300 ${isJurnalOpen ? 'max-h-60 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+              <div className="flex flex-col gap-1 pl-10 pr-3 py-1">
+                <Link to="/jurnal-transaksi?tab=BBM" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'BBM' ? 'text-blue-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <Fuel size={14} /> Input BBM
+                </Link>
+                <Link to="/jurnal-transaksi?tab=LPG" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'LPG' ? 'text-orange-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <Droplet size={14} /> Input LPG
+                </Link>
+                <Link to="/jurnal-transaksi?tab=OLI" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'OLI' ? 'text-emerald-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <ShoppingBag size={14} /> Input Oli
+                </Link>
+                <Link to="/jurnal-transaksi?tab=LAINNYA" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'LAINNYA' ? 'text-slate-200 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <FileText size={14} /> Lain-lain
+                </Link>
+                <Link to="/jurnal-transaksi?tab=KOREKSI" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'KOREKSI' ? 'text-amber-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <RotateCcw size={14} /> Koreksi
+                </Link>
+                <Link to="/jurnal-transaksi?tab=JURNAL" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isJurnalPage && currentJurnalTab === 'JURNAL' ? 'text-blue-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>
+                  <BookOpen size={14} /> Buku Jurnal
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* === DROPDOWN MANAJEMEN VOUCHER === */}
@@ -116,7 +157,6 @@ export default function Sidebar() {
               <ChevronDown size={16} className={`transition-transform duration-300 ${isVoucherOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Sub-menu */}
             <div className={`overflow-hidden transition-all duration-300 ${isVoucherOpen ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
               <div className="flex flex-col gap-1 pl-10 pr-3 py-1">
                 <Link to="/voucher-bbm?tab=input" className={`flex items-center gap-2 py-2 text-sm rounded-lg transition-colors ${isVoucherPage && currentVoucherTab === 'input' ? 'text-blue-400 font-semibold' : 'text-slate-400 hover:text-white'}`}>

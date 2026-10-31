@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom'; // <-- Tambah ini
 import { BookOpen, Printer } from 'lucide-react';
 import TabelJurnal from './TabelJurnal';
 import FormBBM from './FormBBM';
@@ -8,8 +9,15 @@ import FormLainnya from './FormLainnya';
 import FormKoreksi from './FormKoreksi';
 
 export default function JurnalKasir() {
-  const [activeTab, setActiveTab] = useState('BBM');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') || 'BBM';
+  const [activeTab, setActiveTab] = useState(tabParam.toUpperCase());
   const [isSaving, setIsSaving] = useState(false);
+
+  // Jika URL berubah (dari Sidebar), update tab
+  useEffect(() => {
+    setActiveTab(tabParam.toUpperCase());
+  }, [tabParam]);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -23,18 +31,18 @@ export default function JurnalKasir() {
         </button>
       </div>
 
-      {/* Navigasi Tab */}
+      {/* Navigasi Tab (tetap ada untuk jaga-jaga) */}
       <div className="flex flex-wrap gap-2 mb-6 p-2 bg-slate-100 rounded-2xl w-fit">
-        {['BBM', 'LPG', 'Oli', 'Lainnya', 'Koreksi', 'JURNAL'].map((tab) => (
+        {['BBM', 'LPG', 'OLI', 'LAINNYA', 'KOREKSI', 'JURNAL'].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab.toUpperCase() === 'JURNAL' ? 'JURNAL' : tab.toUpperCase())}
+            onClick={() => setActiveTab(tab)}
             className={`py-2 px-5 rounded-xl font-medium text-sm transition-all flex items-center gap-2 ${
-              activeTab === tab.toUpperCase() ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
+              activeTab === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500'
             }`}
           >
             {tab === 'JURNAL' && <BookOpen size={16} />}
-            {tab === 'JURNAL' ? 'Buku Jurnal' : tab}
+            {tab === 'JURNAL' ? 'Buku Jurnal' : tab === 'LAINNYA' ? 'Lainnya' : tab === 'KOREKSI' ? 'Koreksi' : tab}
           </button>
         ))}
       </div>
