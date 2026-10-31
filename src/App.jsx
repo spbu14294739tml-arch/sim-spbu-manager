@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import LayoutUtama from './layouts/LayoutUtama';
 import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
+import DashboardKasir from './pages/DashboardKasir'; // <-- Import Dashboard Kasir Baru
 import DatabaseKaryawan from './pages/DatabaseKaryawan';
 import Absensi from './pages/Absensi';
 import LaporanKasir from './pages/LaporanKasir';
@@ -85,6 +86,27 @@ function AccountingRoute() {
   return <Outlet />;
 }
 
+// 4. Satpam Pintar Dashboard (Beda Tampilan Kasir & Manager)
+function DashboardUtama() {
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    const checkRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setRole(user?.user_metadata?.role || 'kasir');
+    };
+    checkRole();
+  }, []);
+
+  if (role === null) return <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" size={32} /></div>;
+  
+  if (role === 'kasir') {
+    return <DashboardKasir />;
+  }
+  
+  return <DashboardManager />;
+}
+
 function App() {
   return (
     <Router>
@@ -94,7 +116,9 @@ function App() {
         {/* Satpam Umum: Harus Login */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<LayoutUtama />}>
-            <Route index element={<DashboardManager />} />
+            {/* Gunakan DashboardUtama untuk rute index */}
+            <Route index element={<DashboardUtama />} />
+            
             <Route path="absensi" element={<Absensi />} />
                         
             {/* RUTE KASIR & MANAJEMEN */}
