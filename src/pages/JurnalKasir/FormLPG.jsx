@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
-import { Droplet, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Droplet, Loader2, Image as ImageIcon, Calculator } from 'lucide-react';
 
 export default function FormLPG({ isSaving, setIsSaving }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -11,11 +11,12 @@ export default function FormLPG({ isSaving, setIsSaving }) {
   
   const [formData, setFormData] = useState({ tanggal: new Date().toISOString().split('T')[0], shift: '' });
   
-  // State Form LPG ditambah 'jenis_transaksi'
+  // State Form LPG
   const [lpgData, setLpgData] = useState({ 
     produk: null, 
-    jenis_transaksi: 'REFILL_ONLY', // Default: Hanya Isi
+    jenis_transaksi: 'REFILL_ONLY', 
     jumlah: '', 
+    harga_tabung: '', // <-- Input manual untuk harga tabung
     total_harga: '', 
     reff: '' 
   });
@@ -38,34 +39,44 @@ export default function FormLPG({ isSaving, setIsSaving }) {
     fetchInit();
   }, []);
 
-  // Hitung total harga berdasarkan jenis transaksi
-  const handleJumlahChange = (e) => {
-    const jumlah = e.target.value;
-    let total = 0;
-    
-    if (jumlah && lpgData.produk) {
-      const hargaSatuan = lpgData.jenis_transaksi === 'REFILL_TABUNG' 
-        ? lpgData.produk.harga_jual // Asumsi harga_jual di master adalah harga paket (isi+tabung)
-        : lpgData.produk.harga_jual; // Jika ada kolom khusus refill, sesuaikan di sini
-        
-      total = parseFloat(jumlah) * hargaSatuan;
+  // Fungsi untuk menghitung ulang total secara otomatis
+  const hitungTotal = (updatedData) => {
+    const { produk, jenis_transaksi, jumlah, harga_tabung } = updatedData;
+    if (!produk || !jumlah) return 0;
+
+    const qty = parseFloat(jumlah) || 0;
+    const hargaIsi = parseFloat(produk.harga_jual) || 0;
+    const hargaTabung = parseFloat(harga_tabung) || 0;
+
+    if (jenis_transaksi === 'REFILL_TABUNG') {
+      return qty * (hargaIsi + hargaTabung);
     }
-    setLpgData({ ...lpgData, jumlah, total_harga: total });
+    return qty * hargaIsi; // Refill Only
+  };
+
+  // Handler saat ada perubahan input
+  const handleChange = (field, value) => {
+    const newData = { ...lpgData, [field]: value };
+    newData.total_harga = hitungTotal(newData);
+    setLpgData(newData);
   };
 
   const handleSimpan = async (e) => {
     e.preventDefault();
     if (!lpgData.produk || !lpgData.jumlah) return alert('Lengkapi data LPG!');
+    if (lpgData.jenis_transaksi === 'REFILL_TABUNG' && !lpgData.harga_tabung) {
+      return alert('Isi Harga Tabung terlebih dahulu untuk transaksi Isi + Tabung!');
+    }
     setIsSaving(true);
 
     // Uraian disesuaikan dengan jenis transaksi
-    const jenisStr = lpgData.jenis_transaksi === 'REFILL_TABUNG' ? 'Isi + Tabung' : 'Refill (Hanya Isi)';
+    const jenisStr = lpgData.jenis_transaksi === 'REFILL_TABUNG' ? 'Isi + Tabung' : 'Refill Only';
     const uraianJurnal = `LPG ${lpgData.produk.nama_produk} (${jenisStr})`;
 
     await supabase.from('penjualan_nfr').insert([{
       tanggal: formData.tanggal, 
       shift: formData.shift, 
-      produk_nfr: uraianJurnal, // Simpan jenis transaksi di nama produk
+      produk_nfr: uraianJurnal, 
       jumlah: parseFloat(lpgData.jumlah), 
       total_harga: lpgData.total_harga, 
       kasir_foreman: 'KASIR'
@@ -87,7 +98,7 @@ export default function FormLPG({ isSaving, setIsSaving }) {
     }]);
 
     alert(`✅ Penjualan LPG (${jenisStr}) tersimpan!`);
-    setLpgData({ produk: null, jenis_transaksi: 'REFILL_ONLY', jumlah: '', total_harga: '', reff: '' });
+    setLpgData({ produk: null, jenis_transaksi: 'REFILL_ONLY', jumlah: '', harga_tabung: '', total_harga: '', reff: '' });
     setIsSaving(false);
   };
 
@@ -112,20 +123,20 @@ export default function FormLPG({ isSaving, setIsSaving }) {
           </div>
         </div>
 
-        {/* Pilih Jenis Transaksi (BARU) */}
+        {/* Pilih Jenis Transaksi */}
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">Jenis Transaksi</label>
           <div className="flex gap-2">
             <button 
               type="button"
-              onClick={() => setLpgData({ ...lpgData, jenis_transaksi: 'REFILL_ONLY' })}
+              onClick={() => handleChange('jenis_transaksi', 'REFILL_ONLY')}
               className={`flex-1 py-2 px-3 rounded-lg border font-semibold text-sm transition-all ${lpgData.jenis_transaksi === 'REFILL_ONLY' ? 'bg-orange-100 border-orange-500 text-orange-800' : 'bg-white border-slate-200 text-slate-600'}`}
             >
               Hanya Isi (Refill)
             </button>
             <button 
               type="button"
-              onClick={() => setLpgData({ ...lpgData, jenis_transaksi: 'REFILL_TABUNG' })}
+              onClick={() => handleChange('jenis_transaksi', 'REFILL_TABUNG')}
               className={`flex-1 py-2 px-3 rounded-lg border font-semibold text-sm transition-all ${lpgData.jenis_transaksi === 'REFILL_TABUNG' ? 'bg-orange-100 border-orange-500 text-orange-800' : 'bg-white border-slate-200 text-slate-600'}`}
             >
               Isi + Tabung
@@ -138,10 +149,10 @@ export default function FormLPG({ isSaving, setIsSaving }) {
           <label className="block text-xs font-bold text-slate-500 mb-1">Jenis LPG</label>
           <div className="grid grid-cols-2 gap-2">
             {produkLPG.map(p => (
-              <div key={p.id} onClick={() => setLpgData({ ...lpgData, produk: p })} className={`cursor-pointer border p-2 rounded-xl flex flex-col items-center justify-center transition-all ${lpgData.produk?.id === p.id ? 'bg-orange-50 border-orange-500 ring-2 ring-orange-200' : 'border-slate-200 hover:border-orange-300'}`}>
+              <div key={p.id} onClick={() => handleChange('produk', p)} className={`cursor-pointer border p-2 rounded-xl flex flex-col items-center justify-center transition-all ${lpgData.produk?.id === p.id ? 'bg-orange-50 border-orange-500 ring-2 ring-orange-200' : 'border-slate-200 hover:border-orange-300'}`}>
                 {p.foto_url ? <img src={p.foto_url} alt={p.nama_produk} className="w-10 h-10 object-cover rounded-md mb-1" /> : <div className="w-10 h-10 bg-slate-100 rounded-md flex items-center justify-center mb-1"><ImageIcon size={16} className="text-slate-400" /></div>}
                 <span className="block font-bold text-xs text-center">{p.nama_produk}</span>
-                <span className="block text-[10px] text-slate-500 mt-1">{formatRupiah(p.harga_jual)}</span>
+                <span className="block text-[10px] text-slate-500 mt-1">Refill: {formatRupiah(p.harga_jual)}</span>
               </div>
             ))}
           </div>
@@ -150,8 +161,17 @@ export default function FormLPG({ isSaving, setIsSaving }) {
         {/* Jumlah */}
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">Jumlah (Pcs / Tabung)</label>
-          <input type="number" value={lpgData.jumlah} onChange={handleJumlahChange} className="w-full px-3 py-2 border rounded-lg text-sm" required />
+          <input type="number" value={lpgData.jumlah} onChange={(e) => handleChange('jumlah', e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" required />
         </div>
+
+        {/* Harga Tabung (Hanya muncul jika Isi + Tabung) */}
+        {lpgData.jenis_transaksi === 'REFILL_TABUNG' && (
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+            <label className="block text-xs font-bold text-amber-800 mb-1">Harga Tabung (Rp)</label>
+            <input type="number" value={lpgData.harga_tabung} onChange={(e) => handleChange('harga_tabung', e.target.value)} className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm" placeholder="Masukkan harga tabung..." required />
+            <p className="text-[10px] text-amber-700 mt-1">*Total akan dihitung: (Harga Isi + Harga Tabung) x Jumlah Pcs.</p>
+          </div>
+        )}
 
         {/* Reff Akun */}
         <div>
@@ -163,8 +183,9 @@ export default function FormLPG({ isSaving, setIsSaving }) {
         </div>
 
         {/* Total */}
-        <div className="bg-orange-50 p-3 rounded-lg flex justify-between font-bold text-orange-700">
-          <span>Total Harga:</span> <span>{formatRupiah(lpgData.total_harga)}</span>
+        <div className="bg-orange-50 p-4 rounded-lg flex justify-between items-center font-bold text-orange-700 border border-orange-200">
+          <div className="flex items-center gap-2"><Calculator size={20}/> Total Harga:</div>
+          <span className="text-xl">{formatRupiah(lpgData.total_harga)}</span>
         </div>
 
         <button type="submit" disabled={isSaving} className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">
