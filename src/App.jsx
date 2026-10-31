@@ -16,10 +16,10 @@ import LaporanKerusakan from './pages/LaporanKerusakan';
 import PengaturanSistem from './pages/PengaturanSistem';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanSetoran from './pages/LaporanSetoran';
-import JurnalTransaksiKasir from './pages/JurnalTransaksiKasir';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
-// Import Halaman Voucher (Hanya SATU baris ini saja!)
+// Import Halaman Jurnal Kasir & Voucher (Folder Baru)
+import JurnalKasir from './pages/JurnalKasir'; 
 import VoucherBBM from './pages/VoucherBBM'; 
 
 // 1. Satpam Umum (Cek Login)
@@ -98,7 +98,7 @@ function App() {
             <Route path="absensi" element={<Absensi />} />
                         
             {/* RUTE KASIR & MANAJEMEN */}
-            <Route path="jurnal-transaksi" element={<JurnalTransaksiKasir />} />
+            <Route path="jurnal-transaksi" element={<JurnalKasir />} />
             <Route path="laporan-setoran" element={<LaporanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
