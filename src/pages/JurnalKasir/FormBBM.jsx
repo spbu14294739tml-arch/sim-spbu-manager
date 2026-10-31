@@ -89,9 +89,10 @@ export default function FormBBM({ isSaving, setIsSaving }) {
           <label className="block text-xs font-bold text-slate-500 mb-1">Jenis BBM</label>
           <div className="grid grid-cols-2 gap-2">
             {masterBBM.map(b => (
-              <div key={b.id} onClick={() => setBbmData({ ...bbmData, jenis_bbm: b.jenis_bbm })} className={`cursor-pointer border p-2 rounded-xl text-center ${bbmData.jenis_bbm === b.jenis_bbm ? 'bg-blue-50 border-blue-500' : 'border-slate-200'}`}>
-                <span className="block font-bold text-xs">{b.jenis_bbm}</span>
-                <span className="block text-[10px] text-slate-500">{formatRupiah(b.harga_per_liter)}/L</span>
+              <div key={b.id} onClick={() => setBbmData({ ...bbmData, jenis_bbm: b.jenis_bbm })} className={`cursor-pointer border p-2 rounded-xl flex flex-col items-center justify-center transition-all ${bbmData.jenis_bbm === b.jenis_bbm ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200' : 'border-slate-200 hover:border-blue-300'}`}>
+                {b.logo_url ? <img src={b.logo_url} alt={b.jenis_bbm} className="h-8 object-contain mb-1" /> : <Fuel size={20} className="mb-1 text-slate-400" />}
+                <span className="block font-bold text-xs text-center">{b.jenis_bbm}</span>
+                <span className="block text-[10px] text-slate-500 mt-1">{formatRupiah(b.harga_per_liter)}/L</span>
               </div>
             ))}
           </div>
