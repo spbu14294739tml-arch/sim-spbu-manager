@@ -16,11 +16,11 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // Menggunakan Number murni (bukan string) agar kalkulasi presisi
+  // Gunakan string kosong '' agar form mudah diketik dan tidak "0"
   const [formData, setFormData] = useState({
     karyawan_id: '', 
-    gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
-    astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
+    gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
+    astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
   });
   const [selectedKaryawanInfo, setSelectedKaryawanInfo] = useState(null);
 
@@ -52,37 +52,40 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
+  // Fungsi hitung dengan aman (parseFloat menangani titik desimal)
   const hitungTotal = (data) => {
+    const getNum = (val) => parseFloat(val) || 0;
+
     const totalTunjangan = 
-      (data.tunjangan_komunikasi || 0) + 
-      (data.tunjangan_jabatan || 0) + 
-      (data.upah_sundulan || 0) + 
-      (data.thr || 0) + 
-      (data.lembur || 0) + 
-      (data.masuk_shift_malam || 0) + 
-      (data.reward_pasti_pas || 0);
+      getNum(data.tunjangan_komunikasi) + 
+      getNum(data.tunjangan_jabatan) + 
+      getNum(data.upah_sundulan) + 
+      getNum(data.thr) + 
+      getNum(data.lembur) + 
+      getNum(data.masuk_shift_malam) + 
+      getNum(data.reward_pasti_pas);
       
-    const gajiPokok = data.gaji_pokok || 0;
+    const gajiPokok = getNum(data.gaji_pokok);
     const totalPendapatan = gajiPokok + totalTunjangan;
 
     const totalPotongan = 
-      (data.astek_jht || 0) + 
-      (data.astek_jp || 0) + 
-      (data.bpjs_kes || 0) + 
-      (data.pph_21 || 0) + 
-      (data.absen || 0) + 
-      (data.adm || 0) +
-      (data.pot_lainnya || 0);
+      getNum(data.astek_jht) + 
+      getNum(data.astek_jp) + 
+      getNum(data.bpjs_kes) + 
+      getNum(data.pph_21) + 
+      getNum(data.absen) + 
+      getNum(data.adm) +
+      getNum(data.pot_lainnya);
 
     const totalBersih = totalPendapatan - totalPotongan;
 
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
+  // Cukup simpan apa yang diketik user
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Input type=number menghasilkan string, kita ubah ke Float
-    setFormData({ ...formData, [name]: parseFloat(value) || 0 });
+    setFormData({ ...formData, [name]: value });
   };
 
   const handlePilihKaryawan = (e) => {
@@ -94,12 +97,12 @@ export default function GajiKaryawan() {
       setFormData({
         ...formData,
         karyawan_id: selectedId,
-        gaji_pokok: karyawanData.gaji_pokok || 0,
-        tunjangan_jabatan: karyawanData.tunjangan_jabatan || 0,
+        gaji_pokok: karyawanData.gaji_pokok ? karyawanData.gaji_pokok.toString() : '',
+        tunjangan_jabatan: karyawanData.tunjangan_jabatan ? karyawanData.tunjangan_jabatan.toString() : '',
       });
     } else {
       setSelectedKaryawanInfo(null);
-      setFormData({ ...formData, karyawan_id: '', gaji_pokok: 0, tunjangan_jabatan: 0 });
+      setFormData({ ...formData, karyawan_id: '', gaji_pokok: '', tunjangan_jabatan: '' });
     }
   };
 
@@ -110,26 +113,42 @@ export default function GajiKaryawan() {
 
     const { totalPendapatan, totalPotongan, totalBersih } = hitungTotal(formData);
 
-    const { error } = await supabase.from('gaji_karyawan').insert([{
+    // Pastikan data yang dikirim ke Supabase adalah angka (float), bukan string
+    const payload = {
       karyawan_id: formData.karyawan_id,
       bulan: selectedMonth,
       tahun: selectedYear,
-      ...formData, // Semua data angka langsung dimasukkan
+      gaji_pokok: parseFloat(formData.gaji_pokok) || 0,
+      tunjangan_komunikasi: parseFloat(formData.tunjangan_komunikasi) || 0,
+      tunjangan_jabatan: parseFloat(formData.tunjangan_jabatan) || 0,
+      upah_sundulan: parseFloat(formData.upah_sundulan) || 0,
+      thr: parseFloat(formData.thr) || 0,
+      lembur: parseFloat(formData.lembur) || 0,
+      masuk_shift_malam: parseFloat(formData.masuk_shift_malam) || 0,
+      reward_pasti_pas: parseFloat(formData.reward_pasti_pas) || 0,
+      astek_jht: parseFloat(formData.astek_jht) || 0,
+      astek_jp: parseFloat(formData.astek_jp) || 0,
+      bpjs_kes: parseFloat(formData.bpjs_kes) || 0,
+      pph_21: parseFloat(formData.pph_21) || 0,
+      absen: parseFloat(formData.absen) || 0,
+      adm: parseFloat(formData.adm) || 0,
+      pot_lainnya: parseFloat(formData.pot_lainnya) || 0,
       tunjangan: totalPendapatan,
       potongan: totalPotongan,
       total_bersih: totalBersih,
       status: 'DRAFT'
-    }]);
+    };
+
+    const { error } = await supabase.from('gaji_karyawan').insert([payload]);
 
     if (error) {
       alert('Gagal simpan gaji: ' + error.message);
     } else {
       alert('✅ Data Gaji berhasil disimpan!');
       setShowForm(false);
-      // Reset form
       setFormData({
-        karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
-        astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
+        karyawan_id: '', gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
+        astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
       });
       setSelectedKaryawanInfo(null);
       fetchData();
@@ -142,30 +161,33 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // Komponen Input Khusus
-  const FormInput = ({ label, name, value, onChange, readOnly = false, color = 'text-slate-800', labelColor = 'text-slate-700' }) => (
-    <div className="mb-2">
-      <label className={`block text-xs font-bold mb-1 ${labelColor}`}>{label}</label>
-      <div className="relative">
+  // Komponen Input Super Simple
+  const FormInput = ({ label, name, value, onChange, readOnly = false, color = 'text-slate-800', labelColor = 'text-slate-700' }) => {
+    // Mengubah string kosong menjadi angka 0 untuk perhitungan bayangan di bawah
+    const numericValue = parseFloat(value) || 0;
+
+    return (
+      <div className="mb-3">
+        <label className={`block text-xs font-bold mb-1.5 ${labelColor}`}>{label}</label>
         <input 
           type="number" 
           step="any"
           name={name} 
-          value={value === 0 ? '' : value} // Kosongkan jika 0 agar tidak ngetik ulang
+          value={value} 
           onChange={onChange} 
           readOnly={readOnly}
-          className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-lg text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all
-            ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
+          className={`w-full px-4 py-2.5 border border-slate-300 rounded-xl text-xl text-right font-bold tracking-wide focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all
+            ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 shadow-sm'}
           `} 
           placeholder="0"
         />
+        {/* Teks bayangan Rupiah */}
+        <div className="text-right text-xs font-semibold text-slate-500 mt-1 mr-1">
+          {formatRupiah(numericValue)}
+        </div>
       </div>
-      {/* Teks Bayangan Format Rupiah di bawah input */}
-      <div className="text-right text-[11px] font-semibold text-slate-500 mt-1 mr-1">
-        {formatRupiah(value)}
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
