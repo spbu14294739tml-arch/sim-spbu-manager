@@ -19,10 +19,9 @@ import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
 // Import Halaman Hasil Refactor (Folder Baru)
 import HalamanSetoran from './pages/HalamanSetoran'; 
-import PengaturanSistem from './pages/Pengaturan'; 
-import VoucherBBM from './pages/VoucherBBM'; 
 import JurnalKasir from './pages/JurnalKasir'; 
-
+import PengaturanSistem from './pages/Pengaturan'; // <-- Ini benar, ke folder Pengaturan
+import VoucherBBM from './pages/VoucherBBM';      // <-- Ini benar, ke folder VoucherBBM
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
   const [session, setSession] = useState(null);
