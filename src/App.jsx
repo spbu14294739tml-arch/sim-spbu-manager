@@ -18,10 +18,12 @@ import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
 // Import Halaman Hasil Refactor (Folder Baru)
+// Gunakan /index.jsx secara eksplisit agar Vercel tidak kebingungan
 import HalamanSetoran from './pages/HalamanSetoran'; 
-import JurnalKasir from './pages/JurnalKasir'; 
-import PengaturanSistem from './pages/Pengaturan'; // <-- Ini benar, ke folder Pengaturan
-import VoucherBBM from './pages/VoucherBBM';      // <-- Ini benar, ke folder VoucherBBM
+import JurnalKasir from './pages/JurnalKasir/index.jsx'; 
+import PengaturanSistem from './pages/Pengaturan/index.jsx'; 
+import VoucherBBM from './pages/VoucherBBM/index.jsx';      
+
 // 1. Satpam Umum (Cek Login)
 function ProtectedRoute() {
   const [session, setSession] = useState(null);
