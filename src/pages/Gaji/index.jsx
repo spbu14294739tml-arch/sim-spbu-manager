@@ -16,7 +16,7 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // Menggunakan STRING untuk menyimpan apa yang diketik
+  // Gunakan string kosong '' agar form benar-benar kosong saat baru diketik
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
@@ -52,7 +52,6 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
-  // Konversi teks ke angka untuk kalkulasi
   const parseNum = (val) => {
     if (!val) return 0;
     const clean = val.toString().replace(/\./g, '').replace(',', '.');
@@ -86,10 +85,12 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // Murni menyimpan apa yang diketik. TIDAK ADA intervensi React yang bikin hilang.
+  // Simpan apa yang diketik, hapus titik/koma agar tidak error saat disimpan
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    // Hanya izinkan angka dan titik
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    setFormData({ ...formData, [name]: cleanValue });
   };
 
   const handlePilihKaryawan = (e) => {
@@ -164,8 +165,8 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // INPUT TYPE TEXT (Bebas diketik, font besar, rata kanan)
-  const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => (
+  // Komponen Input Tanpa ReadOnly Aneh
+  const FormInput = ({ label, name, value, onChange, isReadOnly = false, labelColor = 'text-slate-700' }) => (
     <div className="mb-4">
       <label className={`block text-sm font-bold mb-1.5 ${labelColor}`}>{label}</label>
       <input 
@@ -174,9 +175,9 @@ export default function GajiKaryawan() {
         name={name} 
         value={value} 
         onChange={onChange} 
-        readOnly={readOnly}
+        readOnly={isReadOnly}
         className={`w-full px-4 py-3 border border-slate-300 rounded-xl text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
-          ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
+          ${isReadOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
         `} 
         placeholder="0"
       />
@@ -287,7 +288,7 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} isReadOnly={true} labelColor="text-slate-700" />
                 </div>
 
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
