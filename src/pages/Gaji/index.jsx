@@ -16,7 +16,6 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // State form pakai string kosong '' agar bisa dikosongkan
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
@@ -85,15 +84,12 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // Biarkan user ngetik bebas (hanya filter angka & koma)
+  // FUNGSI INI BEBAS KETIK, HANYA MENYIMPAN TEKS APA ADANYA
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (name === 'karyawan_id') {
-      setFormData({ ...formData, [name]: value });
-    } else {
-      const rawValue = value.replace(/[^0-9,]/g, '');
-      setFormData({ ...formData, [name]: rawValue });
-    }
+    // Hanya izinkan angka, titik, dan koma
+    const rawValue = value.replace(/[^0-9.,]/g, '');
+    setFormData({ ...formData, [name]: rawValue });
   };
 
   const handlePilihKaryawan = (e) => {
@@ -168,8 +164,8 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // KOMPONEN INPUT DENGAN PREVIEW RUPIAH
-  const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => {
+  // KOMPONEN INPUT SEDERHANA (BEBAS KETIK)
+  const FormInput = ({ label, name, value, onChange, isReadOnly = false, labelColor = 'text-slate-700' }) => {
     const numValue = parseNum(value);
 
     return (
@@ -181,15 +177,14 @@ export default function GajiKaryawan() {
           name={name} 
           value={value} 
           onChange={onChange} 
-          readOnly={readOnly}
-          className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-lg font-bold text-right focus:ring-2 focus:ring-blue-500 focus:outline-none
-            ${readOnly ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-900'}
+          readOnly={isReadOnly}
+          className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
+            ${isReadOnly ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-900'}
           `} 
           placeholder="0"
         />
-        {/* Preview Rupiah di bawahnya */}
         <div className="text-right text-[11px] font-semibold text-slate-500 mt-1 mr-1">
-           {formatRupiah(numValue, true)}
+          {formatRupiah(numValue, true)}
         </div>
       </div>
     );
@@ -299,7 +294,7 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} isReadOnly={true} labelColor="text-slate-700" />
                 </div>
 
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
@@ -327,7 +322,7 @@ export default function GajiKaryawan() {
                 <div className="md:col-span-3 bg-slate-100 p-5 rounded-xl border border-slate-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
                   <div>
                     <p className="text-sm font-bold text-slate-600">Total Bersih (Pendapatan - Potongan):</p>
-                    <p className="text-4xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
+                    <p className="text-4xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih, true)}</p>
                   </div>
                   <button type="submit" disabled={isSaving} className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 w-full md:w-auto justify-center shadow-lg transition-all">
                     {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Simpan Data Gaji
