@@ -118,10 +118,8 @@ export default function GajiKaryawan() {
     setIsSaving(false);
   };
 
-  // Fungsi Cetak Slip Spesifik
   const handleCetakSlip = (gaji) => {
     setSelectedSlip(gaji);
-    // Beri jeda sedikit agar modal muncul sebelum print dialog
     setTimeout(() => {
       window.print();
     }, 300);
@@ -130,7 +128,7 @@ export default function GajiKaryawan() {
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
       
-      {/* HEADER HALAMAN (Hanya tampil di layar, tidak di print laporan tabel) */}
+      {/* HEADER HALAMAN */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Manajemen Gaji Karyawan</h1>
@@ -221,6 +219,7 @@ export default function GajiKaryawan() {
             <form onSubmit={handleSimpanGaji} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
+                {/* Kolom Kiri: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Pilih Karyawan</label>
@@ -232,34 +231,66 @@ export default function GajiKaryawan() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Gaji Pokok</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Gaji Pokok (Rp)</label>
                     <input type="number" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} className="w-full px-4 py-2 border rounded-xl font-bold" required />
                   </div>
                 </div>
 
-                <div className="space-y-4 bg-green-50 p-4 rounded-xl border border-green-100">
-                  <h3 className="font-bold text-green-800 mb-2">Tunjangan</h3>
-                  <input type="number" name="tunjangan_komunikasi" placeholder="Tunjangan Komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="tunjangan_transportasi" placeholder="Tunjangan Transportasi" value={formData.tunjangan_transportasi} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="masuk_shift_malam" placeholder="Masuk Shift Malam" value={formData.masuk_shift_malam} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="reward_pasti_pas" placeholder="Reward Pasti Pas" value={formData.reward_pasti_pas} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg" />
+                {/* Kolom Kanan Atas: Tunjangan */}
+                <div className="space-y-3 bg-green-50 p-4 rounded-xl border border-green-100">
+                  <h3 className="font-bold text-green-800 mb-2 text-lg">Tunjangan (+)</h3>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-green-700 mb-1">Tunjangan Komunikasi</label>
+                    <input type="number" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-green-700 mb-1">Tunjangan Transportasi</label>
+                    <input type="number" name="tunjangan_transportasi" value={formData.tunjangan_transportasi} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-green-700 mb-1">Masuk Shift Malam</label>
+                    <input type="number" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-green-700 mb-1">Reward Pasti Pas</label>
+                    <input type="number" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
                 </div>
 
-                <div className="space-y-4 bg-red-50 p-4 rounded-xl border border-red-100 md:col-start-2">
-                  <h3 className="font-bold text-red-800 mb-2">Potongan</h3>
-                  <input type="number" name="potongan_ketidakhadiran" placeholder="Potongan Ketidakhadiran" value={formData.potongan_ketidakhadiran} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="bpjs_kes" placeholder="BPJS Kesehatan" value={formData.bpjs_kes} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="bpjstk_jht" placeholder="BPJSTK JHT" value={formData.bpjstk_jht} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="bpjstk_jp" placeholder="BPJSTK JP" value={formData.bpjstk_jp} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg mb-2" />
-                  <input type="number" name="pph_21" placeholder="PPh 21" value={formData.pph_21} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg" />
+                {/* Kolom Kanan Bawah: Potongan */}
+                <div className="space-y-3 bg-red-50 p-4 rounded-xl border border-red-100 md:col-start-2">
+                  <h3 className="font-bold text-red-800 mb-2 text-lg">Potongan (-)</h3>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-red-700 mb-1">Potongan Ketidakhadiran</label>
+                    <input type="number" name="potongan_ketidakhadiran" value={formData.potongan_ketidakhadiran} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-red-700 mb-1">BPJS Kesehatan</label>
+                    <input type="number" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-red-700 mb-1">BPJSTK JHT</label>
+                    <input type="number" name="bpjstk_jht" value={formData.bpjstk_jht} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-red-700 mb-1">BPJSTK JP</label>
+                    <input type="number" name="bpjstk_jp" value={formData.bpjstk_jp} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-red-700 mb-1">PPh 21</label>
+                    <input type="number" name="pph_21" value={formData.pph_21} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
+                  </div>
                 </div>
 
-                <div className="md:col-span-2 bg-slate-100 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                {/* Tampilan Total (Otomatis) */}
+                <div className="md:col-span-2 bg-slate-100 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
                   <div>
                     <p className="text-sm font-bold text-slate-600">Total Bersih (Gaji + Tunjangan - Potongan):</p>
-                    <p className="text-2xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
+                    <p className="text-3xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
                   </div>
-                  <button type="submit" disabled={isSaving} className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900">
+                  <button type="submit" disabled={isSaving} className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 w-full md:w-auto justify-center shadow-lg transition-all">
                     {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Data Gaji
                   </button>
                 </div>
@@ -271,12 +302,12 @@ export default function GajiKaryawan() {
       )}
 
       {/* ======================================================== */}
-      {/* MODAL SLIP GAJI (Hanya Tampil Saat di Klik / Print) */}
+      {/* MODAL SLIP GAJI */}
       {/* ======================================================== */}
       {selectedSlip && (
-        <div className="fixed inset-0 z-50 bg-white print:static print:bg-transparent">
+        <div className="fixed inset-0 z-50 bg-white print:static print:bg-transparent overflow-y-auto">
           {/* Panel Modal Kasir (Disembunyikan saat Print) */}
-          <div className="flex justify-end p-4 print:hidden bg-slate-100 border-b">
+          <div className="flex justify-end p-4 print:hidden bg-slate-100 border-b sticky top-0">
             <button onClick={() => handleCetakSlip(selectedSlip)} className="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold mr-2 flex items-center gap-2 shadow-md hover:bg-blue-700">
               <Printer size={18} /> Cetak Slip
             </button>
