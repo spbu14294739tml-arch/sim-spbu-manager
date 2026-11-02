@@ -16,7 +16,7 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // GUNAKAN ANGKA 0 (BUKAN STRING) UNTUK SEMUA INPUT
+  // State menggunakan angka 0, agar tidak error saat dikalkulasi
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
@@ -52,7 +52,6 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
-  // Fungsi kalkulasi otomatis
   const hitungTotal = (data) => {
     const totalTunjangan = 
       (data.tunjangan_komunikasi || 0) + 
@@ -80,7 +79,6 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // Saat mengetik, simpan sebagai float (angka desimal)
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'karyawan_id') {
@@ -133,7 +131,6 @@ export default function GajiKaryawan() {
     } else {
       alert('✅ Data Gaji berhasil disimpan!');
       setShowForm(false);
-      // Reset form
       setFormData({
         karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
         astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
@@ -149,7 +146,7 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // KOMPONEN INPUT MENGGUNAKAN HTML MURNI YANG PALING STABIL
+  // KOMPONEN INPUT MURNI HTML
   const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => (
     <div className="mb-4">
       <label className={`block text-sm font-bold mb-1.5 ${labelColor}`}>{label}</label>
@@ -262,7 +259,6 @@ export default function GajiKaryawan() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* KIRI: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">Pilih Karyawan</label>
@@ -276,7 +272,6 @@ export default function GajiKaryawan() {
                   <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
                 </div>
 
-                {/* TENGAH: Pendapatan */}
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
                   <h3 className="font-bold text-green-800 mb-4 text-lg border-b border-green-200 pb-2">Pendapatan (+)</h3>
                   <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} labelColor="text-green-700" />
@@ -288,7 +283,6 @@ export default function GajiKaryawan() {
                   <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} labelColor="text-green-700" />
                 </div>
 
-                {/* KANAN: Potongan */}
                 <div className="space-y-1 bg-red-50 p-5 rounded-xl border border-red-200">
                   <h3 className="font-bold text-red-800 mb-4 text-lg border-b border-red-200 pb-2">Potongan (-)</h3>
                   <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} labelColor="text-red-700" />
@@ -315,7 +309,6 @@ export default function GajiKaryawan() {
         </div>
       )}
 
-      {/* MODAL SLIP GAJI */}
       {selectedSlip && (
         <div className="fixed inset-0 z-50 bg-white print:static print:bg-transparent overflow-y-auto">
           <div className="flex justify-end p-4 print:hidden bg-slate-100 border-b sticky top-0">
