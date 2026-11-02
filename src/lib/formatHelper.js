@@ -1,10 +1,11 @@
 // src/lib/formatHelper.js
-export const formatRupiah = (angka) => {
-  if (!angka) return 'Rp 0';
+export const formatRupiah = (angka, showDecimal = false) => {
+  if (!angka && angka !== 0) return 'Rp 0';
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: showDecimal ? 2 : 0,
+    maximumFractionDigits: showDecimal ? 2 : 0,
   }).format(angka);
 };
 

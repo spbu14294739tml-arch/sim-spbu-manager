@@ -189,7 +189,7 @@ export default function GajiKaryawan() {
         />
         {/* Preview Rupiah di bawahnya */}
         <div className="text-right text-[11px] font-semibold text-slate-500 mt-1 mr-1">
-          {formatRupiah(numValue)}
+           {formatRupiah(numValue, true)}
         </div>
       </div>
     );
