@@ -16,7 +16,7 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // Gunakan string kosong '' agar form mudah diketik
+  // Menggunakan string kosong '' agar form mudah diketik
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
@@ -52,8 +52,23 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
+  // Fungsi untuk konversi teks "1.500.000,50" menjadi angka 1500000.5
+  const parseNumber = (val) => {
+    if (!val) return 0;
+    // Hapus titik ribuan, ubah koma menjadi titik desimal
+    const clean = val.toString().replace(/\./g, '').replace(',', '.');
+    return parseFloat(clean) || 0;
+  };
+
+  // Fungsi untuk format angka menjadi "1.500.000,50"
+  const formatInputDisplay = (val) => {
+    const num = parseNumber(val);
+    if (num === 0 && val === '') return '';
+    return num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const hitungTotal = (data) => {
-    const getNum = (val) => parseFloat(val) || 0;
+    const getNum = (val) => parseNumber(val);
 
     const totalTunjangan = 
       getNum(data.tunjangan_komunikasi) + 
@@ -81,9 +96,33 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
+  // Saat mengetik, biarkan user ketik bebas (hanya angka dan koma/titik)
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    if (name === 'karyawan_id') {
+      setFormData({ ...formData, [name]: value });
+    } else {
+      const rawValue = value.replace(/[^0-9.,]/g, '');
+      setFormData({ ...formData, [name]: rawValue });
+    }
+  };
+
+  // Saat pindah kolom, format jadi Rupiah penuh
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    if (name !== 'karyawan_id' && value !== '') {
+      setFormData({ ...formData, [name]: formatInputDisplay(value) });
+    }
+  };
+
+  // Saat kolom di-klik, buka format angka mentahnya biar mudah diedit
+  const handleFocus = (e) => {
+    const { name, value } = e.target;
+    if (name !== 'karyawan_id' && value !== '') {
+      const num = parseNumber(value);
+      // Tampilkan sebagai angka murni (misal 5386982 atau 1500.50)
+      setFormData({ ...formData, [name]: num.toString() });
+    }
   };
 
   const handlePilihKaryawan = (e) => {
@@ -115,21 +154,21 @@ export default function GajiKaryawan() {
       karyawan_id: formData.karyawan_id,
       bulan: selectedMonth,
       tahun: selectedYear,
-      gaji_pokok: parseFloat(formData.gaji_pokok) || 0,
-      tunjangan_komunikasi: parseFloat(formData.tunjangan_komunikasi) || 0,
-      tunjangan_jabatan: parseFloat(formData.tunjangan_jabatan) || 0,
-      upah_sundulan: parseFloat(formData.upah_sundulan) || 0,
-      thr: parseFloat(formData.thr) || 0,
-      lembur: parseFloat(formData.lembur) || 0,
-      masuk_shift_malam: parseFloat(formData.masuk_shift_malam) || 0,
-      reward_pasti_pas: parseFloat(formData.reward_pasti_pas) || 0,
-      astek_jht: parseFloat(formData.astek_jht) || 0,
-      astek_jp: parseFloat(formData.astek_jp) || 0,
-      bpjs_kes: parseFloat(formData.bpjs_kes) || 0,
-      pph_21: parseFloat(formData.pph_21) || 0,
-      absen: parseFloat(formData.absen) || 0,
-      adm: parseFloat(formData.adm) || 0,
-      pot_lainnya: parseFloat(formData.pot_lainnya) || 0,
+      gaji_pokok: parseNumber(formData.gaji_pokok),
+      tunjangan_komunikasi: parseNumber(formData.tunjangan_komunikasi),
+      tunjangan_jabatan: parseNumber(formData.tunjangan_jabatan),
+      upah_sundulan: parseNumber(formData.upah_sundulan),
+      thr: parseNumber(formData.thr),
+      lembur: parseNumber(formData.lembur),
+      masuk_shift_malam: parseNumber(formData.masuk_shift_malam),
+      reward_pasti_pas: parseNumber(formData.reward_pasti_pas),
+      astek_jht: parseNumber(formData.astek_jht),
+      astek_jp: parseNumber(formData.astek_jp),
+      bpjs_kes: parseNumber(formData.bpjs_kes),
+      pph_21: parseNumber(formData.pph_21),
+      absen: parseNumber(formData.absen),
+      adm: parseNumber(formData.adm),
+      pot_lainnya: parseNumber(formData.pot_lainnya),
       tunjangan: totalPendapatan,
       potongan: totalPotongan,
       total_bersih: totalBersih,
@@ -158,21 +197,22 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // Komponen Input Langsung, Besar, Rata Kanan
-  const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => (
+  // Komponen Input Cerdas
+  const FormInput = ({ label, name, value, onChange, onBlur, onFocus, readOnly = false, labelColor = 'text-slate-700' }) => (
     <div className="mb-4">
       <label className={`block text-sm font-bold mb-1.5 ${labelColor}`}>{label}</label>
       <input 
-        type="number" 
-        step="0.01"
+        type="text" 
         name={name} 
         value={value} 
         onChange={onChange} 
+        onBlur={onBlur}
+        onFocus={onFocus}
         readOnly={readOnly}
         className={`w-full px-4 py-3 border border-slate-300 rounded-xl text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
-          ${readOnly ? 'bg-slate-100 text-slate-500' : 'bg-white text-slate-900'}
+          ${readOnly ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-900'}
         `} 
-        placeholder="0"
+        placeholder="0,00"
       />
     </div>
   );
@@ -282,31 +322,31 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} readOnly={true} labelColor="text-slate-700" />
                 </div>
 
                 {/* TENGAH: Pendapatan */}
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
                   <h3 className="font-bold text-green-800 mb-4 text-lg border-b border-green-200 pb-2">Pendapatan (+)</h3>
-                  <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="THR" name="thr" value={formData.thr} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="THR" name="thr" value={formData.thr} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
                 </div>
 
                 {/* KANAN: Potongan */}
                 <div className="space-y-1 bg-red-50 p-5 rounded-xl border border-red-200">
                   <h3 className="font-bold text-red-800 mb-4 text-lg border-b border-red-200 pb-2">Potongan (-)</h3>
-                  <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="ADM" name="adm" value={formData.adm} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="ADM" name="adm" value={formData.adm} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
                 </div>
 
                 <div className="md:col-span-3 bg-slate-100 p-5 rounded-xl border border-slate-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
@@ -324,6 +364,7 @@ export default function GajiKaryawan() {
         </div>
       )}
 
+      {/* MODAL SLIP GAJI */}
       {selectedSlip && (
         <div className="fixed inset-0 z-50 bg-white print:static print:bg-transparent overflow-y-auto">
           <div className="flex justify-end p-4 print:hidden bg-slate-100 border-b sticky top-0">
