@@ -16,11 +16,10 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // State Form Data (Ditambah data karyawan untuk display)
   const [formData, setFormData] = useState({
     karyawan_id: '', 
-    gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
-    astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
+    gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
+    astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
   });
   const [selectedKaryawanInfo, setSelectedKaryawanInfo] = useState(null);
 
@@ -37,7 +36,6 @@ export default function GajiKaryawan() {
 
     if (dataGaji) setDaftarGaji(dataGaji);
 
-    // Kita ambil semua kolom karyawan (termasuk gaji_pokok & tunjangan jika ada)
     const { data: dataKaryawan } = await supabase.from('karyawan').select('*').eq('status', 'Aktif');
     if (dataKaryawan) setDaftarKaryawan(dataKaryawan);
 
@@ -53,27 +51,59 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
+  // Fungsi Format Angka dengan Desimal (untuk input)
+  const formatNumberInput = (value) => {
+    if (!value) return '';
+    // Hapus karakter selain angka dan koma
+    const numberString = value.toString().replace(/[^0-9,]/g, '');
+    // Ganti koma dengan titik untuk desimal
+    const parts = numberString.split(',');
+    const integerPart = parts[0];
+    const decimalPart = parts[1];
+
+    // Format ribuan pada bagian integer
+    let formattedInteger = '';
+    let count = 0;
+    for (let i = integerPart.length - 1; i >= 0; i--) {
+      formattedInteger = integerPart[i] + formattedInteger;
+      count++;
+      if (count % 3 === 0 && i !== 0) {
+        formattedInteger = '.' + formattedInteger;
+      }
+    }
+
+    return decimalPart !== undefined ? `${formattedInteger},${decimalPart}` : formattedInteger;
+  };
+
+  // Fungsi Parse Angka Kembali ke Float (untuk kalkulasi)
+  const parseNumber = (value) => {
+    if (!value) return 0;
+    // Hapus titik ribuan, ganti koma dengan titik desimal
+    const cleanValue = value.toString().replace(/\./g, '').replace(',', '.');
+    return parseFloat(cleanValue) || 0;
+  };
+
   const hitungTotal = (data) => {
     const totalTunjangan = 
-      (parseFloat(data.tunjangan_komunikasi) || 0) + 
-      (parseFloat(data.tunjangan_jabatan) || 0) + 
-      (parseFloat(data.upah_sundulan) || 0) + 
-      (parseFloat(data.thr) || 0) + 
-      (parseFloat(data.lembur) || 0) + 
-      (parseFloat(data.masuk_shift_malam) || 0) + 
-      (parseFloat(data.reward_pasti_pas) || 0);
+      parseNumber(data.tunjangan_komunikasi) + 
+      parseNumber(data.tunjangan_jabatan) + 
+      parseNumber(data.upah_sundulan) + 
+      parseNumber(data.thr) + 
+      parseNumber(data.lembur) + 
+      parseNumber(data.masuk_shift_malam) + 
+      parseNumber(data.reward_pasti_pas);
       
-    const gajiPokok = parseFloat(data.gaji_pokok) || 0;
+    const gajiPokok = parseNumber(data.gaji_pokok);
     const totalPendapatan = gajiPokok + totalTunjangan;
 
     const totalPotongan = 
-      (parseFloat(data.astek_jht) || 0) + 
-      (parseFloat(data.astek_jp) || 0) + 
-      (parseFloat(data.bpjs_kes) || 0) + 
-      (parseFloat(data.pph_21) || 0) + 
-      (parseFloat(data.absen) || 0) + 
-      (parseFloat(data.adm) || 0) +
-      (parseFloat(data.pot_lainnya) || 0);
+      parseNumber(data.astek_jht) + 
+      parseNumber(data.astek_jp) + 
+      parseNumber(data.bpjs_kes) + 
+      parseNumber(data.pph_21) + 
+      parseNumber(data.absen) + 
+      parseNumber(data.adm) +
+      parseNumber(data.pot_lainnya);
 
     const totalBersih = totalPendapatan - totalPotongan;
 
@@ -82,14 +112,16 @@ export default function GajiKaryawan() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    // Format angka hanya untuk input yang bukan select
+    if (name !== 'karyawan_id') {
+      setFormData({ ...formData, [name]: formatNumberInput(value) });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
-  // FUNGSI SAKTI: Auto-fill saat karyawan dipilih
   const handlePilihKaryawan = (e) => {
     const selectedId = e.target.value;
-    
-    // Cari data karyawan di array
     const karyawanData = daftarKaryawan.find(k => k.id.toString() === selectedId);
     
     if (karyawanData) {
@@ -97,12 +129,12 @@ export default function GajiKaryawan() {
       setFormData({
         ...formData,
         karyawan_id: selectedId,
-        gaji_pokok: karyawanData.gaji_pokok || 0, // Ambil dari DB (jika tidak ada, default 0)
-        tunjangan_jabatan: karyawanData.tunjangan_jabatan || 0, // Ambil dari DB
+        gaji_pokok: formatNumberInput(karyawanData.gaji_pokok || 0),
+        tunjangan_jabatan: formatNumberInput(karyawanData.tunjangan_jabatan || 0),
       });
     } else {
       setSelectedKaryawanInfo(null);
-      setFormData({ ...formData, karyawan_id: '', gaji_pokok: 0, tunjangan_jabatan: 0 });
+      setFormData({ ...formData, karyawan_id: '', gaji_pokok: '', tunjangan_jabatan: '' });
     }
   };
 
@@ -117,21 +149,21 @@ export default function GajiKaryawan() {
       karyawan_id: formData.karyawan_id,
       bulan: selectedMonth,
       tahun: selectedYear,
-      gaji_pokok: parseFloat(formData.gaji_pokok) || 0,
-      tunjangan_komunikasi: parseFloat(formData.tunjangan_komunikasi) || 0,
-      tunjangan_jabatan: parseFloat(formData.tunjangan_jabatan) || 0,
-      upah_sundulan: parseFloat(formData.upah_sundulan) || 0,
-      thr: parseFloat(formData.thr) || 0,
-      lembur: parseFloat(formData.lembur) || 0,
-      masuk_shift_malam: parseFloat(formData.masuk_shift_malam) || 0,
-      reward_pasti_pas: parseFloat(formData.reward_pasti_pas) || 0,
-      astek_jht: parseFloat(formData.astek_jht) || 0,
-      astek_jp: parseFloat(formData.astek_jp) || 0,
-      bpjs_kes: parseFloat(formData.bpjs_kes) || 0,
-      pph_21: parseFloat(formData.pph_21) || 0,
-      absen: parseFloat(formData.absen) || 0,
-      adm: parseFloat(formData.adm) || 0,
-      pot_lainnya: parseFloat(formData.pot_lainnya) || 0,
+      gaji_pokok: parseNumber(formData.gaji_pokok),
+      tunjangan_komunikasi: parseNumber(formData.tunjangan_komunikasi),
+      tunjangan_jabatan: parseNumber(formData.tunjangan_jabatan),
+      upah_sundulan: parseNumber(formData.upah_sundulan),
+      thr: parseNumber(formData.thr),
+      lembur: parseNumber(formData.lembur),
+      masuk_shift_malam: parseNumber(formData.masuk_shift_malam),
+      reward_pasti_pas: parseNumber(formData.reward_pasti_pas),
+      astek_jht: parseNumber(formData.astek_jht),
+      astek_jp: parseNumber(formData.astek_jp),
+      bpjs_kes: parseNumber(formData.bpjs_kes),
+      pph_21: parseNumber(formData.pph_21),
+      absen: parseNumber(formData.absen),
+      adm: parseNumber(formData.adm),
+      pot_lainnya: parseNumber(formData.pot_lainnya),
       tunjangan: totalPendapatan,
       potongan: totalPotongan,
       total_bersih: totalBersih,
@@ -144,8 +176,8 @@ export default function GajiKaryawan() {
       alert('✅ Data Gaji berhasil disimpan!');
       setShowForm(false);
       setFormData({
-        karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
-        astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
+        karyawan_id: '', gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
+        astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
       });
       setSelectedKaryawanInfo(null);
       fetchData();
@@ -158,9 +190,24 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
+  // Komponen Input Number Rata Kanan
+  const InputNumber = ({ label, name, value, onChange, readOnly = false, color = 'text-slate-700' }) => (
+    <div>
+      <label className={`block text-xs font-semibold mb-1 ${color}`}>{label}</label>
+      <input 
+        type="text" 
+        name={name} 
+        value={value} 
+        onChange={onChange} 
+        readOnly={readOnly}
+        className={`w-full px-4 py-2 border rounded-lg text-sm text-right font-mono ${readOnly ? 'bg-slate-100 text-slate-500' : ''}`} 
+      />
+    </div>
+  );
+
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      {/* HEADER HALAMAN */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 print:hidden">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Manajemen Gaji Karyawan</h1>
@@ -245,7 +292,6 @@ export default function GajiKaryawan() {
 
             <form onSubmit={handleSimpanGaji} className="p-6">
               
-              {/* INFO KARYAWAN TERPILIH */}
               {selectedKaryawanInfo && (
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-6 text-sm">
                   <div><span className="text-slate-500 block text-xs">Nama</span> <span className="font-bold text-slate-800">{selectedKaryawanInfo.nama}</span></div>
@@ -256,7 +302,6 @@ export default function GajiKaryawan() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
-                {/* Kolom Kiri: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Pilih Karyawan</label>
@@ -267,51 +312,31 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Gaji Pokok (Rp)</label>
-                    <input type="number" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} className="w-full px-4 py-2 border rounded-xl font-bold bg-slate-50" required readOnly title="Otomatis dari Database" />
-                  </div>
+                  <InputNumber label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly color="text-slate-700" />
                 </div>
 
-                {/* Kolom Tengah: Pendapatan/Tunjangan */}
                 <div className="space-y-3 bg-green-50 p-4 rounded-xl border border-green-100">
                   <h3 className="font-bold text-green-800 mb-2 text-lg">Pendapatan (+)</h3>
-                  {[
-                    { name: 'tunjangan_komunikasi', label: 'Tunj. Komunikasi' },
-                    { name: 'tunjangan_jabatan', label: 'Tunj. Jabatan' },
-                    { name: 'upah_sundulan', label: 'Upah Sundulan' },
-                    { name: 'thr', label: 'THR' },
-                    { name: 'lembur', label: 'Lembur' },
-                    { name: 'masuk_shift_malam', label: 'Shift Malam' },
-                    { name: 'reward_pasti_pas', label: 'Pastipas' },
-                  ].map((item) => (
-                    <div key={item.name}>
-                      <label className="block text-xs font-semibold text-green-700 mb-1">{item.label}</label>
-                      <input type="number" name={item.name} value={formData[item.name]} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
-                    </div>
-                  ))}
+                  <InputNumber label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="THR" name="thr" value={formData.thr} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} color="text-green-700" />
+                  <InputNumber label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} color="text-green-700" />
                 </div>
 
-                {/* Kolom Kanan: Potongan */}
                 <div className="space-y-3 bg-red-50 p-4 rounded-xl border border-red-100">
                   <h3 className="font-bold text-red-800 mb-2 text-lg">Potongan (-)</h3>
-                  {[
-                    { name: 'astek_jht', label: 'Astek JHT (2%)' },
-                    { name: 'astek_jp', label: 'Astek JP (1%)' },
-                    { name: 'bpjs_kes', label: 'BPJS Kesehatan (1%)' },
-                    { name: 'pph_21', label: 'PPh 21' },
-                    { name: 'absen', label: 'Potongan Absen' },
-                    { name: 'adm', label: 'ADM' },
-                    { name: 'pot_lainnya', label: 'Pot. Lain-lain' },
-                  ].map((item) => (
-                    <div key={item.name}>
-                      <label className="block text-xs font-semibold text-red-700 mb-1">{item.label}</label>
-                      <input type="number" name={item.name} value={formData[item.name]} onChange={handleChange} className="w-full px-4 py-2 border rounded-lg text-sm" />
-                    </div>
-                  ))}
+                  <InputNumber label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="ADM" name="adm" value={formData.adm} onChange={handleChange} color="text-red-700" />
+                  <InputNumber label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} color="text-red-700" />
                 </div>
 
-                {/* Tampilan Total (Otomatis) */}
                 <div className="md:col-span-3 bg-slate-100 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
                   <div>
                     <p className="text-sm font-bold text-slate-600">Total Bersih (Pendapatan - Potongan):</p>
@@ -321,7 +346,6 @@ export default function GajiKaryawan() {
                     {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Data Gaji
                   </button>
                 </div>
-
               </div>
             </form>
           </div>
@@ -342,7 +366,6 @@ export default function GajiKaryawan() {
 
           <div className="p-8 max-w-2xl mx-auto print:max-w-none print:p-0">
             <div className="border border-slate-300 p-8 rounded-xl print:border-none print:shadow-none">
-              
               <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
                 <h1 className="text-2xl font-black text-slate-800">SLIP GAJI KARYAWAN</h1>
                 <p className="text-sm text-slate-500 font-medium">SPBU 14.294.739</p>
