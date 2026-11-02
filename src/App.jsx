@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { supabase } from './lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
 
-// Import Layout & Halaman Utama
 import LayoutUtama from './layouts/LayoutUtama';
 import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
@@ -17,33 +16,26 @@ import LaporanKerusakan from './pages/LaporanKerusakan';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
-// Import Halaman Hasil Refactor (Folder Baru)
-// Gunakan /index.jsx secara eksplisit agar Vercel tidak kebingungan
 import HalamanSetoran from './pages/HalamanSetoran'; 
-import JurnalKasir from './pages/JurnalKasir/index.jsx'; 
+import JurnalKasir from './pages/JurnalKasir'; // <-- Sekarang dia file tunggal
 import PengaturanSistem from './pages/Pengaturan/index.jsx'; 
 import VoucherBBM from './pages/VoucherBBM/index.jsx';      
 
-// 1. Satpam Umum (Cek Login)
+// ... (Fungsi ProtectedRoute, ManagerRoute, AccountingRoute, DashboardUtama tetap sama seperti sebelumnya) ...
+
 function ProtectedRoute() {
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); setIsLoading(false); });
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => authListener.subscription.unsubscribe();
   }, []);
-
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
   if (!session) return <Navigate to="/login" replace />;
   return <Outlet />;
 }
 
-// 2. Satpam Khusus Manager (Cek Role)
 function ManagerRoute() {
   const [isAuthorized, setIsAuthorized] = useState(null);
   useEffect(() => {
@@ -57,7 +49,6 @@ function ManagerRoute() {
   return isAuthorized ? <Outlet /> : <Navigate to="/" replace />;
 }
 
-// 3. Satpam Khusus Accounting (Cek Role)
 function AccountingRoute() {
   const [isAuthorized, setIsAuthorized] = useState(null);
   useEffect(() => {
@@ -72,7 +63,6 @@ function AccountingRoute() {
   return isAuthorized ? <Outlet /> : <Navigate to="/" replace />;
 }
 
-// 4. Satpam Pintar Dashboard (Beda Tampilan Kasir & Manager)
 function DashboardUtama() {
   const [role, setRole] = useState(null);
   useEffect(() => {
@@ -91,13 +81,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<LayoutUtama />}>
             <Route index element={<DashboardUtama />} />
             <Route path="absensi" element={<Absensi />} />
-                        
-            {/* RUTE KASIR & MANAJEMEN */}
+            
             <Route path="jurnal-transaksi" element={<JurnalKasir />} />
             <Route path="laporan-setoran" element={<HalamanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
@@ -105,22 +93,18 @@ function App() {
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
 
-            {/* RUTE VOUCHER BBM */}
             <Route path="voucher-bbm" element={<VoucherBBM />} />
 
-            {/* RUTE ACCOUNTING */}
             <Route element={<AccountingRoute />}>
               <Route path="accounting-voucher" element={<AccountingVoucher />} />
             </Route>
 
-            {/* RUTE MANAGER */}
             <Route element={<ManagerRoute />}>
               <Route path="karyawan" element={<DatabaseKaryawan />} />
               <Route path="pengaturan" element={<PengaturanSistem />} />
             </Route>
           </Route>
         </Route>
-        
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
