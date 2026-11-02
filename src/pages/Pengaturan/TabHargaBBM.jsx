@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
 import { Loader2, Fuel, History, ArrowUp, ArrowDown, Minus, Printer, X, Edit2, Calculator } from 'lucide-react';
-import KopSurat from '../KopSurat';
+import KopSurat from '../../components/KopSurat';
 
 export default function TabHargaBBM() {
   const [daftarHargaBBM, setDaftarHargaBBM] = useState([]);
