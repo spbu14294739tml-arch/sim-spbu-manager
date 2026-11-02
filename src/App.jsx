@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { supabase } from './lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
 
-// Import Layout & Halaman
+// Import Layout & Halaman Utama
 import LayoutUtama from './layouts/LayoutUtama';
 import Login from './pages/Login';
 import DashboardManager from './pages/DashboardManager';
@@ -14,11 +14,13 @@ import Absensi from './pages/Absensi';
 import LaporanKasir from './pages/LaporanKasir';
 import MasterTugas from './pages/MasterTugas'; 
 import LaporanKerusakan from './pages/LaporanKerusakan';
-import PengaturanSistem from './pages/Pengaturan'; 
 import AccountingVoucher from './pages/AccountingVoucher';
-import LaporanSetoran from './pages/HalamanSetoran'; 
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
-import VoucherBBM from './pages/VoucherBBM'; // <-- Cukup sampai foldernya saja
+
+// Import Halaman Hasil Refactor
+import HalamanSetoran from './pages/HalamanSetoran'; 
+import PengaturanSistem from './pages/Pengaturan'; 
+import VoucherBBM from './pages/VoucherBBM'; 
 import JurnalKasir from './pages/JurnalKasir'; 
 
 // 1. Satpam Umum (Cek Login)
@@ -43,51 +45,35 @@ function ProtectedRoute() {
 // 2. Satpam Khusus Manager (Cek Role)
 function ManagerRoute() {
   const [isAuthorized, setIsAuthorized] = useState(null);
-
   useEffect(() => {
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && user.user_metadata?.role === 'manager') {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(false);
-      }
+      setIsAuthorized(user?.user_metadata?.role === 'manager');
     };
     checkRole();
   }, []);
-
   if (isAuthorized === null) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
-  if (!isAuthorized) return <Navigate to="/" replace />;
-  
-  return <Outlet />;
+  return isAuthorized ? <Outlet /> : <Navigate to="/" replace />;
 }
 
 // 3. Satpam Khusus Accounting (Cek Role)
 function AccountingRoute() {
   const [isAuthorized, setIsAuthorized] = useState(null);
-
   useEffect(() => {
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && (user.user_metadata?.role === 'accounting' || user.user_metadata?.role === 'manager')) {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(false);
-      }
+      const role = user?.user_metadata?.role;
+      setIsAuthorized(role === 'accounting' || role === 'manager');
     };
     checkRole();
   }, []);
-
   if (isAuthorized === null) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" size={32} /></div>;
-  if (!isAuthorized) return <Navigate to="/" replace />;
-  
-  return <Outlet />;
+  return isAuthorized ? <Outlet /> : <Navigate to="/" replace />;
 }
 
-// 4. Satpam Pintar Dashboard
+// 4. Satpam Pintar Dashboard (Beda Tampilan Kasir & Manager)
 function DashboardUtama() {
   const [role, setRole] = useState(null);
-
   useEffect(() => {
     const checkRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -95,14 +81,8 @@ function DashboardUtama() {
     };
     checkRole();
   }, []);
-
   if (role === null) return <div className="p-12 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" size={32} /></div>;
-  
-  if (role === 'kasir') {
-    return <DashboardKasir />;
-  }
-  
-  return <DashboardManager />;
+  return role === 'kasir' ? <DashboardKasir /> : <DashboardManager />;
 }
 
 function App() {
@@ -114,12 +94,11 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<LayoutUtama />}>
             <Route index element={<DashboardUtama />} />
-            
             <Route path="absensi" element={<Absensi />} />
                         
             {/* RUTE KASIR & MANAJEMEN */}
             <Route path="jurnal-transaksi" element={<JurnalKasir />} />
-            <Route path="laporan-setoran" element={<LaporanSetoran />} />    
+            <Route path="laporan-setoran" element={<HalamanSetoran />} />    
             <Route path="laporan-kasir" element={<LaporanKasir />} />
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
             <Route path="master-tugas" element={<MasterTugas />} />
