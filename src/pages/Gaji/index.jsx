@@ -16,7 +16,7 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // Gunakan string kosong '' agar form mudah diketik dan tidak "0"
+  // Gunakan string kosong '' agar form mudah diketik
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
@@ -52,7 +52,6 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
-  // Fungsi hitung dengan aman (parseFloat menangani titik desimal)
   const hitungTotal = (data) => {
     const getNum = (val) => parseFloat(val) || 0;
 
@@ -82,7 +81,6 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // Cukup simpan apa yang diketik user
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -113,7 +111,6 @@ export default function GajiKaryawan() {
 
     const { totalPendapatan, totalPotongan, totalBersih } = hitungTotal(formData);
 
-    // Pastikan data yang dikirim ke Supabase adalah angka (float), bukan string
     const payload = {
       karyawan_id: formData.karyawan_id,
       bulan: selectedMonth,
@@ -161,33 +158,24 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // Komponen Input Super Simple
-  const FormInput = ({ label, name, value, onChange, readOnly = false, color = 'text-slate-800', labelColor = 'text-slate-700' }) => {
-    // Mengubah string kosong menjadi angka 0 untuk perhitungan bayangan di bawah
-    const numericValue = parseFloat(value) || 0;
-
-    return (
-      <div className="mb-3">
-        <label className={`block text-xs font-bold mb-1.5 ${labelColor}`}>{label}</label>
-        <input 
-          type="number" 
-          step="any"
-          name={name} 
-          value={value} 
-          onChange={onChange} 
-          readOnly={readOnly}
-          className={`w-full px-4 py-2.5 border border-slate-300 rounded-xl text-xl text-right font-bold tracking-wide focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all
-            ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 shadow-sm'}
-          `} 
-          placeholder="0"
-        />
-        {/* Teks bayangan Rupiah */}
-        <div className="text-right text-xs font-semibold text-slate-500 mt-1 mr-1">
-          {formatRupiah(numericValue)}
-        </div>
-      </div>
-    );
-  };
+  // Komponen Input Langsung, Besar, Rata Kanan
+  const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => (
+    <div className="mb-4">
+      <label className={`block text-sm font-bold mb-1.5 ${labelColor}`}>{label}</label>
+      <input 
+        type="number" 
+        step="0.01"
+        name={name} 
+        value={value} 
+        onChange={onChange} 
+        readOnly={readOnly}
+        className={`w-full px-4 py-3 border border-slate-300 rounded-xl text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
+          ${readOnly ? 'bg-slate-100 text-slate-500' : 'bg-white text-slate-900'}
+        `} 
+        placeholder="0"
+      />
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -286,7 +274,7 @@ export default function GajiKaryawan() {
                 {/* KIRI: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Pilih Karyawan</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Pilih Karyawan</label>
                     <select name="karyawan_id" value={formData.karyawan_id} onChange={handlePilihKaryawan} className="w-full px-4 py-3 border border-slate-300 rounded-xl text-base font-semibold focus:ring-2 focus:ring-blue-500" required>
                       <option value="">-- Pilih Karyawan --</option>
                       {daftarKaryawan.map(k => (
@@ -336,7 +324,6 @@ export default function GajiKaryawan() {
         </div>
       )}
 
-      {/* MODAL SLIP GAJI */}
       {selectedSlip && (
         <div className="fixed inset-0 z-50 bg-white print:static print:bg-transparent overflow-y-auto">
           <div className="flex justify-end p-4 print:hidden bg-slate-100 border-b sticky top-0">
