@@ -15,11 +15,14 @@ export default function GajiKaryawan() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   const [showForm, setShowForm] = useState(false);
+  
+  // State Form Data (Ditambah data karyawan untuk display)
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
     astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
   });
+  const [selectedKaryawanInfo, setSelectedKaryawanInfo] = useState(null);
 
   const [selectedSlip, setSelectedSlip] = useState(null);
 
@@ -34,7 +37,8 @@ export default function GajiKaryawan() {
 
     if (dataGaji) setDaftarGaji(dataGaji);
 
-    const { data: dataKaryawan } = await supabase.from('karyawan').select('id, nama, posisi').eq('status', 'Aktif');
+    // Kita ambil semua kolom karyawan (termasuk gaji_pokok & tunjangan jika ada)
+    const { data: dataKaryawan } = await supabase.from('karyawan').select('*').eq('status', 'Aktif');
     if (dataKaryawan) setDaftarKaryawan(dataKaryawan);
 
     setIsLoading(false);
@@ -50,7 +54,6 @@ export default function GajiKaryawan() {
   };
 
   const hitungTotal = (data) => {
-    // Total Pendapatan
     const totalTunjangan = 
       (parseFloat(data.tunjangan_komunikasi) || 0) + 
       (parseFloat(data.tunjangan_jabatan) || 0) + 
@@ -63,7 +66,6 @@ export default function GajiKaryawan() {
     const gajiPokok = parseFloat(data.gaji_pokok) || 0;
     const totalPendapatan = gajiPokok + totalTunjangan;
 
-    // Total Potongan
     const totalPotongan = 
       (parseFloat(data.astek_jht) || 0) + 
       (parseFloat(data.astek_jp) || 0) + 
@@ -81,6 +83,27 @@ export default function GajiKaryawan() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  // FUNGSI SAKTI: Auto-fill saat karyawan dipilih
+  const handlePilihKaryawan = (e) => {
+    const selectedId = e.target.value;
+    
+    // Cari data karyawan di array
+    const karyawanData = daftarKaryawan.find(k => k.id.toString() === selectedId);
+    
+    if (karyawanData) {
+      setSelectedKaryawanInfo(karyawanData);
+      setFormData({
+        ...formData,
+        karyawan_id: selectedId,
+        gaji_pokok: karyawanData.gaji_pokok || 0, // Ambil dari DB (jika tidak ada, default 0)
+        tunjangan_jabatan: karyawanData.tunjangan_jabatan || 0, // Ambil dari DB
+      });
+    } else {
+      setSelectedKaryawanInfo(null);
+      setFormData({ ...formData, karyawan_id: '', gaji_pokok: 0, tunjangan_jabatan: 0 });
+    }
   };
 
   const handleSimpanGaji = async (e) => {
@@ -124,6 +147,7 @@ export default function GajiKaryawan() {
         karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
         astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
       });
+      setSelectedKaryawanInfo(null);
       fetchData();
     }
     setIsSaving(false);
@@ -131,9 +155,7 @@ export default function GajiKaryawan() {
 
   const handleCetakSlip = (gaji) => {
     setSelectedSlip(gaji);
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    setTimeout(() => { window.print(); }, 300);
   };
 
   return (
@@ -212,7 +234,7 @@ export default function GajiKaryawan() {
         </div>
       )}
 
-      {/* MODAL FORM INPUT GAJI (SUPER LENGKAP) */}
+      {/* MODAL FORM INPUT GAJI */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8">
@@ -222,13 +244,23 @@ export default function GajiKaryawan() {
             </div>
 
             <form onSubmit={handleSimpanGaji} className="p-6">
+              
+              {/* INFO KARYAWAN TERPILIH */}
+              {selectedKaryawanInfo && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex gap-6 text-sm">
+                  <div><span className="text-slate-500 block text-xs">Nama</span> <span className="font-bold text-slate-800">{selectedKaryawanInfo.nama}</span></div>
+                  <div><span className="text-slate-500 block text-xs">Jabatan</span> <span className="font-bold text-slate-800">{selectedKaryawanInfo.posisi}</span></div>
+                  <div><span className="text-slate-500 block text-xs">Tgl Masuk</span> <span className="font-bold text-slate-800">{new Date(selectedKaryawanInfo.tanggal_masuk || selectedKaryawanInfo.created_at).toLocaleDateString('id-ID')}</span></div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
                 {/* Kolom Kiri: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Pilih Karyawan</label>
-                    <select name="karyawan_id" value={formData.karyawan_id} onChange={handleChange} className="w-full px-4 py-2 border rounded-xl" required>
+                    <select name="karyawan_id" value={formData.karyawan_id} onChange={handlePilihKaryawan} className="w-full px-4 py-2 border rounded-xl" required>
                       <option value="">-- Pilih Karyawan --</option>
                       {daftarKaryawan.map(k => (
                         <option key={k.id} value={k.id}>{k.nama} ({k.posisi})</option>
@@ -237,7 +269,7 @@ export default function GajiKaryawan() {
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Gaji Pokok (Rp)</label>
-                    <input type="number" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} className="w-full px-4 py-2 border rounded-xl font-bold" required />
+                    <input type="number" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} className="w-full px-4 py-2 border rounded-xl font-bold bg-slate-50" required readOnly title="Otomatis dari Database" />
                   </div>
                 </div>
 
@@ -335,7 +367,6 @@ export default function GajiKaryawan() {
                     <td className="py-2 text-right font-mono font-bold">{formatRupiah(selectedSlip.gaji_pokok)}</td>
                   </tr>
                   
-                  {/* Pendapatan */}
                   <tr><td colSpan={2} className="pt-3 pb-1 text-xs font-bold text-green-700 uppercase">Tunjangan / Pendapatan</td></tr>
                   {selectedSlip.tunjangan_komunikasi > 0 && <tr><td className="py-1 pl-4 text-slate-500">Tunj. Komunikasi</td><td className="py-1 text-right font-mono text-green-600">+{formatRupiah(selectedSlip.tunjangan_komunikasi)}</td></tr>}
                   {selectedSlip.tunjangan_jabatan > 0 && <tr><td className="py-1 pl-4 text-slate-500">Tunj. Jabatan</td><td className="py-1 text-right font-mono text-green-600">+{formatRupiah(selectedSlip.tunjangan_jabatan)}</td></tr>}
@@ -345,7 +376,6 @@ export default function GajiKaryawan() {
                   {selectedSlip.masuk_shift_malam > 0 && <tr><td className="py-1 pl-4 text-slate-500">Shift Malam</td><td className="py-1 text-right font-mono text-green-600">+{formatRupiah(selectedSlip.masuk_shift_malam)}</td></tr>}
                   {selectedSlip.reward_pasti_pas > 0 && <tr><td className="py-1 pl-4 text-slate-500">Pastipas</td><td className="py-1 text-right font-mono text-green-600">+{formatRupiah(selectedSlip.reward_pasti_pas)}</td></tr>}
                   
-                  {/* Potongan */}
                   <tr><td colSpan={2} className="pt-3 pb-1 text-xs font-bold text-red-700 uppercase">Potongan</td></tr>
                   {selectedSlip.astek_jht > 0 && <tr><td className="py-1 pl-4 text-slate-500">Astek JHT (2%)</td><td className="py-1 text-right font-mono text-red-600">-{formatRupiah(selectedSlip.astek_jht)}</td></tr>}
                   {selectedSlip.astek_jp > 0 && <tr><td className="py-1 pl-4 text-slate-500">Astek JP (1%)</td><td className="py-1 text-right font-mono text-red-600">-{formatRupiah(selectedSlip.astek_jp)}</td></tr>}
