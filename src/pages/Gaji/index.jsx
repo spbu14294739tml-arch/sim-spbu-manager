@@ -1,4 +1,4 @@
-/pages/Gaji/index.jsx
+// src/pages/Gaji/index.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
