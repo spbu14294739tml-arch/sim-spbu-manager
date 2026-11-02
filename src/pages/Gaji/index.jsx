@@ -16,10 +16,11 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
+  // Gunakan angka 0 murni
   const [formData, setFormData] = useState({
     karyawan_id: '', 
-    gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
-    astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
+    gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
+    astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
   });
   const [selectedKaryawanInfo, setSelectedKaryawanInfo] = useState(null);
 
@@ -51,45 +52,42 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
-  const parseNum = (val) => {
-    if (!val) return 0;
-    const clean = val.toString().replace(/\./g, '').replace(',', '.');
-    return parseFloat(clean) || 0;
-  };
-
   const hitungTotal = (data) => {
     const totalTunjangan = 
-      parseNum(data.tunjangan_komunikasi) + 
-      parseNum(data.tunjangan_jabatan) + 
-      parseNum(data.upah_sundulan) + 
-      parseNum(data.thr) + 
-      parseNum(data.lembur) + 
-      parseNum(data.masuk_shift_malam) + 
-      parseNum(data.reward_pasti_pas);
+      (data.tunjangan_komunikasi || 0) + 
+      (data.tunjangan_jabatan || 0) + 
+      (data.upah_sundulan || 0) + 
+      (data.thr || 0) + 
+      (data.lembur || 0) + 
+      (data.masuk_shift_malam || 0) + 
+      (data.reward_pasti_pas || 0);
       
-    const gajiPokok = parseNum(data.gaji_pokok);
+    const gajiPokok = data.gaji_pokok || 0;
     const totalPendapatan = gajiPokok + totalTunjangan;
 
     const totalPotongan = 
-      parseNum(data.astek_jht) + 
-      parseNum(data.astek_jp) + 
-      parseNum(data.bpjs_kes) + 
-      parseNum(data.pph_21) + 
-      parseNum(data.absen) + 
-      parseNum(data.adm) +
-      parseNum(data.pot_lainnya);
+      (data.astek_jht || 0) + 
+      (data.astek_jp || 0) + 
+      (data.bpjs_kes || 0) + 
+      (data.pph_21 || 0) + 
+      (data.absen || 0) + 
+      (data.adm || 0) +
+      (data.pot_lainnya || 0);
 
     const totalBersih = totalPendapatan - totalPotongan;
 
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // FUNGSI INI BEBAS KETIK, HANYA MENYIMPAN TEKS APA ADANYA
+  // LOGIKA PALING SEDERHANA: LANGSUNG SIMPAN ANGKA
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Hanya izinkan angka, titik, dan koma
-    const rawValue = value.replace(/[^0-9.,]/g, '');
-    setFormData({ ...formData, [name]: rawValue });
+    if (name === 'karyawan_id') {
+      setFormData({ ...formData, [name]: value });
+    } else {
+      // Ubah ke angka, jika kosong jadi 0
+      setFormData({ ...formData, [name]: value === '' ? 0 : parseFloat(value) });
+    }
   };
 
   const handlePilihKaryawan = (e) => {
@@ -101,12 +99,12 @@ export default function GajiKaryawan() {
       setFormData({
         ...formData,
         karyawan_id: selectedId,
-        gaji_pokok: karyawanData.gaji_pokok ? karyawanData.gaji_pokok.toString() : '',
-        tunjangan_jabatan: karyawanData.tunjangan_jabatan ? karyawanData.tunjangan_jabatan.toString() : '',
+        gaji_pokok: Number(karyawanData.gaji_pokok) || 0,
+        tunjangan_jabatan: Number(karyawanData.tunjangan_jabatan) || 0,
       });
     } else {
       setSelectedKaryawanInfo(null);
-      setFormData({ ...formData, karyawan_id: '', gaji_pokok: '', tunjangan_jabatan: '' });
+      setFormData({ ...formData, karyawan_id: '', gaji_pokok: 0, tunjangan_jabatan: 0 });
     }
   };
 
@@ -118,24 +116,9 @@ export default function GajiKaryawan() {
     const { totalPendapatan, totalPotongan, totalBersih } = hitungTotal(formData);
 
     const payload = {
-      karyawan_id: formData.karyawan_id,
+      ...formData,
       bulan: selectedMonth,
       tahun: selectedYear,
-      gaji_pokok: parseNum(formData.gaji_pokok),
-      tunjangan_komunikasi: parseNum(formData.tunjangan_komunikasi),
-      tunjangan_jabatan: parseNum(formData.tunjangan_jabatan),
-      upah_sundulan: parseNum(formData.upah_sundulan),
-      thr: parseNum(formData.thr),
-      lembur: parseNum(formData.lembur),
-      masuk_shift_malam: parseNum(formData.masuk_shift_malam),
-      reward_pasti_pas: parseNum(formData.reward_pasti_pas),
-      astek_jht: parseNum(formData.astek_jht),
-      astek_jp: parseNum(formData.astek_jp),
-      bpjs_kes: parseNum(formData.bpjs_kes),
-      pph_21: parseNum(formData.pph_21),
-      absen: parseNum(formData.absen),
-      adm: parseNum(formData.adm),
-      pot_lainnya: parseNum(formData.pot_lainnya),
       tunjangan: totalPendapatan,
       potongan: totalPotongan,
       total_bersih: totalBersih,
@@ -150,8 +133,8 @@ export default function GajiKaryawan() {
       alert('✅ Data Gaji berhasil disimpan!');
       setShowForm(false);
       setFormData({
-        karyawan_id: '', gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
-        astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
+        karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
+        astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
       });
       setSelectedKaryawanInfo(null);
       fetchData();
@@ -164,31 +147,24 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // KOMPONEN INPUT SEDERHANA (BEBAS KETIK)
-  const FormInput = ({ label, name, value, onChange, isReadOnly = false, labelColor = 'text-slate-700' }) => {
-    const numValue = parseNum(value);
-
-    return (
-      <div className="mb-2">
-        <label className={`block text-xs font-bold mb-1 ${labelColor}`}>{label}</label>
-        <input 
-          type="text" 
-          inputMode="decimal"
-          name={name} 
-          value={value} 
-          onChange={onChange} 
-          readOnly={isReadOnly}
-          className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
-            ${isReadOnly ? 'bg-slate-100 text-slate-600' : 'bg-white text-slate-900'}
-          `} 
-          placeholder="0"
-        />
-        <div className="text-right text-[11px] font-semibold text-slate-500 mt-1 mr-1">
-          {formatRupiah(numValue, true)}
-        </div>
-      </div>
-    );
-  };
+  // KOMPONEN INPUT PALING POLOS
+  const FormInput = ({ label, name, value, onChange, readOnly = false, labelColor = 'text-slate-700' }) => (
+    <div className="mb-3">
+      <label className={`block text-xs font-bold mb-1 ${labelColor}`}>{label}</label>
+      <input 
+        type="number" 
+        step="any"
+        name={name} 
+        value={value === 0 ? '' : value} 
+        onChange={onChange} 
+        readOnly={readOnly}
+        className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
+          ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
+        `} 
+        placeholder="0"
+      />
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
@@ -294,7 +270,7 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} isReadOnly={true} labelColor="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
                 </div>
 
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
@@ -322,7 +298,7 @@ export default function GajiKaryawan() {
                 <div className="md:col-span-3 bg-slate-100 p-5 rounded-xl border border-slate-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
                   <div>
                     <p className="text-sm font-bold text-slate-600">Total Bersih (Pendapatan - Potongan):</p>
-                    <p className="text-4xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih, true)}</p>
+                    <p className="text-4xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
                   </div>
                   <button type="submit" disabled={isSaving} className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 w-full md:w-auto justify-center shadow-lg transition-all">
                     {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Simpan Data Gaji
