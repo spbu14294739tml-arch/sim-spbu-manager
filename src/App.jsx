@@ -17,7 +17,7 @@ import LaporanKerusakan from './pages/LaporanKerusakan';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
 
-// Import Halaman Hasil Refactor
+// Import Halaman Hasil Refactor (Folder Baru)
 import HalamanSetoran from './pages/HalamanSetoran'; 
 import PengaturanSistem from './pages/Pengaturan'; 
 import VoucherBBM from './pages/VoucherBBM'; 
