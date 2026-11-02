@@ -1,4 +1,4 @@
-// src/pages/Gaji/index.jsx
+/pages/Gaji/index.jsx
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { formatRupiah } from '../../lib/formatHelper';
@@ -16,11 +16,11 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // State Form Data (Menggunakan String agar mudah saat mengetik)
+  // Menggunakan Number murni (bukan string) agar kalkulasi presisi
   const [formData, setFormData] = useState({
     karyawan_id: '', 
-    gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
-    astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
+    gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
+    astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
   });
   const [selectedKaryawanInfo, setSelectedKaryawanInfo] = useState(null);
 
@@ -52,62 +52,37 @@ export default function GajiKaryawan() {
     return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   };
 
-  // --- FUNGSI FORMAT ANGKA (Aman saat mengetik) ---
-  // 1. Saat mengetik, biarkan user ketik bebas (angka/koma)
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'karyawan_id') {
-      setFormData({ ...formData, [name]: value });
-    } else {
-      // Hanya izinkan angka dan koma
-      const rawValue = value.replace(/[^0-9,]/g, '');
-      setFormData({ ...formData, [name]: rawValue });
-    }
-  };
-
-  // 2. Saat input kehilangan fokus (blur), format jadi Rupiah dengan desimal
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    if (name !== 'karyawan_id' && value !== '') {
-      const parsed = parseNumber(value);
-      // Format ke 2 desimal, ganti titik jadi koma
-      const formatted = parsed.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      setFormData({ ...formData, [name]: formatted });
-    }
-  };
-
-  // Fungsi Parse untuk kalkulasi
-  const parseNumber = (value) => {
-    if (!value) return 0;
-    const cleanValue = value.toString().replace(/\./g, '').replace(',', '.');
-    return parseFloat(cleanValue) || 0;
-  };
-
   const hitungTotal = (data) => {
     const totalTunjangan = 
-      parseNumber(data.tunjangan_komunikasi) + 
-      parseNumber(data.tunjangan_jabatan) + 
-      parseNumber(data.upah_sundulan) + 
-      parseNumber(data.thr) + 
-      parseNumber(data.lembur) + 
-      parseNumber(data.masuk_shift_malam) + 
-      parseNumber(data.reward_pasti_pas);
+      (data.tunjangan_komunikasi || 0) + 
+      (data.tunjangan_jabatan || 0) + 
+      (data.upah_sundulan || 0) + 
+      (data.thr || 0) + 
+      (data.lembur || 0) + 
+      (data.masuk_shift_malam || 0) + 
+      (data.reward_pasti_pas || 0);
       
-    const gajiPokok = parseNumber(data.gaji_pokok);
+    const gajiPokok = data.gaji_pokok || 0;
     const totalPendapatan = gajiPokok + totalTunjangan;
 
     const totalPotongan = 
-      parseNumber(data.astek_jht) + 
-      parseNumber(data.astek_jp) + 
-      parseNumber(data.bpjs_kes) + 
-      parseNumber(data.pph_21) + 
-      parseNumber(data.absen) + 
-      parseNumber(data.adm) +
-      parseNumber(data.pot_lainnya);
+      (data.astek_jht || 0) + 
+      (data.astek_jp || 0) + 
+      (data.bpjs_kes || 0) + 
+      (data.pph_21 || 0) + 
+      (data.absen || 0) + 
+      (data.adm || 0) +
+      (data.pot_lainnya || 0);
 
     const totalBersih = totalPendapatan - totalPotongan;
 
     return { totalPendapatan, totalPotongan, totalBersih };
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    // Input type=number menghasilkan string, kita ubah ke Float
+    setFormData({ ...formData, [name]: parseFloat(value) || 0 });
   };
 
   const handlePilihKaryawan = (e) => {
@@ -119,12 +94,12 @@ export default function GajiKaryawan() {
       setFormData({
         ...formData,
         karyawan_id: selectedId,
-        gaji_pokok: (karyawanData.gaji_pokok || 0).toString(),
-        tunjangan_jabatan: (karyawanData.tunjangan_jabatan || 0).toString(),
+        gaji_pokok: karyawanData.gaji_pokok || 0,
+        tunjangan_jabatan: karyawanData.tunjangan_jabatan || 0,
       });
     } else {
       setSelectedKaryawanInfo(null);
-      setFormData({ ...formData, karyawan_id: '', gaji_pokok: '', tunjangan_jabatan: '' });
+      setFormData({ ...formData, karyawan_id: '', gaji_pokok: 0, tunjangan_jabatan: 0 });
     }
   };
 
@@ -139,21 +114,7 @@ export default function GajiKaryawan() {
       karyawan_id: formData.karyawan_id,
       bulan: selectedMonth,
       tahun: selectedYear,
-      gaji_pokok: parseNumber(formData.gaji_pokok),
-      tunjangan_komunikasi: parseNumber(formData.tunjangan_komunikasi),
-      tunjangan_jabatan: parseNumber(formData.tunjangan_jabatan),
-      upah_sundulan: parseNumber(formData.upah_sundulan),
-      thr: parseNumber(formData.thr),
-      lembur: parseNumber(formData.lembur),
-      masuk_shift_malam: parseNumber(formData.masuk_shift_malam),
-      reward_pasti_pas: parseNumber(formData.reward_pasti_pas),
-      astek_jht: parseNumber(formData.astek_jht),
-      astek_jp: parseNumber(formData.astek_jp),
-      bpjs_kes: parseNumber(formData.bpjs_kes),
-      pph_21: parseNumber(formData.pph_21),
-      absen: parseNumber(formData.absen),
-      adm: parseNumber(formData.adm),
-      pot_lainnya: parseNumber(formData.pot_lainnya),
+      ...formData, // Semua data angka langsung dimasukkan
       tunjangan: totalPendapatan,
       potongan: totalPotongan,
       total_bersih: totalBersih,
@@ -165,9 +126,10 @@ export default function GajiKaryawan() {
     } else {
       alert('✅ Data Gaji berhasil disimpan!');
       setShowForm(false);
+      // Reset form
       setFormData({
-        karyawan_id: '', gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
-        astek_jht: '', astek_jp: '', bpjs_kes: '', pph_21: '', absen: '', adm: '', pot_lainnya: ''
+        karyawan_id: '', gaji_pokok: 0, tunjangan_komunikasi: 0, tunjangan_jabatan: 0, upah_sundulan: 0, thr: 0, lembur: 0, masuk_shift_malam: 0, reward_pasti_pas: 0,
+        astek_jht: 0, astek_jp: 0, bpjs_kes: 0, pph_21: 0, absen: 0, adm: 0, pot_lainnya: 0
       });
       setSelectedKaryawanInfo(null);
       fetchData();
@@ -180,20 +142,28 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // Komponen Input Rata Kanan, Font Besar, dengan Format onBlur
-  const InputNumber = ({ label, name, value, onChange, onBlur, readOnly = false, color = 'text-slate-700' }) => (
-    <div>
-      <label className={`block text-xs font-semibold mb-1 ${color}`}>{label}</label>
-      <input 
-        type="text" 
-        name={name} 
-        value={value} 
-        onChange={onChange} 
-        onBlur={onBlur}
-        readOnly={readOnly}
-        className={`w-full px-4 py-2 border rounded-lg text-base text-right font-mono font-semibold ${readOnly ? 'bg-slate-100 text-slate-500' : 'text-slate-800'}`} 
-        placeholder="0,00"
-      />
+  // Komponen Input Khusus
+  const FormInput = ({ label, name, value, onChange, readOnly = false, color = 'text-slate-800', labelColor = 'text-slate-700' }) => (
+    <div className="mb-2">
+      <label className={`block text-xs font-bold mb-1 ${labelColor}`}>{label}</label>
+      <div className="relative">
+        <input 
+          type="number" 
+          step="any"
+          name={name} 
+          value={value === 0 ? '' : value} // Kosongkan jika 0 agar tidak ngetik ulang
+          onChange={onChange} 
+          readOnly={readOnly}
+          className={`w-full px-3 py-2.5 border border-slate-300 rounded-lg text-lg text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all
+            ${readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
+          `} 
+          placeholder="0"
+        />
+      </div>
+      {/* Teks Bayangan Format Rupiah di bawah input */}
+      <div className="text-right text-[11px] font-semibold text-slate-500 mt-1 mr-1">
+        {formatRupiah(value)}
+      </div>
     </div>
   );
 
@@ -291,48 +261,51 @@ export default function GajiKaryawan() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 
+                {/* KIRI: Karyawan & Gaji Pokok */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Pilih Karyawan</label>
-                    <select name="karyawan_id" value={formData.karyawan_id} onChange={handlePilihKaryawan} className="w-full px-4 py-2 border rounded-xl text-base" required>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Pilih Karyawan</label>
+                    <select name="karyawan_id" value={formData.karyawan_id} onChange={handlePilihKaryawan} className="w-full px-4 py-3 border border-slate-300 rounded-xl text-base font-semibold focus:ring-2 focus:ring-blue-500" required>
                       <option value="">-- Pilih Karyawan --</option>
                       {daftarKaryawan.map(k => (
                         <option key={k.id} value={k.id}>{k.nama} ({k.posisi})</option>
                       ))}
                     </select>
                   </div>
-                  <InputNumber label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} onBlur={handleBlur} readOnly color="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} readOnly={true} labelColor="text-slate-700" />
                 </div>
 
-                <div className="space-y-3 bg-green-50 p-4 rounded-xl border border-green-100">
-                  <h3 className="font-bold text-green-800 mb-2 text-lg">Pendapatan (+)</h3>
-                  <InputNumber label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="THR" name="thr" value={formData.thr} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
-                  <InputNumber label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} onBlur={handleBlur} color="text-green-700" />
+                {/* TENGAH: Pendapatan */}
+                <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
+                  <h3 className="font-bold text-green-800 mb-4 text-lg border-b border-green-200 pb-2">Pendapatan (+)</h3>
+                  <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="THR" name="thr" value={formData.thr} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} labelColor="text-green-700" />
                 </div>
 
-                <div className="space-y-3 bg-red-50 p-4 rounded-xl border border-red-100">
-                  <h3 className="font-bold text-red-800 mb-2 text-lg">Potongan (-)</h3>
-                  <InputNumber label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="ADM" name="adm" value={formData.adm} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
-                  <InputNumber label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} onBlur={handleBlur} color="text-red-700" />
+                {/* KANAN: Potongan */}
+                <div className="space-y-1 bg-red-50 p-5 rounded-xl border border-red-200">
+                  <h3 className="font-bold text-red-800 mb-4 text-lg border-b border-red-200 pb-2">Potongan (-)</h3>
+                  <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="ADM" name="adm" value={formData.adm} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} labelColor="text-red-700" />
                 </div>
 
-                <div className="md:col-span-3 bg-slate-100 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
+                <div className="md:col-span-3 bg-slate-100 p-5 rounded-xl border border-slate-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
                   <div>
                     <p className="text-sm font-bold text-slate-600">Total Bersih (Pendapatan - Potongan):</p>
-                    <p className="text-3xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
+                    <p className="text-4xl font-black text-blue-700">{formatRupiah(hitungTotal(formData).totalBersih)}</p>
                   </div>
                   <button type="submit" disabled={isSaving} className="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-900 w-full md:w-auto justify-center shadow-lg transition-all">
-                    {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} Simpan Data Gaji
+                    {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />} Simpan Data Gaji
                   </button>
                 </div>
               </div>
