@@ -666,6 +666,7 @@ export default function JurnalTransaksiKasir() {
                 <table className="w-full text-xs">
                   <thead className="bg-slate-100 text-slate-600 sticky top-0 z-10">
                     <tr>
+                      <th className="px-3 py-3 text-center w-24">Tanggal</th> {/* <-- TAMBAHKAN INI */}
                       <th className="px-3 py-3 text-left">Dari / Ke</th>
                       <th className="px-3 py-3 text-left">Uraian</th>
                       <th className="px-3 py-3 text-center">Reff</th>
@@ -679,7 +680,11 @@ export default function JurnalTransaksiKasir() {
                       <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-400">Belum ada transaksi hari ini.</td></tr>
                     ) : jurnalHariIni.map((item, idx) => (
                       <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                        <td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
+  <td className="px-3 py-2 text-center text-slate-500 text-xs">
+    {new Date(item.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}
+  </td> {/* <-- TAMBAHKAN INI */}
+                      <tr key={item.id} className={`hover:bg-slate-50 ${idx % 2 === 1 ? 'bg-slate-50/50' : ''}`}><
+                          td className="px-3 py-2 font-semibold text-slate-800">{item.dari_ke}</td>
                         <td className="px-3 py-2 text-slate-600">{item.uraian_kegiatan}</td>
                         <td className="px-3 py-2 text-center text-slate-400">{item.reff || '-'}</td>
                         <td className="px-3 py-2 text-right font-medium text-green-600">{item.debet > 0 ? formatRupiah(item.debet) : '-'}</td>
@@ -719,6 +724,7 @@ export default function JurnalTransaksiKasir() {
               <th className="border border-black px-2 py-2 text-right">Saldo (Rp)</th>
             </tr>
           </thead>
+          <td className="border border-black px-2 py-1.5 text-center">{new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
           <tbody>
             {jurnalHariIni.map((item) => (
               <tr key={item.id}>
@@ -731,7 +737,7 @@ export default function JurnalTransaksiKasir() {
               </tr>
             ))}
             <tr className="bg-slate-200 border-t-2 border-black font-bold">
-              <td colSpan={3} className="border border-black px-2 py-2 text-right uppercase">Total</td>
+              <td colSpan={4} className="border border-black px-2 py-2 text-right uppercase">Total</td>
               <td className="border border-black px-2 py-2 text-right">{formatRupiah(totalDebetBBM + totalDebetNFR + totalDebetVoucher)}</td>
               <td className="border border-black px-2 py-2 text-right">Rp 0</td>
               <td className="border border-black px-2 py-2 text-right">{formatRupiah(jurnalHariIni.length > 0 ? jurnalHariIni[jurnalHariIni.length - 1].saldo : 0)}</td>
