@@ -1,7 +1,20 @@
 // src/components/Sidebar.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCheck, ShoppingCart, Ticket, Barcode, AlertTriangle, FileText, FileCheck, PieChart, Settings, LogOut, UserCircle } from 'lucide-react';
+import { LayoutDashboard, 
+  Users, 
+  UserCheck, 
+  ShoppingCart, 
+  Barcode, 
+  AlertTriangle, 
+  FileText, 
+  FileCheck, 
+  PieChart, 
+  Settings, 
+  LogOut, 
+  UserCircle, 
+  Ticket, 
+  Wallet } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function Sidebar() {
@@ -35,6 +48,7 @@ export default function Sidebar() {
     { path: '/laporan-rekap', name: 'Laporan Rekap Harian', icon: PieChart },
     { path: '/laporan-setoran', name: 'Laporan Setoran', icon: FileCheck },
     { path: '/pengaturan', name: 'Pengaturan Sistem', icon: Settings },
+    { path: '/gaji', name: 'Gaji Karyawan', icon: Wallet, roles: ['manager', 'accounting'] },
   ];
 
   return (

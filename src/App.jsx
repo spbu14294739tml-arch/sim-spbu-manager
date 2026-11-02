@@ -15,6 +15,7 @@ import MasterTugas from './pages/MasterTugas';
 import LaporanKerusakan from './pages/LaporanKerusakan';
 import AccountingVoucher from './pages/AccountingVoucher';
 import LaporanRekapHarian from './pages/LaporanRekapHarian';
+import GajiKaryawan from './pages/Gaji';
 
 import HalamanSetoran from './pages/HalamanSetoran'; 
 import JurnalKasir from './pages/JurnalKasir'; // <-- Sekarang dia file tunggal
@@ -92,7 +93,7 @@ function App() {
             <Route path="laporan-rekap" element={<LaporanRekapHarian />} />
             <Route path="master-tugas" element={<MasterTugas />} />
             <Route path="laporan-kerusakan" element={<LaporanKerusakan />} />
-
+            <Route path="gaji" element={<GajiKaryawan />} />
             <Route path="voucher-bbm" element={<VoucherBBM />} />
 
             <Route element={<AccountingRoute />}>
