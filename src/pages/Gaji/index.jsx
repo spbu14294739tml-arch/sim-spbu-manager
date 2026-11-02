@@ -16,7 +16,7 @@ export default function GajiKaryawan() {
 
   const [showForm, setShowForm] = useState(false);
   
-  // Gunakan string kosong '' agar form benar-benar kosong saat baru diketik
+  // Semua input pakai string kosong ''
   const [formData, setFormData] = useState({
     karyawan_id: '', 
     gaji_pokok: '', tunjangan_komunikasi: '', tunjangan_jabatan: '', upah_sundulan: '', thr: '', lembur: '', masuk_shift_malam: '', reward_pasti_pas: '',
@@ -85,12 +85,30 @@ export default function GajiKaryawan() {
     return { totalPendapatan, totalPotongan, totalBersih };
   };
 
-  // Simpan apa yang diketik, hapus titik/koma agar tidak error saat disimpan
+  // FUNGSI INI BEBAS KETIK, TIDAK ADA INTERVENSI
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Hanya izinkan angka dan titik
-    const cleanValue = value.replace(/[^0-9.]/g, '');
-    setFormData({ ...formData, [name]: cleanValue });
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // FORMAT HANYA SAAT PINDAH KOLOM (BLUR)
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    if (name !== 'karyawan_id' && value !== '') {
+      const num = parseNum(value);
+      // Format dengan desimal 2 angka di belakang koma
+      const formatted = num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      setFormData(prev => ({ ...prev, [name]: formatted }));
+    }
+  };
+
+  // SAAT KLIK KOLOM (FOCUS), KEMBALIKAN KE ANGKA MURNI
+  const handleFocus = (e) => {
+    const { name, value } = e.target;
+    if (name !== 'karyawan_id' && value !== '') {
+      const num = parseNum(value);
+      setFormData(prev => ({ ...prev, [name]: num.toString() }));
+    }
   };
 
   const handlePilihKaryawan = (e) => {
@@ -165,8 +183,8 @@ export default function GajiKaryawan() {
     setTimeout(() => { window.print(); }, 300);
   };
 
-  // Komponen Input Tanpa ReadOnly Aneh
-  const FormInput = ({ label, name, value, onChange, isReadOnly = false, labelColor = 'text-slate-700' }) => (
+  // COMPONENT INPUT
+  const FormInput = ({ label, name, value, onChange, onBlur, onFocus, isReadOnly = false, labelColor = 'text-slate-700' }) => (
     <div className="mb-4">
       <label className={`block text-sm font-bold mb-1.5 ${labelColor}`}>{label}</label>
       <input 
@@ -175,11 +193,13 @@ export default function GajiKaryawan() {
         name={name} 
         value={value} 
         onChange={onChange} 
+        onBlur={onBlur}
+        onFocus={onFocus}
         readOnly={isReadOnly}
         className={`w-full px-4 py-3 border border-slate-300 rounded-xl text-xl text-right font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none
           ${isReadOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}
         `} 
-        placeholder="0"
+        placeholder="0,00"
       />
     </div>
   );
@@ -288,29 +308,29 @@ export default function GajiKaryawan() {
                       ))}
                     </select>
                   </div>
-                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} isReadOnly={true} labelColor="text-slate-700" />
+                  <FormInput label="Gaji Pokok (Rp)" name="gaji_pokok" value={formData.gaji_pokok} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} isReadOnly={true} labelColor="text-slate-700" />
                 </div>
 
                 <div className="space-y-1 bg-green-50 p-5 rounded-xl border border-green-200">
                   <h3 className="font-bold text-green-800 mb-4 text-lg border-b border-green-200 pb-2">Pendapatan (+)</h3>
-                  <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="THR" name="thr" value={formData.thr} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} labelColor="text-green-700" />
-                  <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} labelColor="text-green-700" />
+                  <FormInput label="Tunj. Komunikasi" name="tunjangan_komunikasi" value={formData.tunjangan_komunikasi} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Tunj. Jabatan" name="tunjangan_jabatan" value={formData.tunjangan_jabatan} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Upah Sundulan" name="upah_sundulan" value={formData.upah_sundulan} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="THR" name="thr" value={formData.thr} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Lembur" name="lembur" value={formData.lembur} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Shift Malam" name="masuk_shift_malam" value={formData.masuk_shift_malam} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
+                  <FormInput label="Pastipas" name="reward_pasti_pas" value={formData.reward_pasti_pas} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-green-700" />
                 </div>
 
                 <div className="space-y-1 bg-red-50 p-5 rounded-xl border border-red-200">
                   <h3 className="font-bold text-red-800 mb-4 text-lg border-b border-red-200 pb-2">Potongan (-)</h3>
-                  <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="ADM" name="adm" value={formData.adm} onChange={handleChange} labelColor="text-red-700" />
-                  <FormInput label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} labelColor="text-red-700" />
+                  <FormInput label="Astek JHT (2%)" name="astek_jht" value={formData.astek_jht} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Astek JP (1%)" name="astek_jp" value={formData.astek_jp} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="BPJS Kesehatan (1%)" name="bpjs_kes" value={formData.bpjs_kes} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="PPh 21" name="pph_21" value={formData.pph_21} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Potongan Absen" name="absen" value={formData.absen} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="ADM" name="adm" value={formData.adm} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
+                  <FormInput label="Pot. Lain-lain" name="pot_lainnya" value={formData.pot_lainnya} onChange={handleChange} onBlur={handleBlur} onFocus={handleFocus} labelColor="text-red-700" />
                 </div>
 
                 <div className="md:col-span-3 bg-slate-100 p-5 rounded-xl border border-slate-300 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
